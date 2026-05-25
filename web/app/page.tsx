@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { expandSearch } from "@/lib/synonyms";
 
 type Product = Record<string, string>;
 type VendorData = { name: string; productCount: number; products: Product[] };
@@ -31,16 +32,21 @@ export default function Home() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
+    const expandedQ = q ? expandSearch(q) : "";
+    const searchTerms = expandedQ ? expandedQ.split(/\s+/) : [];
+    
     return allProducts.filter(({ vendor, product }) => {
       if (activeVendor && vendor !== activeVendor) return false;
       if (!q) return true;
-      // Search part_number first, then all fields
-      const part = (product.part_number || "").toLowerCase();
-      if (part.includes(q)) return true;
-      // Search all values
-      return Object.values(product).some(
-        (v) => typeof v === "string" && v.toLowerCase().includes(q)
-      );
+      
+      // Build searchable text from all product fields
+      const searchable = Object.values(product)
+        .filter((v): v is string => typeof v === "string")
+        .join(" ")
+        .toLowerCase();
+      
+      // Match if ANY expanded term is found
+      return searchTerms.some((term) => searchable.includes(term));
     });
   }, [allProducts, search, activeVendor]);
 
@@ -111,7 +117,7 @@ export default function Home() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索型号或参数，如 LM2902、GBW>10、车规..."
+              placeholder="搜索型号或参数，如 LM2902、便宜运放、网口芯片..."
               className="w-full px-5 py-3.5 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
               autoFocus
             />
@@ -123,6 +129,22 @@ export default function Home() {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+          {/* Synonym expansion hint */}
+          {search.trim() && (() => {
+            const expanded = expandSearch(search.trim());
+            const originalTerms = search.trim().toLowerCase().split(/\s+/);
+            const newTerms = expanded.split(/\s+/).filter(t => !originalTerms.includes(t));
+            if (newTerms.length === 0) return null;
+            return (
+              <div className="mt-2 flex items-center justify-center gap-1 text-xs text-[#484f58]">
+                <span>🔍 智能匹配:</span>
+                {newTerms.slice(0, 5).map(t => (
+                  <span key={t} className="px-1.5 py-0.5 rounded bg-[#1e6ef0]/10 text-[#58a6ff]">{t}</span>
+                ))}
+                {newTerms.length > 5 && <span>+{newTerms.length - 5} more</span>}
+              </div>
+            );
+          })()}
         </div>
       </section>
 
