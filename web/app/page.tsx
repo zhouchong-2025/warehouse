@@ -14,11 +14,21 @@ type SearchResult = {
   matchedTerms: string[];
 };
 
+type LLMInterpretation = {
+  features: string[];
+  vendor: string | null;
+  category_hint: string | null;
+  explanation: string;
+  confidence: string;
+} | null;
+
 export default function Home() {
   const [data, setData] = useState<Record<string, VendorData>>({});
   const [search, setSearch] = useState("");
   const [activeVendor, setActiveVendor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [llmResult, setLlmResult] = useState<LLMInterpretation>(null);
+  const [llmLoading, setLlmLoading] = useState(false);
 
   useEffect(() => {
     fetch("/data/products_structured.json")
@@ -26,6 +36,30 @@ export default function Home() {
       .then(setData)
       .finally(() => setLoading(false));
   }, []);
+
+  // LLM query interpretation (debounced)
+  useEffect(() => {
+    if (!search.trim() || search.trim().length < 3) {
+      setLlmResult(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setLlmLoading(true);
+      try {
+        const res = await fetch("/api/interpret", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: search.trim() }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error) setLlmResult(data);
+        }
+      } catch {} 
+      finally { setLlmLoading(false); }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const vendors = useMemo(() => Object.entries(data), [data]);
 
@@ -42,16 +76,26 @@ export default function Home() {
 
   // Scored search with term matching
   const results = useMemo(() => {
-    const q = search.toLowerCase().trim();
+    // Clean input: strip punctuation, normalize whitespace, lowercase
+    const clean = (s: string) =>
+      s
+        .replace(/[，,、。．.；;：:！!？?（）()【】\[\]『』""'']/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    
+    const q = clean(search);
     if (!q) return null;
 
     const expandedQ = expandSearch(q);
     const allTerms = expandedQ.split(/\s+/).filter(Boolean);
     
     // Split into "must match" (original terms) and "boost" (synonym terms)
-    // Preserve multi-word phrases like "CAN FD", "特定帧唤醒"
     const originalTerms = q.split(/\s+/).filter(Boolean);
-    // Also add the full original query as a phrase term for exact matching
+    // Also try matching common natural language wrappers like "支持X" → "X"
+    const unwrappedTerms = originalTerms.map((t) =>
+      t.replace(/^(支持|需要|要求|寻找|找|要|带|有)/, "")
+    );
     const phraseQuery = originalTerms.length > 1 ? q : "";
     const boostTerms = allTerms.filter((t) => !originalTerms.includes(t));
 
@@ -73,18 +117,28 @@ export default function Home() {
       const phraseMatched = phraseQuery && searchable.includes(phraseQuery);
       
       let allOriginalMatched = true;
-      for (const term of originalTerms) {
-        if (searchable.includes(term)) {
-          matched.push(term);
+      for (let i = 0; i < originalTerms.length; i++) {
+        const term = originalTerms[i];
+        const unwrapped = unwrappedTerms[i];
+        // Try original term first, then unwrapped version
+        const effectiveTerm = searchable.includes(term) ? term : 
+                              (unwrapped !== term && searchable.includes(unwrapped) ? unwrapped : null);
+        
+        if (effectiveTerm) {
+          matched.push(effectiveTerm);
           const partField = (product.part_number + " " + (product._section || "") + " " + (product._features || "")).toLowerCase();
-          score += partField.includes(term) ? 3 : 1;
+          score += partField.includes(effectiveTerm) ? 3 : 1;
         } else {
           allOriginalMatched = false;
         }
       }
 
-      // Product qualifies only if: all original terms match, OR phrase query matches
-      if (!allOriginalMatched && !phraseMatched) continue;
+      // Product qualifies only if: all original terms match, OR phrase query matches,
+      // OR LLM features match (when LLM has high confidence, keywords are secondary)
+      const llmFeaturesMatched = llmResult?.confidence === "high" && llmResult.features.length > 0 &&
+        llmResult.features.some((f) => searchable.includes(f.toLowerCase()));
+      
+      if (!allOriginalMatched && !phraseMatched && !llmFeaturesMatched) continue;
 
       // Score boost terms (synonyms add weight)
       for (const term of boostTerms) {
@@ -96,6 +150,22 @@ export default function Home() {
 
       // Bonus for matching many terms
       score += matched.length * 0.5;
+
+      // LLM-interpreted features get high bonus; ALL matched = huge priority
+      if (llmResult?.features && llmResult.features.length > 0) {
+        let llmMatchCount = 0;
+        for (const ft of llmResult.features) {
+          if (searchable.includes(ft.toLowerCase())) {
+            matched.push("🤖 " + ft);
+            llmMatchCount++;
+            score += 3;
+          }
+        }
+        // Products matching ALL LLM features get massive priority boost
+        if (llmMatchCount === llmResult.features.length) {
+          score += 20; // "perfect fit" bonus
+        }
+      }
 
       if (matched.length > 0) {
         scored.push({ vendor, vendorName, product, score, matchedTerms: matched });
@@ -187,6 +257,29 @@ export default function Home() {
               </div>
             );
           })()}
+          {/* LLM interpretation */}
+          {llmLoading && (
+            <div className="mt-2 flex items-center justify-center gap-2 text-xs text-[#484f58]">
+              <div className="w-3 h-3 border border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
+              <span>AI 正在理解您的需求...</span>
+            </div>
+          )}
+          {llmResult && !llmLoading && (
+            <div className="mt-2 max-w-xl mx-auto p-3 rounded-lg bg-[#3fb950]/5 border border-[#3fb950]/20 text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs text-[#3fb950] font-medium">🤖 AI 理解:</span>
+                <span className="text-xs text-[#8b949e]">置信度 {llmResult.confidence}</span>
+              </div>
+              <p className="text-xs text-[#e6edf3]">{llmResult.explanation}</p>
+              {llmResult.features.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {llmResult.features.map(f => (
+                    <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950]">{f}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

@@ -9,7 +9,7 @@ export const SALES_SYNONYMS: Record<string, string[]> = {
   
   // Power / Efficiency
   "省电": ["低功耗", "low power", "low Iq"],
-  "低功耗": ["low power", "low Iq", "nano power"],
+  "低功耗": ["low power", "low Iq", "nano power", "低功耗唤醒", "standby", "sleep"],
   
   // Size / Package
   "小封装": ["SOT23", "SOT353", "DFN", "QFN", "WLCSP", "小尺寸"],
@@ -25,7 +25,10 @@ export const SALES_SYNONYMS: Record<string, string[]> = {
   "高速": ["high speed", "high-speed", "GHz", "Mbps"],
   "快的": ["high speed", "高速"],
   
-  // Safety / Reliability
+  // Wake-up / Sleep (CAN specific)
+  "特定帧唤醒": ["partial networking", "selective wake", "特定帧唤醒"],
+  "选择性唤醒": ["partial networking", "selective wake", "特定帧唤醒"],
+  "partial networking": ["特定帧唤醒", "selective wake"],
   "安全": ["隔离", "isolation", "AEC-Q100"],
   "可靠": ["AEC-Q100", "车规", "automotive", "工业级"],
   

@@ -117,35 +117,122 @@ def extract_universal(doc, vendor_name):
                 if section_context:
                     p["_section"] = section_context
                 
-                # Auto-detect features from params and add as searchable tags
+                # === UNIVERSAL FEATURE DETECTION ===
+                # Auto-tag products with searchable feature keywords based on params + section
                 all_vals = " ".join(str(v).lower() for v in row if v)
                 features = []
-                # Only detect CAN features for products in CAN section or with CAN in params
-                is_can_section = "can" in (section_context.lower() if section_context else "")
-                is_can_product = "can" in all_vals and "lin" not in all_vals
+                ctx = (section_context or "").lower()
+                part_lower = part.lower()
+                part_prefix = part_lower[:4]
                 
-                if is_can_section or is_can_product:
-                    # Detect CAN FD: explicit "FD", speed >= 5Mbps
-                    has_fd = ("fd" in all_vals or "5mbps" in all_vals or "8mbps" in all_vals)
-                    # Speed detection: look for standalone numeric values 5-20 in data columns
-                    # (skip if section is LIN — LIN baud rate 20kbps ≠ CAN FD)
-                    if not has_fd and "lin" not in section_context.lower():
-                        for i, v in enumerate(row):
-                            try:
-                                sv = float(str(v).strip())
-                                if 5 <= sv <= 20 and i >= 4:
-                                    has_fd = True
-                                    break
-                            except:
-                                pass
-                    if has_fd:
-                        features.append("CAN FD")
-                    if any(kw in all_vals for kw in ["standby", "sleep", "silent", "wake", "partial networking", "特定帧"]):
-                        features.append("特定帧唤醒")
-                    if "vio" in all_vals:
-                        features.append("VIO")
-                    if any(kw in all_vals for kw in ["70v", "±70", "-70 to +70"]):
-                        features.append("高耐压")
+                # --- CAN / LIN Transceivers ---
+                if "can" in ctx or "lin" in ctx or "收发器" in ctx:
+                    if "can" in ctx or "can" in all_vals:
+                        # CAN FD detection
+                        has_fd = ("fd" in all_vals or "5mbps" in all_vals or "8mbps" in all_vals)
+                        if not has_fd and "lin" not in ctx:
+                            for i, v in enumerate(row):
+                                try:
+                                    if 5 <= float(str(v).strip()) <= 20 and i >= 4:
+                                        has_fd = True; break
+                                except: pass
+                        if has_fd: features.append("CAN FD")
+                        # Partial Networking
+                        if any(kw in all_vals for kw in ["partial networking", "selective wake"]):
+                            features.append("特定帧唤醒(Partial Networking)")
+                        # Low-power wake
+                        if any(kw in all_vals for kw in ["standby", "sleep", "wake pin", "inh"]):
+                            features.append("低功耗唤醒")
+                        if "vio" in all_vals: features.append("VIO")
+                        if any(kw in all_vals for kw in ["70v", "±70"]): features.append("高耐压")
+                    if "lin" in (ctx + all_vals):
+                        features.append("LIN")
+                
+                # --- Op-Amps / Comparators ---
+                if any(kw in ctx for kw in ["运放", "放大器", "比较器", "amplif", "compar"]):
+                    # Rail-to-rail
+                    if "yes" in all_vals.lower():
+                        if "rail-rail" in all_vals or "rail to rail" in all_vals:
+                            features.append("轨到轨")
+                    # High speed
+                    for i, v in enumerate(row):
+                        try:
+                            val = float(str(v).strip())
+                            if val >= 50 and i >= 6:
+                                features.append("高速(≥50MHz)"); break
+                            if val >= 10 and i >= 6:
+                                features.append("中速(≥10MHz)"); break
+                        except: pass
+                    # Low power
+                    for i, v in enumerate(row):
+                        try:
+                            val = float(str(v).strip())
+                            if val <= 1 and i >= 5:
+                                features.append("超低功耗(≤1µA)"); break
+                            if val <= 50 and i >= 5:
+                                features.append("低功耗(≤50µA)"); break
+                        except: pass
+                    # Precision
+                    for i, v in enumerate(row):
+                        try:
+                            if float(str(v).strip()) <= 1 and 10 <= i <= 14:
+                                features.append("精密(≤1mV Vos)"); break
+                        except: pass
+                    # Auto-grade
+                    if "aec" in all_vals or "q100" in all_vals or "q1" in part_lower:
+                        features.append("车规AEC-Q100")
+                    # High voltage
+                    for i, v in enumerate(row):
+                        try:
+                            if float(str(v).strip()) >= 30 and 3 <= i <= 5:
+                                features.append("高压(≥30V)"); break
+                        except: pass
+                
+                # --- Ethernet PHY ---
+                if any(kw in ctx for kw in ["phy", "以太网", "ethernet", "网卡"]) or "yt8" in part_prefix:
+                    if "车规" in (ctx + all_vals) or "automotive" in all_vals:
+                        features.append("车规级")
+                    if "工业级" in all_vals or "工业" in ctx:
+                        features.append("工业级")
+                    if "消费级" in all_vals or "消费" in ctx:
+                        features.append("消费级")
+                    if "ge" in all_vals.lower() or "千兆" in all_vals:
+                        features.append("千兆")
+                    if "2.5g" in all_vals.lower():
+                        features.append("2.5G")
+                    if "fe" in all_vals.lower() or "百兆" in all_vals:
+                        features.append("百兆")
+                    if "p2p" in all_vals.lower() or "兼容" in all_vals:
+                        features.append("Pin-to-Pin兼容")
+                
+                # --- Isolation ---
+                if any(kw in ctx for kw in ["隔离", "isolat"]) or "nsi" in part_prefix:
+                    if "5000" in all_vals or "5700" in all_vals:
+                        features.append("5kVrms隔离")
+                    if "3750" in all_vals or "3000" in all_vals:
+                        features.append("3kVrms隔离")
+                    if "车规" in all_vals or "aec" in all_vals.lower():
+                        features.append("车规级")
+                
+                # --- Sensors ---
+                if any(kw in ctx for kw in ["传感器", "sensor", "电流", "温度", "压力", "角度"]):
+                    if "电流" in ctx: features.append("电流传感器")
+                    if "温度" in ctx: features.append("温度传感器")
+                    if "压力" in ctx: features.append("压力传感器")
+                    if "角度" in ctx or "位置" in ctx: features.append("位置传感器")
+                    if "车规" in all_vals or "aec" in all_vals.lower():
+                        features.append("车规级")
+                
+                # --- Power / DCDC ---
+                if any(kw in ctx for kw in ["电源", "dcdc", "ldo", "变换器", "驱动", "马达"]):
+                    if "隔离" in ctx: features.append("隔离电源")
+                    if "车规" in all_vals or "aec" in all_vals.lower():
+                        features.append("车规级")
+                
+                # --- Automotive broad detection ---
+                if ("aec" in all_vals.lower() or "q100" in all_vals.lower() or "车规" in all_vals or "automotive" in all_vals.lower()) and "车规" not in " ".join(features):
+                    features.append("车规AEC-Q100")
+                
                 if features:
                     p["_features"] = " ".join(features)
                 
