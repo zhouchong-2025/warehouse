@@ -6,6 +6,14 @@ import { expandSearch } from "@/lib/synonyms";
 type Product = Record<string, string>;
 type VendorData = { name: string; productCount: number; products: Product[] };
 
+type SearchResult = {
+  vendor: string;
+  vendorName: string;
+  product: Product;
+  score: number;
+  matchedTerms: string[];
+};
+
 export default function Home() {
   const [data, setData] = useState<Record<string, VendorData>>({});
   const [search, setSearch] = useState("");
@@ -20,6 +28,8 @@ export default function Home() {
   }, []);
 
   const vendors = useMemo(() => Object.entries(data), [data]);
+
+  // Build flat product list
   const allProducts = useMemo(() => {
     const all: { vendor: string; vendorName: string; product: Product }[] = [];
     for (const [slug, v] of Object.entries(data)) {
@@ -30,45 +40,89 @@ export default function Home() {
     return all;
   }, [data]);
 
-  const filtered = useMemo(() => {
+  // Scored search with term matching
+  const results = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const expandedQ = q ? expandSearch(q) : "";
-    const searchTerms = expandedQ ? expandedQ.split(/\s+/) : [];
+    if (!q) return null;
+
+    const expandedQ = expandSearch(q);
+    const allTerms = expandedQ.split(/\s+/).filter(Boolean);
     
-    return allProducts.filter(({ vendor, product }) => {
-      if (activeVendor && vendor !== activeVendor) return false;
-      if (!q) return true;
-      
-      // Build searchable text from all product fields
+    // Split into "must match" (original terms) and "boost" (synonym terms)
+    // Preserve multi-word phrases like "CAN FD", "特定帧唤醒"
+    const originalTerms = q.split(/\s+/).filter(Boolean);
+    // Also add the full original query as a phrase term for exact matching
+    if (originalTerms.length > 1 && q.length > 3) {
+      originalTerms.push(q); // e.g., "can fd" → also search "can fd" as phrase
+    }
+    const boostTerms = allTerms.filter((t) => !originalTerms.includes(t));
+
+    const scored: SearchResult[] = [];
+
+    for (const { vendor, vendorName, product } of allProducts) {
+      if (activeVendor && vendor !== activeVendor) continue;
+
       const searchable = Object.values(product)
         .filter((v): v is string => typeof v === "string")
         .join(" ")
         .toLowerCase();
-      
-      // Match if ANY expanded term is found
-      return searchTerms.some((term) => searchable.includes(term));
-    });
+
+      const matched: string[] = [];
+      let score = 0;
+
+      // Score original terms (must match at least one)
+      let hasOriginalMatch = originalTerms.length === 0;
+      for (const term of originalTerms) {
+        if (searchable.includes(term)) {
+          hasOriginalMatch = true;
+          matched.push(term);
+          // Bonus for matching in part_number or _section
+          const partField = (product.part_number + " " + (product._section || "")).toLowerCase();
+          score += partField.includes(term) ? 3 : 1;
+        }
+      }
+
+      if (!hasOriginalMatch) continue;
+
+      // Score boost terms (synonyms add weight)
+      for (const term of boostTerms) {
+        if (searchable.includes(term)) {
+          matched.push(term);
+          score += 0.5;
+        }
+      }
+
+      // Bonus for matching many terms
+      score += matched.length * 0.5;
+
+      if (matched.length > 0) {
+        scored.push({ vendor, vendorName, product, score, matchedTerms: matched });
+      }
+    }
+
+    // Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
   }, [allProducts, search, activeVendor]);
 
   const totalProducts = vendors.reduce((s, [, v]) => s + v.productCount, 0);
 
-  // Get displayable params for a product (most important ones)
+  // Get displayable params for a product
   const getDisplayParams = (p: Product): [string, string][] => {
     const priority = [
-      "package", "封装", "status", "状态", "supply_v_min", "supply_v_max",
+      "_section", "package", "封装", "status", "状态", "supply_v_min", "supply_v_max",
       "gbw_mhz", "channels", "rating", "temp_range", "工作温度",
       "description", "产品描述", "category", "process_node", "ports",
     ];
     const params: [string, string][] = [];
     for (const key of priority) {
       if (p[key] && p[key].length < 60) {
-        params.push([key, p[key]]);
+        params.push([key.replace(/_/g, " "), p[key]]);
       }
     }
-    // Add any other non-empty short params
     for (const [k, v] of Object.entries(p)) {
-      if (!priority.includes(k) && v && v.length < 40 && k !== "part_number" && k !== "vendor") {
-        if (params.length < 8) params.push([k, v]);
+      if (!priority.includes(k) && v && v.length < 40 && k !== "part_number" && k !== "vendor_section" && !k.startsWith("param_")) {
+        if (params.length < 8) params.push([k.replace(/_/g, " "), v]);
       }
     }
     return params.slice(0, 6);
@@ -80,23 +134,14 @@ export default function Home() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0d1117]/90 border-b border-[#30363d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1e6ef0] to-[#58a6ff] flex items-center justify-center text-white font-bold text-sm">
-              CS
-            </div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1e6ef0] to-[#58a6ff] flex items-center justify-center text-white font-bold text-sm">CS</div>
             <div>
               <h1 className="text-lg font-bold text-white">ChipSelect</h1>
-              <p className="text-xs text-[#8b949e] hidden sm:block">
-                芯片选型平台 · {totalProducts} 产品 · {vendors.length} 厂商
-              </p>
+              <p className="text-xs text-[#8b949e] hidden sm:block">芯片选型平台 · {totalProducts} 产品 · {vendors.length} 厂商</p>
             </div>
           </div>
           <nav className="flex items-center gap-4 text-sm">
-            <a
-              href="/compare"
-              className="text-[#58a6ff] hover:text-white transition-colors"
-            >
-              对比
-            </a>
+            <a href="/compare" className="text-[#58a6ff] hover:text-white transition-colors">对比</a>
           </nav>
         </div>
       </header>
@@ -110,26 +155,22 @@ export default function Home() {
             <span className="text-white"> 选型平台</span>
           </h2>
           <p className="text-[#8b949e] text-lg max-w-2xl mx-auto mb-8">
-            纳芯微 · 思瑞浦 · 裕太微 — 1641 个芯片，结构化参数，一键对比
+            纳芯微 · 思瑞浦 · 裕太微 — {totalProducts} 个芯片，智能评分排序
           </p>
           <div className="max-w-xl mx-auto relative">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索型号或参数，如 LM2902、便宜运放、网口芯片..."
+              placeholder="搜索型号、参数或销售用语，如 CAN FD 特定帧唤醒..."
               className="w-full px-5 py-3.5 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
               autoFocus
             />
-            <svg
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8b949e]"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8b949e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          {/* Synonym expansion hint */}
+          {/* Synonym hint */}
           {search.trim() && (() => {
             const expanded = expandSearch(search.trim());
             const originalTerms = search.trim().toLowerCase().split(/\s+/);
@@ -141,7 +182,6 @@ export default function Home() {
                 {newTerms.slice(0, 5).map(t => (
                   <span key={t} className="px-1.5 py-0.5 rounded bg-[#1e6ef0]/10 text-[#58a6ff]">{t}</span>
                 ))}
-                {newTerms.length > 5 && <span>+{newTerms.length - 5} more</span>}
               </div>
             );
           })()}
@@ -151,26 +191,11 @@ export default function Home() {
       {/* Vendor filters */}
       <div className="sticky top-[57px] z-40 backdrop-blur-xl bg-[#0d1117]/90 border-b border-[#30363d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveVendor(null)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-              !activeVendor
-                ? "bg-[#1e6ef0] text-white"
-                : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"
-            }`}
-          >
+          <button onClick={() => setActiveVendor(null)} className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${!activeVendor ? "bg-[#1e6ef0] text-white" : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"}`}>
             全部 ({totalProducts})
           </button>
           {vendors.map(([slug, v]) => (
-            <button
-              key={slug}
-              onClick={() => setActiveVendor(activeVendor === slug ? null : slug)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                activeVendor === slug
-                  ? "bg-[#1e6ef0] text-white"
-                  : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"
-              }`}
-            >
+            <button key={slug} onClick={() => setActiveVendor(activeVendor === slug ? null : slug)} className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeVendor === slug ? "bg-[#1e6ef0] text-white" : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"}`}>
               {v.name} ({v.productCount})
             </button>
           ))}
@@ -183,78 +208,83 @@ export default function Home() {
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#1e6ef0] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : (
+        ) : results ? (
           <>
             <div className="mb-4 text-sm text-[#8b949e] flex items-center justify-between">
-              <span>
-                {search || activeVendor
-                  ? `找到 ${filtered.length} 个匹配的芯片`
-                  : `共 ${totalProducts} 个芯片 · 输入型号或参数开始搜索`}
-              </span>
-              {filtered.length > 0 && (
-                <span className="text-xs">
-                  显示 {Math.min(filtered.length, 200)} / {filtered.length}
-                </span>
-              )}
+              <span>找到 {results.length} 个匹配 · 按相关度排序</span>
+              <span className="text-xs">显示 {Math.min(results.length, 200)} 个</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {filtered.slice(0, 200).map(({ vendor, vendorName, product }) => (
-                <div
-                  key={`${vendor}-${product.part_number}`}
-                  className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#1e6ef0] hover:shadow-[0_0_16px_rgba(30,110,240,0.1)] transition-all group"
-                >
-                  {/* Part number + vendor */}
+              {results.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms }) => (
+                <div key={`${vendor}-${product.part_number}`} className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#1e6ef0] hover:shadow-[0_0_16px_rgba(30,110,240,0.1)] transition-all group">
+                  {/* Part number + vendor + score */}
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-mono font-bold text-[#58a6ff] group-hover:text-white transition-colors text-sm truncate max-w-[70%]">
+                    <div className="font-mono font-bold text-[#58a6ff] group-hover:text-white transition-colors text-sm truncate max-w-[65%]">
                       {product.part_number}
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e6ef0]/15 text-[#8b949e] whitespace-nowrap">
-                      {vendorName}
+                      {vendorName} · {score.toFixed(1)}
                     </span>
                   </div>
+
+                  {/* Section hint */}
+                  {product._section && (
+                    <div className="mb-2 text-xs text-[#3fb950] bg-[#3fb950]/10 px-2 py-0.5 rounded inline-block">
+                      {product._section}
+                    </div>
+                  )}
 
                   {/* Params */}
                   <div className="space-y-1">
                     {getDisplayParams(product).map(([key, val]) => (
                       <div key={key} className="flex items-baseline gap-1 text-xs">
-                        <span className="text-[#484f58] min-w-[60px] truncate">
-                          {key.replace(/_/g, " ")}:
-                        </span>
+                        <span className="text-[#484f58] min-w-[55px] truncate">{key}:</span>
                         <span className="text-[#e6edf3] truncate">{val}</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Add to compare */}
-                  <a
-                    href={`/compare?chips=${encodeURIComponent(product.part_number)}`}
-                    className="mt-3 inline-block text-xs text-[#1e6ef0] hover:text-[#58a6ff] transition-colors"
-                  >
+                  {/* Matched terms highlight */}
+                  {matchedTerms.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {matchedTerms.slice(0, 4).map(t => (
+                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[#d29922]/15 text-[#d29922]">
+                          ✓ {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <a href={`/compare?chips=${encodeURIComponent(product.part_number)}`} className="mt-3 inline-block text-xs text-[#1e6ef0] hover:text-[#58a6ff] transition-colors">
                     + 加入对比
                   </a>
                 </div>
               ))}
             </div>
 
-            {filtered.length > 200 && (
-              <div className="text-center py-8 text-[#8b949e] text-sm">
-                显示前 200 个结果，请使用更精确的搜索词缩小范围
-              </div>
+            {results.length > 200 && (
+              <div className="text-center py-8 text-[#8b949e] text-sm">显示前 200 个 · 请缩小搜索范围</div>
             )}
 
-            {!loading && search && filtered.length === 0 && (
+            {results.length === 0 && (
               <div className="text-center py-20 text-[#8b949e]">
                 <div className="text-4xl mb-4">🔍</div>
                 <p>未找到匹配 &quot;{search}&quot; 的芯片</p>
               </div>
             )}
           </>
+        ) : (
+          <div className="text-center py-20 text-[#8b949e]">
+            <div className="text-5xl mb-4">🔎</div>
+            <p className="text-lg">输入型号、参数或需求开始搜索</p>
+            <p className="text-sm mt-2">试试：便宜运放 · CAN FD · 小封装 · 车规隔离</p>
+          </div>
         )}
       </main>
 
       <footer className="border-t border-[#30363d] py-6 text-center text-xs text-[#484f58]">
-        ChipSelect — 芯片选型平台 · pymupdf 表格提取 · {totalProducts} 个结构化产品
+        ChipSelect · {totalProducts} products · 4 vendors · 智能语义搜索
       </footer>
     </div>
   );

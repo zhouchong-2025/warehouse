@@ -19,9 +19,19 @@ def is_part_number(s):
     s = s.strip()
     if not s or len(s) < 3:
         return False
-    if any(kw in s for kw in ["Part", "产品", "型号", "类别", "简介", "封装", "制程", "状态"]):
+    # Blacklist: category headers, generic terms that are not part numbers
+    blacklist = {
+        "part", "产品", "型号", "类别", "简介", "封装", "制程", "状态", "端口", "接口",
+        "can", "lin", "sbc", "phy", "dcdc", "adc", "dac", "ldo", "pmic",
+        "收发器", "传感器", "隔离器", "驱动器", "放大器", "比较器", "转换器",
+        "开关", "运放", "网卡", "交换机",
+    }
+    s_lower = s.lower()
+    if s_lower in blacklist:
         return False
-    return bool(re.match(r'^[A-Z0-9][A-Za-z0-9\-]{2,}', s))
+    if any(kw in s_lower for kw in ["产品类别", "产品型号", "温度", "电压", "电流", "参数"]):
+        return False
+    return bool(re.match(r'^[A-Z0-9][A-Za-z0-9\-]{2,}$', s)) and not bool(re.search(r'[\u4e00-\u9fff]', s))
 
 def extract_3peak_analog(doc):
     """20/21-column op-amp param table."""
