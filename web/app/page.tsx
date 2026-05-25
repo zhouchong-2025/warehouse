@@ -52,9 +52,7 @@ export default function Home() {
     // Preserve multi-word phrases like "CAN FD", "特定帧唤醒"
     const originalTerms = q.split(/\s+/).filter(Boolean);
     // Also add the full original query as a phrase term for exact matching
-    if (originalTerms.length > 1 && q.length > 3) {
-      originalTerms.push(q); // e.g., "can fd" → also search "can fd" as phrase
-    }
+    const phraseQuery = originalTerms.length > 1 ? q : "";
     const boostTerms = allTerms.filter((t) => !originalTerms.includes(t));
 
     const scored: SearchResult[] = [];
@@ -70,19 +68,23 @@ export default function Home() {
       const matched: string[] = [];
       let score = 0;
 
-      // Score original terms (must match at least one)
-      let hasOriginalMatch = originalTerms.length === 0;
+      // MUST match ALL original terms (AND logic) — no false positives
+      // Exception: if phrase query matches entirely, that counts
+      const phraseMatched = phraseQuery && searchable.includes(phraseQuery);
+      
+      let allOriginalMatched = true;
       for (const term of originalTerms) {
         if (searchable.includes(term)) {
-          hasOriginalMatch = true;
           matched.push(term);
-          // Bonus for matching in part_number or _section
-          const partField = (product.part_number + " " + (product._section || "")).toLowerCase();
+          const partField = (product.part_number + " " + (product._section || "") + " " + (product._features || "")).toLowerCase();
           score += partField.includes(term) ? 3 : 1;
+        } else {
+          allOriginalMatched = false;
         }
       }
 
-      if (!hasOriginalMatch) continue;
+      // Product qualifies only if: all original terms match, OR phrase query matches
+      if (!allOriginalMatched && !phraseMatched) continue;
 
       // Score boost terms (synonyms add weight)
       for (const term of boostTerms) {

@@ -120,20 +120,25 @@ def extract_universal(doc, vendor_name):
                 # Auto-detect features from params and add as searchable tags
                 all_vals = " ".join(str(v).lower() for v in row if v)
                 features = []
-                if "can" in all_vals or "tpt1" in part.lower():
-                    # Detect CAN FD: explicit "FD", speed >= 5Mbps, or product in CAN section
+                # Only detect CAN features for products in CAN section or with CAN in params
+                is_can_section = "can" in (section_context.lower() if section_context else "")
+                is_can_product = "can" in all_vals and "lin" not in all_vals
+                
+                if is_can_section or is_can_product:
+                    # Detect CAN FD: explicit "FD", speed >= 5Mbps
                     has_fd = ("fd" in all_vals or "5mbps" in all_vals or "8mbps" in all_vals)
-                    # Also check: if speed param (col 6 for analog, col 5 for auto) >= 5
-                    speed_col = None
-                    for i, v in enumerate(row):
-                        try:
-                            sv = float(str(v).strip())
-                            if 5 <= sv <= 20 and i >= 4:
-                                speed_col = sv
-                                break
-                        except:
-                            pass
-                    if has_fd or speed_col:
+                    # Speed detection: look for standalone numeric values 5-20 in data columns
+                    # (skip if section is LIN — LIN baud rate 20kbps ≠ CAN FD)
+                    if not has_fd and "lin" not in section_context.lower():
+                        for i, v in enumerate(row):
+                            try:
+                                sv = float(str(v).strip())
+                                if 5 <= sv <= 20 and i >= 4:
+                                    has_fd = True
+                                    break
+                            except:
+                                pass
+                    if has_fd:
                         features.append("CAN FD")
                     if any(kw in all_vals for kw in ["standby", "sleep", "silent", "wake", "partial networking", "特定帧"]):
                         features.append("特定帧唤醒")
