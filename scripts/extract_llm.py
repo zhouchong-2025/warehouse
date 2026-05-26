@@ -56,31 +56,84 @@ def extract_raw(doc, vendor_name):
                     else: continue
                 data_rows.append((row, part_col))
             if not data_rows: continue
+            
+            # Build labeled params — use vendor-specific full schema
+            if "汽车" in vendor_name:
+                schema = ['产品类别','产品型号','状态','封装','产品描述','可替代产品','应用领域']
+            else:
+                schema = ['Part Number','Status','Rating','Supply Voltage (V)','Bus Fault Protection Voltage (V)','Max Data Rate (Mbps)','Channels','Features','BUS Contact ESD (kV)','Package']
+            
             for row, part_col in data_rows:
                 part = str(row[part_col]).strip()
+                param_pairs = []
+                si = 0
+                for i, val in enumerate(row):
+                    if val and i != part_col:
+                        label = schema[i] if i < len(schema) else f"c{i}"
+                        param_pairs.append(f"{label}: {norm(val)}")
+                labeled_str = " | ".join(param_pairs[:12])
+                
                 desc_parts = [norm(val) for i, val in enumerate(row) if val and i != part_col]
-                p = {"part_number": part, "_section": ctx, "_raw": " | ".join(desc_parts[:10])}
+                p = {"part_number": part, "_section": ctx, "_params": labeled_str, "_raw": " | ".join(desc_parts[:10])}
                 if part_col == 1 and row[0]: p["category"] = norm(row[0])
                 products.append(p)
     # After table extraction: scan raw text for orphan products not captured by tables
     already = {p["part_number"] for p in products}
     for pn in range(len(doc)):
         text = doc[pn].get_text()
-        # Find part numbers with parameter blocks
-        for m in re.finditer(r'(?:^|\n)([A-Z][A-Z0-9]{2,}[\w\-\.]+(?:-[A-Z0-9]+)*)\n((?:.+\n?){3,10})', text, re.MULTILINE):
+        lines = text.split("\n")
+        
+        # Detect page-level header: consecutive lines that look like column names
+        page_header = []
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped: continue
+            # Header lines are short, contain keywords
+            if any(kw in stripped.lower() for kw in ["part number","supply","voltage","bus fault","data rate","number of","channel","feature","esd","package","status","rating","温度","电压","封装","接口"]):
+                page_header.append(stripped)
+            elif page_header and len(page_header) >= 4:
+                break  # found enough header lines
+            else:
+                page_header = []
+        
+        # Find part numbers with parameter blocks, label with page header
+        for m in re.finditer(r'(?:^|\n)([A-Z][A-Z0-9]{2,}[\w\-\.]*(?:-[\w]+)*)\n((?:.+\n?){3,15})', text, re.MULTILINE):
             part = m.group(1).strip()
             if not is_part_number(part) or part in already: continue
             param_block = m.group(2).strip()
-            desc_parts = [l.strip() for l in param_block.split("\n") if l.strip() and len(l.strip()) < 100]
-            # Get section context
-            page_text = text[:500]
+            param_lines = [l.strip() for l in param_block.split("\n") if l.strip() and len(l.strip()) < 100]
+            
+            # Label with vendor schema (same as table extraction)
+            if "汽车" in vendor_name:
+                schema = ['产品类别','产品型号','状态','封装','产品描述','可替代产品','应用领域']
+                # Orphan params: first line is part number, rest are param lines
+                labeled = []
+                # Check if first line is the part number
+                start = 1 if param_lines and part in param_lines[0] else 0
+                for j, pl in enumerate(param_lines):
+                    si = j + start
+                    if si == 0: continue  # part number already stored
+                    label = schema[si] if si < len(schema) else f"c{si}"
+                    labeled.append(f"{label}: {pl}")
+                param_str = " | ".join(labeled) if labeled else " | ".join(param_lines[:10])
+            elif page_header and len(page_header) >= 3:
+                labeled = []
+                for j, pl in enumerate(param_lines[:len(page_header)]):
+                    label = page_header[j][:25]
+                    labeled.append(f"{label}: {pl}")
+                param_str = " | ".join(labeled)
+            else:
+                param_str = " | ".join(param_lines[:10])
+            
             hints = []
             for kw in ["CAN","LIN","收发器","放大器","运放","比较器","隔离","电源","传感器","开关","PHY","以太网","马达","驱动","ADC","DAC","接口","DCDC","LDO","SBC"]:
-                if kw in page_text: hints.append(kw)
+                if kw in text[:500]: hints.append(kw)
             ctx = " ".join(hints[:5])
-            p = {"part_number": part, "_section": ctx, "_raw": " | ".join(desc_parts[:10])}
+            p = {"part_number": part, "_section": ctx, "_params": param_str, "_raw": param_str}
             products.append(p)
             already.add(part)
+    # Filter out junk (non-product headers, category labels mistaken as products)
+    products = [p for p in products if not any(kw in p.get('_params','') for kw in ['功能框图','封装引脚','Contact 3PEAK','www.3peak'])]
     return products
 
 TAG_PROMPT = """你是半导体产品标注专家。为每个产品输出标签。
@@ -142,7 +195,7 @@ for filename, slug, name in vendor_map:
         tag_map = tag_batch(batch, name)
         for p in batch:
             p["_features"] = " ".join(tag_map.get(p["part_number"],[]))
-            p["_params"] = p.pop("_raw", "")  # keep raw params for comparison
+            # Keep _params as-is (already labeled during extraction)
         if i+BATCH_SIZE < len(products): time.sleep(0.5)
     all_data[slug] = {"name":name, "productCount":len(products), "products":products}
     tagged = sum(1 for p in products if p.get("_features"))
