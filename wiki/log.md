@@ -12,3 +12,8 @@
 - raw/papers/思瑞浦-模拟产品选型册_2026.md (55 pages, 157K chars)
 - raw/papers/思瑞浦-汽车产品选型册_2026.md (15 pages, 32K chars)
 - raw/papers/裕太产品选型表 20250312.md (1 page, 9K chars)
+
+## [2026-05-25] generate | Wiki populated
+- Entity pages: 369 across 4 vendors
+- Concept pages: 31 feature tags
+- index.md updated with full catalog

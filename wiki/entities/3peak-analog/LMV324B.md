@@ -1,0 +1,23 @@
+---
+title: LMV324B
+vendor: 思瑞浦-模拟
+created: 2026-05-25
+type: entity
+tags: [工业级, 高速(≥50MHz)]
+---
+
+# LMV324B
+
+**厂商**: 思瑞浦-模拟
+**分类**: 放大器
+
+## 特征
+[[concepts/工业级]] [[concepts/高速≥50mhz]]
+
+## 原始参数
+```
+Status: Production | Rating: Industrial | Supply Voltage (V): 4 | Bus Fault Protection Voltage (V): 2.5 | Max Data Rate (Mbps): 5.5 | Channels: 130 | Features: 1 | BUS Contact ESD (kV): 0.7 | Package: Yes | c10: Yes | c11: 100 | c12: 4
+```
+
+## 关联
+- 同系列产品见 [[index]]

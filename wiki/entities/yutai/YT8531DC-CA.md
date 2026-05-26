@@ -1,0 +1,23 @@
+---
+title: YT8531DC-CA
+vendor: 裕太微
+created: 2026-05-25
+type: entity
+tags: [千兆, 消费级, Pin-to-Pin兼容]
+---
+
+# YT8531DC-CA
+
+**厂商**: 裕太微
+**分类**: PHY 接口
+
+## 特征
+[[concepts/千兆]] [[concepts/消费级]] [[concepts/pin-to-pin兼容]]
+
+## 原始参数
+```
+Status: GE PHY 消费级 | Rating: QFN40 | Supply Voltage (V): 55nm | Bus Fault Protection Voltage (V): MP | Max Data Rate (Mbps): 0°C-70°C | Channels: 1GE LRE100-4 | Features: RGMII (RGMII支持3.3V/2.5V/1.8V) | BUS Contact ESD (kV): P2P 兼容 RTL8211FD
+```
+
+## 关联
+- 同系列产品见 [[index]]
