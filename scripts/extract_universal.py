@@ -230,7 +230,11 @@ def extract_universal(doc, vendor_name):
                         features.append("车规级")
                 
                 # --- Automotive broad detection ---
-                if ("aec" in all_vals.lower() or "q100" in all_vals.lower() or "车规" in all_vals or "automotive" in all_vals.lower()) and "车规" not in " ".join(features):
+                is_auto = ("aec" in all_vals.lower() or "q100" in all_vals.lower() or 
+                          "车规" in all_vals or "车用" in all_vals or 
+                          "automotive" in all_vals.lower() or 
+                          "汽车" in vendor_name)
+                if is_auto and "车规" not in " ".join(features):
                     features.append("车规AEC-Q100")
                 
                 if features:

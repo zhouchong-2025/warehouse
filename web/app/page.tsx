@@ -29,6 +29,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [llmResult, setLlmResult] = useState<LLMInterpretation>(null);
   const [llmLoading, setLlmLoading] = useState(false);
+  const [compareList, setCompareList] = useState<string[]>([]);
+
+  const toggleCompare = (part: string) => {
+    setCompareList((prev) =>
+      prev.includes(part) ? prev.filter((p) => p !== part) : [...prev, part]
+    );
+  };
 
   useEffect(() => {
     fetch("/data/products_structured.json")
@@ -134,11 +141,11 @@ export default function Home() {
       }
 
       // Product qualifies only if: all original terms match, OR phrase query matches,
-      // OR LLM features match (when LLM has high confidence, keywords are secondary)
-      const llmFeaturesMatched = llmResult?.confidence === "high" && llmResult.features.length > 0 &&
-        llmResult.features.some((f) => searchable.includes(f.toLowerCase()));
+      // OR LLM high-confidence features ALL match (enforce every constraint)
+      const llmAllMatched = llmResult?.confidence === "high" && llmResult.features.length > 0 &&
+        llmResult.features.every((f) => searchable.includes(f.toLowerCase()));
       
-      if (!allOriginalMatched && !phraseMatched && !llmFeaturesMatched) continue;
+      if (!allOriginalMatched && !phraseMatched && !llmAllMatched) continue;
 
       // Score boost terms (synonyms add weight)
       for (const term of boostTerms) {
@@ -175,7 +182,7 @@ export default function Home() {
     // Sort by score descending
     scored.sort((a, b) => b.score - a.score);
     return scored;
-  }, [allProducts, search, activeVendor]);
+  }, [allProducts, search, activeVendor, llmResult]);
 
   const totalProducts = vendors.reduce((s, [, v]) => s + v.productCount, 0);
 
@@ -351,9 +358,16 @@ export default function Home() {
                     </div>
                   )}
 
-                  <a href={`/compare?chips=${encodeURIComponent(product.part_number)}`} className="mt-3 inline-block text-xs text-[#1e6ef0] hover:text-[#58a6ff] transition-colors">
-                    + 加入对比
-                  </a>
+                  <button
+                    onClick={() => toggleCompare(product.part_number)}
+                    className={`mt-3 text-xs px-2 py-1 rounded transition-all ${
+                      compareList.includes(product.part_number)
+                        ? "bg-[#3fb950]/20 text-[#3fb950] border border-[#3fb950]/30"
+                        : "text-[#1e6ef0] hover:text-[#58a6ff]"
+                    }`}
+                  >
+                    {compareList.includes(product.part_number) ? "✓ 已加入对比" : "+ 加入对比"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -377,6 +391,100 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Compare Panel */}
+      {compareList.length > 0 && (() => {
+        const selected = allProducts.filter((ap) =>
+          compareList.includes(ap.product.part_number)
+        );
+        const allFieldKeys = new Set<string>();
+        for (const { product } of selected) {
+          for (const k of Object.keys(product)) {
+            if (k !== "part_number" && k !== "vendor_section" && !k.startsWith("param_") && product[k]) {
+              allFieldKeys.add(k);
+            }
+          }
+        }
+        const fields = [...allFieldKeys];
+        // Prioritize: _params, _section, _features, _application, _category first
+        fields.sort((a, b) => {
+          const prio = ["_params", "_section", "_features", "_application", "_category", "category"];
+          const ai = prio.indexOf(a), bi = prio.indexOf(b);
+          if (ai >= 0 && bi >= 0) return ai - bi;
+          if (ai >= 0) return -1;
+          if (bi >= 0) return 1;
+          return a.localeCompare(b);
+        });
+
+        const exportCSV = () => {
+          const header = ["型号", "厂商", ...fields];
+          const rows = selected.map(({ product, vendorName }) => {
+            return [product.part_number, vendorName, ...fields.map((f) => product[f] || "")];
+          });
+          const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+          const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = "chipselect_compare.csv"; a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        return (
+          <div className="sticky bottom-0 z-40 bg-[#0d1117]/95 backdrop-blur-xl border-t-2 border-[#1e6ef0] shadow-[0_-8px_32px_rgba(0,0,0,0.5)]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-white font-bold text-sm">📊 产品对比 ({selected.length} 个)</h3>
+                  <button onClick={() => setCompareList([])} className="text-xs text-[#8b949e] hover:text-white">清除</button>
+                </div>
+                <button onClick={exportCSV} className="px-3 py-1.5 rounded-lg bg-[#3fb950]/15 border border-[#3fb950]/30 text-[#3fb950] text-xs font-medium hover:bg-[#3fb950]/25 transition-all">
+                  📥 导出 CSV
+                </button>
+              </div>
+              {/* Chips bar */}
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {selected.map(({ product, vendorName }) => (
+                  <span key={product.part_number} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#1e6ef0]/15 border border-[#1e6ef0]/20 text-xs">
+                    <span className="font-mono text-[#58a6ff]">{product.part_number}</span>
+                    <span className="text-[#484f58]">{vendorName}</span>
+                    <button onClick={() => toggleCompare(product.part_number)} className="text-[#8b949e] hover:text-white ml-0.5">×</button>
+                  </span>
+                ))}
+              </div>
+              {/* Table */}
+              <div className="overflow-x-auto max-h-[40vh] rounded-lg border border-[#30363d]">
+                <table className="data-table text-xs">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 bg-[#161b22] z-10 min-w-[100px]">参数</th>
+                      {selected.map(({ product, vendorName }) => (
+                        <th key={product.part_number} className="min-w-[140px]">
+                          <div className="font-mono text-[#58a6ff]">{product.part_number}</div>
+                          <div className="text-[10px] font-normal text-[#8b949e]">{vendorName}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map((field) => (
+                      <tr key={field}>
+                        <td className="sticky left-0 bg-[#161b22] font-medium text-[#8b949e] z-10">
+                          {field.replace(/_/g, " ")}
+                        </td>
+                        {selected.map(({ product }) => (
+                          <td key={product.part_number} className={product[field] ? "text-[#e6edf3]" : "text-[#30363d]"}>
+                            {product[field] || "—"}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <footer className="border-t border-[#30363d] py-6 text-center text-xs text-[#484f58]">
         ChipSelect · {totalProducts} products · 4 vendors · 智能语义搜索
