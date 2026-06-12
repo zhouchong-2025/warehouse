@@ -1,0 +1,57 @@
+== 可用标签（自动同步自 tag_schema.json） ==
+100Mbps, 10Mbps, 10bit, 12bit, 14bit, 150Mbps, 16bit, 16通道, 18bit, 1:1, 1Mbps, 1T0R, 1T1R, 1通道, 200Mbps, 20Mbps, 20bit, 24bit, 2:1, 2Mbps, 2T1R, 2T2R, 2通道, 32通道, 3T5R, 3kVrms隔离, 4:1, 4T0R, 4通道, 50Mbps, 5Mbps, 5kVrms隔离, 8:1, 8bit, 8通道, ADC, BMS, CAN-FD, DAC, DCDC, EMI滤波器, I2C, IO扩展器, Iout_0.5A, Iout_10A, Iout_12A, Iout_1A, Iout_2A, Iout_3A, Iout_4A, Iout_5A, Iout_6A, Iout_7A, Iout_8A, LDO, LIN, MLVDS, Pin-to-Pin兼容, RS-232, RS-485, SBC, Vin_1.2V, Vin_1.8V, Vin_12V, Vin_2.5V, Vin_24V, Vin_3.3V, Vin_36V, Vin_48V, Vin_5V, Vout_0.6V, Vout_0.8V, Vout_1.2V, Vout_1.8V, Vout_2.5V, Vout_3.3V, Vout_5V, 仪表放大器, 传感器接口, 低功耗唤醒, 低噪声, 全双工, 匹配电阻, 千兆, 升压, 半双工, 复位芯片, 工业级, 数字隔离器, 栅极驱动, 模拟开关, 比较器, 温度传感器, 特定帧唤醒, 理想二极管, 电压基准, 电子保险丝, 电平转换, 电池监控, 电流传感器, 电源时序, 精密(≤1mV), 线性充电, 视频滤波, 负载开关, 车规AEC-Q100, 轨到轨, 运放, 逻辑门, 降压, 隔离, 隔离CAN, 隔离I2C, 隔离RS485, 隔离放大器, 隔离栅极驱动, 隔离电源, 非隔离栅极驱动, 音频总线, 马达驱动, 高PSRR, 高边驱动, 高速(≥50MHz), 高速数据复用器
+
+== 领域规则 ==
+- CAN→CAN-FD; LIN→LIN; RS-232/485→对应标签; SBC→SBC
+- RS-232/485的收发数: X发Y收→输出XTYR格式标签
+- RS-485的工作模式: 半双工/全双工→对应标签
+- 隔离产品: 用户说"隔离"不加kV→用通用"隔离"标签; 明确说5kV/3kV才加对应kVrms
+- 非隔离/不隔离→不加隔离标签
+- 栅极驱动: 隔离/非隔离、通道数、峰值驱动电流(A)
+- 电流传感器: 隔离/非隔离、量程、精度
+- 运放: Vos/GBW/通道数/轨到轨/低噪声
+- LDO/DCDC: 输入电压/输出电压/输出电流
+- ADC/DAC: 分辨率/通道数/采样率/接口
+- 数字隔离器: 通道数(F/R)、数据速率(Mbps)、隔离电压(kVrms)
+- 以太网: 百兆/千兆/2.5G + 接口类型 + 端口数
+
+== 「非隔离」修饰符 ==
+「非隔离」是需求修饰词，不是否定词。非隔离 + [品类] → 输出[品类]标签，不加隔离标签。
+适用所有品类：RS-485/CAN/I2C/电流传感器/栅极驱动/运放 等。
+
+== 已知同义词 ==
+- partial networking → 特定帧唤醒 (CAN收发器选型)
+- rail-to-rail → 轨到轨 (运放输入/输出)
+- low iq → 低功耗 (静态电流指标)
+- spread spectrum → 展频 (DCDC转换器)
+- bidirectional → 双向 (电平转换/电流检测)
+- soft-start → 软启动 (DCDC/电源管理)
+- short-circuit protection → 短路保护 (驱动/电源)
+- differential output → 差分输出 (放大器)
+- tracking → 跟踪输出 (LDO)
+- low input bias → 低Ib (运放)
+- zero crossover → 零交越失真 (运放)
+- single-ended → 单端输出 (运放/放大器)
+- low-side → 低边检测 (电流检测)
+- open-load → 开路检测 (驱动/开关)
+- reverse current → 防反接 (电源保护)
+- overcurrent → 过流保护 (电源/驱动)
+- remote sense → 远端采样 (电源管理)
+- shift register → 移位寄存器接口 (IO扩展)
+- brake → 刹车功能 (马达驱动)
+
+== Few-shot 示例 ==
+Q: CAN FD 车规 低功耗唤醒
+A: {"features":["CAN-FD","车规AEC-Q100","低功耗唤醒"],"vendor":null,"category_hint":"接口","explanation":"CAN FD车规收发器需要低功耗唤醒特性","confidence":"high"}
+
+Q: 隔离 RS-485 高速 20Mbps
+A: {"features":["隔离","RS-485","20Mbps"],"vendor":null,"category_hint":"隔离接口","explanation":"隔离RS-485收发器，20Mbps高速","confidence":"high"}
+
+Q: 低压 LDO 5V 1A
+A: {"features":["LDO","Vout_5V","Iout_1A"],"vendor":null,"category_hint":"电源","explanation":"低压LDO，5V输出1A","confidence":"high"}
+
+Q: 非隔离 RS-485
+A: {"features":["RS-485"],"vendor":null,"category_hint":"接口","explanation":"非隔离RS-485收发器，无需隔离功能","confidence":"high"}
+
+Q: 非隔离 CAN 车规
+A: {"features":["CAN-FD","车规AEC-Q100"],"vendor":null,"category_hint":"接口","explanation":"非隔离CAN FD车规收发器","confidence":"high"}

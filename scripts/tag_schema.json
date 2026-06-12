@@ -1,0 +1,1147 @@
+{
+  "version": "1.0",
+  "description": "ChipSelect 标签体系单一真源。修改此文件后运行 python3 scripts/generate_all.py 同步所有派生文件。",
+  "categories": [
+    {
+      "tag": "RS-485",
+      "priority": 110,
+      "hint": "隔离接口",
+      "patterns": [
+        "隔离.*485",
+        "485.*隔离",
+        "隔离.*rs-?485",
+        "rs-?485.*隔离"
+      ],
+      "section": [
+        "RS-485 收发器",
+        "隔离 RS-485 收发器"
+      ],
+      "conflicts": [
+        "RS-232"
+      ]
+    },
+    {
+      "tag": "RS-232",
+      "priority": 110,
+      "hint": "隔离接口",
+      "patterns": [
+        "隔离.*232",
+        "232.*隔离",
+        "隔离.*rs-?232",
+        "rs-?232.*隔离"
+      ],
+      "section": [
+        "RS-232 收发器"
+      ],
+      "conflicts": [
+        "RS-485"
+      ]
+    },
+    {
+      "tag": "CAN-FD",
+      "priority": 110,
+      "hint": "隔离接口",
+      "patterns": [
+        "隔离.*can",
+        "can.*隔离"
+      ],
+      "section": [
+        "CAN 收发器",
+        "隔离CAN",
+        "CAN-FD",
+        "CAN 隔离"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "I2C",
+      "priority": 110,
+      "hint": "隔离接口",
+      "patterns": [
+        "隔离.*i2c",
+        "i2c.*隔离",
+        "隔离.*i²c"
+      ],
+      "section": [
+        "隔离I2C"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "隔离栅极驱动",
+      "priority": 109,
+      "hint": "驱动",
+      "patterns": [
+        "隔离栅极驱动",
+        "隔离.*栅极.*驱动",
+        "栅极.*隔离.*驱动"
+      ],
+      "section": [
+        "隔离栅极驱动"
+      ],
+      "conflicts": [
+        "非隔离栅极驱动"
+      ]
+    },
+    {
+      "tag": "非隔离栅极驱动",
+      "priority": 111,
+      "hint": "驱动",
+      "patterns": [
+        "非隔离栅极驱动",
+        "非隔离.*栅极.*驱动"
+      ],
+      "section": [
+        "非隔离栅极驱动"
+      ],
+      "conflicts": [
+        "隔离栅极驱动"
+      ]
+    },
+    {
+      "tag": "隔离放大器",
+      "priority": 108,
+      "hint": "隔离放大器",
+      "patterns": [
+        "隔离放大器",
+        "隔离.*放大"
+      ],
+      "section": [
+        "隔离放大器和调制器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "隔离电源",
+      "priority": 108,
+      "hint": "隔离电源",
+      "patterns": [
+        "隔离电源"
+      ],
+      "section": [
+        "隔离电源",
+        "隔离 电源"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "RS-485",
+      "priority": 90,
+      "hint": "接口",
+      "patterns": [
+        "485",
+        "rs-?485"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "RS-232",
+      "priority": 90,
+      "hint": "接口",
+      "patterns": [
+        "232",
+        "rs-?232"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "CAN-FD",
+      "priority": 90,
+      "hint": "接口",
+      "patterns": [
+        "can[ -]?fd",
+        "can\\s*fd"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "CAN-FD",
+      "priority": 85,
+      "hint": "接口",
+      "patterns": [
+        "\\bcan\\b(?!\\s*fd|[a-z])"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "LIN",
+      "priority": 85,
+      "hint": "接口",
+      "patterns": [
+        "\\blin\\b"
+      ],
+      "section": [
+        "LIN 收发器",
+        "LIN收发器",
+        "LIN"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "MLVDS",
+      "priority": 85,
+      "hint": "接口",
+      "patterns": [
+        "mlvds"
+      ],
+      "section": [
+        "MLVDS"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "I2C",
+      "priority": 85,
+      "hint": "接口",
+      "patterns": [
+        "i2c",
+        "i²c"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "SBC",
+      "priority": 85,
+      "hint": "接口",
+      "patterns": [
+        "\\bsbc\\b"
+      ],
+      "section": [
+        "SBC"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "数字隔离器",
+      "priority": 85,
+      "hint": "隔离",
+      "patterns": [
+        "数字隔离器",
+        "数字隔离"
+      ],
+      "section": [
+        "数字隔离器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "栅极驱动",
+      "priority": 80,
+      "hint": "驱动",
+      "patterns": [
+        "栅极驱动",
+        "栅极.*驱动",
+        "驱动.*栅极"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "LDO",
+      "priority": 85,
+      "hint": "电源",
+      "patterns": [
+        "\\bldo\\b",
+        "低压差",
+        "线性稳压"
+      ],
+      "section": [
+        "LDO",
+        "低压LDO",
+        "高压 LDO"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "DCDC",
+      "priority": 85,
+      "hint": "电源",
+      "patterns": [
+        "\\bdcdc\\b",
+        "dc[ -]?dc",
+        "降压.*变换",
+        "升压.*变换",
+        "buck",
+        "boost"
+      ],
+      "section": [
+        "宽压降压变换器",
+        "中压降压变换器",
+        "低压降压变换器",
+        "升压变换器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "降压",
+      "priority": 80,
+      "hint": "电源",
+      "patterns": [
+        "降压",
+        "buck"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "升压",
+      "priority": 80,
+      "hint": "电源",
+      "patterns": [
+        "升压",
+        "boost"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "电子保险丝",
+      "priority": 85,
+      "hint": "电源保护",
+      "patterns": [
+        "电子保险丝",
+        "efuse",
+        "e[ -]?fuse"
+      ],
+      "section": [
+        "电子保险丝"
+      ],
+      "conflicts": [
+        "理想二极管"
+      ]
+    },
+    {
+      "tag": "理想二极管",
+      "priority": 85,
+      "hint": "电源保护",
+      "patterns": [
+        "理想二极管",
+        "oring",
+        "or[ -]?ing",
+        "理想.*二极"
+      ],
+      "section": [
+        "理想二极管|ORing 控制器"
+      ],
+      "conflicts": [
+        "电子保险丝"
+      ]
+    },
+    {
+      "tag": "高边驱动",
+      "priority": 85,
+      "hint": "驱动",
+      "patterns": [
+        "高边驱动",
+        "高边开关",
+        "high[ -]?side"
+      ],
+      "section": [
+        "高边驱动"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "负载开关",
+      "priority": 85,
+      "hint": "开关",
+      "patterns": [
+        "负载开关",
+        "load[ -]?switch"
+      ],
+      "section": [
+        "负载开关",
+        "电源 开关"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "电源时序",
+      "priority": 85,
+      "hint": "电源管理",
+      "patterns": [
+        "电源时序",
+        "电源.*时序",
+        "sequenc"
+      ],
+      "section": [
+        "电源时序控制"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "线性充电",
+      "priority": 85,
+      "hint": "电池管理",
+      "patterns": [
+        "线性充电",
+        "电池充电",
+        "charger"
+      ],
+      "section": [
+        "线性充电芯片"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "电池监控",
+      "priority": 85,
+      "hint": "电池管理",
+      "patterns": [
+        "电池监控",
+        "电池.*监控",
+        "fuel[ -]?gauge"
+      ],
+      "section": [
+        "电池监控"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "仪表放大器",
+      "priority": 90,
+      "hint": "放大器",
+      "patterns": [
+        "仪表放大",
+        "仪表.*运放",
+        "in[ -]?amp"
+      ],
+      "section": [
+        "仪表放大器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "运放",
+      "priority": 80,
+      "hint": "放大器",
+      "patterns": [
+        "运放",
+        "运算放大",
+        "op[ -]?amp",
+        "operational"
+      ],
+      "section": [
+        "高压运算放大器",
+        "低压运算放大器",
+        "精密运算放大器",
+        "低功耗运算放大器",
+        "小尺寸封装运算放大器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "比较器",
+      "priority": 85,
+      "hint": "比较器",
+      "patterns": [
+        "比较器",
+        "comparator"
+      ],
+      "section": [
+        "比较器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "ADC",
+      "priority": 85,
+      "hint": "数据转换",
+      "patterns": [
+        "\\badc\\b",
+        "模数转换"
+      ],
+      "section": [
+        "精密模数转换器（ADC）",
+        "ADC DAC"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "DAC",
+      "priority": 85,
+      "hint": "数据转换",
+      "patterns": [
+        "\\bdac\\b",
+        "数模转换"
+      ],
+      "section": [
+        "精密数模转换器(DAC)"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "电压基准",
+      "priority": 85,
+      "hint": "电压基准",
+      "patterns": [
+        "电压基准",
+        "基准电压",
+        "vref",
+        "reference"
+      ],
+      "section": [
+        "电压基准",
+        "串联型电压基准",
+        "并联型电压基准"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "电流传感器",
+      "priority": 85,
+      "hint": "传感器",
+      "patterns": [
+        "电流传感",
+        "current[ -]?sens",
+        "current[ -]?shunt"
+      ],
+      "section": [
+        "电流信号检测放大器",
+        "数字式电流/功率检测器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "温度传感器",
+      "priority": 85,
+      "hint": "传感器",
+      "patterns": [
+        "温度传感",
+        "temp[ -]?sens"
+      ],
+      "section": [
+        "温度传感器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "模拟开关",
+      "priority": 85,
+      "hint": "开关",
+      "patterns": [
+        "模拟开关",
+        "analog[ -]?switch",
+        "analog[ -]?mux"
+      ],
+      "section": [
+        "模拟开关",
+        "低压模拟开关",
+        "高压模拟开关"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "高速数据复用器",
+      "priority": 85,
+      "hint": "开关",
+      "patterns": [
+        "高速.*复用",
+        "高速.*解复用",
+        "高速数据复用"
+      ],
+      "section": [
+        "高速数据复用器/解复用器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "马达驱动",
+      "priority": 85,
+      "hint": "驱动",
+      "patterns": [
+        "马达驱动",
+        "电机驱动",
+        "motor[ -]?driv"
+      ],
+      "section": [
+        "马达驱动",
+        "步进马达驱动",
+        "直流马达驱动"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "电平转换",
+      "priority": 85,
+      "hint": "电平转换",
+      "patterns": [
+        "电平转换",
+        "level[ -]?shift",
+        "电压转换",
+        "voltage[ -]?translat"
+      ],
+      "section": [
+        "电平转换器",
+        "自动方向"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "复位芯片",
+      "priority": 85,
+      "hint": "复位",
+      "patterns": [
+        "复位芯片",
+        "reset[ -]?ic",
+        "看门狗",
+        "watchdog"
+      ],
+      "section": [
+        "复位芯片",
+        "集成看门狗的复位芯片"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "BMS",
+      "priority": 85,
+      "hint": "电池管理",
+      "patterns": [
+        "\\bbms\\b",
+        "电池保护",
+        "battery[ -]?protect"
+      ],
+      "section": [
+        "1节-检测MOS",
+        "1节-复合IC",
+        "2~16节-次级保护",
+        "3~16节-全功能保护",
+        "电池均衡IC"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "逻辑门",
+      "priority": 85,
+      "hint": "逻辑",
+      "patterns": [
+        "逻辑门",
+        "与门",
+        "或门",
+        "非门",
+        "and[ -]?gate",
+        "or[ -]?gate",
+        "logic[ -]?gate"
+      ],
+      "section": [
+        "与门"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "匹配电阻",
+      "priority": 85,
+      "hint": "电阻",
+      "patterns": [
+        "匹配电阻",
+        "电阻网络",
+        "resistor[ -]?network"
+      ],
+      "section": [
+        "匹配电阻网络"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "视频滤波",
+      "priority": 85,
+      "hint": "视频",
+      "patterns": [
+        "视频滤波",
+        "video[ -]?filter"
+      ],
+      "section": [
+        "视频滤波驱动"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "传感器接口",
+      "priority": 85,
+      "hint": "传感器",
+      "patterns": [
+        "传感器接口",
+        "sensor[ -]?interface"
+      ],
+      "section": [
+        "传感器接口",
+        "传感器 接口"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "音频总线",
+      "priority": 85,
+      "hint": "音频",
+      "patterns": [
+        "音频总线",
+        "audio[ -]?bus"
+      ],
+      "section": [
+        "ASN 音频总线"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "EMI滤波器",
+      "priority": 85,
+      "hint": "滤波器",
+      "patterns": [
+        "emi.*滤波",
+        "共模.*滤波",
+        "emi[ -]?filter"
+      ],
+      "section": [],
+      "conflicts": []
+    },
+    {
+      "tag": "IO扩展器",
+      "priority": 85,
+      "hint": "IO",
+      "patterns": [
+        "io.*扩展",
+        "io.*expander",
+        "gpio.*扩展"
+      ],
+      "section": [
+        "IO 扩展器"
+      ],
+      "conflicts": []
+    },
+    {
+      "tag": "千兆",
+      "priority": 75,
+      "hint": "以太网",
+      "patterns": [
+        "千兆",
+        "2\\.5g",
+        "百兆",
+        "t1[ -]?phy",
+        "sgmii",
+        "rgmii",
+        "qsgmii",
+        "以太网",
+        "交换机",
+        "网卡",
+        "phy.*接口"
+      ],
+      "section": [
+        "PHY 接口"
+      ],
+      "conflicts": []
+    }
+  ],
+  "modifiers": [
+    {
+      "action": "strip",
+      "pattern": "非隔离|不隔离|无隔离",
+      "exclude_tags": [
+        "隔离",
+        "5kVrms隔离",
+        "3kVrms隔离",
+        "隔离栅极驱动",
+        "隔离电源",
+        "隔离放大器",
+        "隔离I2C",
+        "隔离CAN",
+        "隔离RS485"
+      ]
+    },
+    {
+      "action": "add",
+      "pattern": "车规|aec[ -]?q100|汽车级",
+      "tag": "车规AEC-Q100"
+    },
+    {
+      "action": "add",
+      "pattern": "工业级|工业",
+      "tag": "工业级"
+    },
+    {
+      "action": "add",
+      "pattern": "半双工",
+      "tag": "半双工"
+    },
+    {
+      "action": "add",
+      "pattern": "全双工",
+      "tag": "全双工"
+    },
+    {
+      "action": "add",
+      "pattern": "精密|高精度|低失调|低漂移|offset.*(小于|＜|≤|[\\d.]+[uμmμ])",
+      "tag": "精密(≤1mV)"
+    },
+    {
+      "action": "add",
+      "pattern": "低噪声|低噪音|low[ -]?noise",
+      "tag": "低噪声"
+    },
+    {
+      "action": "add",
+      "pattern": "轨到轨|rail[ -]?to[ -]?rail",
+      "tag": "轨到轨"
+    },
+    {
+      "action": "add",
+      "pattern": "高psrr|高电源抑制",
+      "tag": "高PSRR"
+    },
+    {
+      "action": "add",
+      "pattern": "低功耗唤醒",
+      "tag": "低功耗唤醒"
+    },
+    {
+      "action": "add",
+      "pattern": "特定帧唤醒|partial[ -]?networking",
+      "tag": "特定帧唤醒"
+    },
+    {
+      "action": "add",
+      "pattern": "pin[ -]?to[ -]?pin|兼容",
+      "tag": "Pin-to-Pin兼容"
+    },
+    {
+      "action": "add",
+      "pattern": "高速|高速率",
+      "tag": "高速(≥50MHz)"
+    }
+  ],
+  "params": [
+    {
+      "name": "speed",
+      "display": "速度(Mbps)",
+      "patterns": [
+        "(\\d+\\.?\\d*)\\s*(G|g)\\s*bps",
+        "(\\d+\\.?\\d*)\\s*(M|m)\\s*bps",
+        "(\\d+\\.?\\d*)\\s*(k|K)\\s*bps"
+      ],
+      "thresholds": [
+        200,
+        150,
+        100,
+        50,
+        20,
+        10,
+        5,
+        2,
+        1
+      ],
+      "unit": "Mbps",
+      "guard": "not preceded by mV/mA/mHz"
+    },
+    {
+      "name": "txr",
+      "display": "收发数",
+      "patterns": [
+        "(\\d+)\\s*T\\s*(\\d+)\\s*R",
+        "(\\d+)\\s*发\\s*(\\d+)\\s*收"
+      ],
+      "thresholds": []
+    },
+    {
+      "name": "current",
+      "display": "输出电流",
+      "patterns": [
+        "(\\d+\\.?\\d*)\\s*A\\b(?!\\w)",
+        "(\\d+)\\s*mA\\b"
+      ],
+      "thresholds": [
+        12,
+        10,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1,
+        0.5
+      ],
+      "unit": "A",
+      "tag_prefix": "Iout_"
+    },
+    {
+      "name": "voltage",
+      "display": "电压",
+      "patterns": [
+        "(\\d+\\.?\\d*)\\s*V\\b(?!\\w)"
+      ],
+      "thresholds": [
+        48,
+        36,
+        24,
+        12,
+        5,
+        3.3,
+        2.5,
+        1.8,
+        1.2,
+        1,
+        0.8,
+        0.6
+      ],
+      "unit": "V",
+      "tag_prefix": "Vin_"
+    },
+    {
+      "name": "channels",
+      "display": "通道数",
+      "patterns": [
+        "(\\d+)\\s*通道",
+        "(\\d+)\\s*路\\b"
+      ],
+      "thresholds": [
+        32,
+        16,
+        8,
+        4,
+        2,
+        1
+      ],
+      "unit": "通道"
+    },
+    {
+      "name": "bits",
+      "display": "分辨率",
+      "patterns": [
+        "(\\d+)\\s*bit\\b"
+      ],
+      "thresholds": [
+        24,
+        20,
+        18,
+        16,
+        14,
+        12,
+        10,
+        8
+      ],
+      "unit": "bit"
+    },
+    {
+      "name": "mux",
+      "display": "复用比",
+      "patterns": [
+        "(\\d+)\\s*:\\s*1\\b"
+      ],
+      "thresholds": []
+    },
+    {
+      "name": "kv_isolation",
+      "display": "隔离电压",
+      "patterns": [
+        "(\\d+)\\s*kVrms|(\\d+)\\s*kV\\s*(隔离|隔离电压)"
+      ],
+      "thresholds": [],
+      "tag_suffix": "kVrms隔离"
+    }
+  ],
+  "validations": [
+    {
+      "id": "precision_vos",
+      "desc": "精密(≤1mV)标签必须 Vos(Max)≤1mV",
+      "severity": "high",
+      "auto_fix": true
+    },
+    {
+      "id": "tag_spaces",
+      "desc": "标签不能含空格（会被前端token拆分）",
+      "severity": "high",
+      "auto_fix": false
+    },
+    {
+      "id": "asn_not_can",
+      "desc": "ASN产品不能标CAN-FD",
+      "severity": "high",
+      "auto_fix": true
+    },
+    {
+      "id": "speed_unit_kbps",
+      "desc": "kBPS参数不能标Mbps(除以1000)",
+      "severity": "high",
+      "auto_fix": false
+    },
+    {
+      "id": "isolation_context",
+      "desc": "隔离标签需要参数支撑(kV/CMTI)",
+      "severity": "medium",
+      "auto_fix": false
+    },
+    {
+      "id": "conflicting_tags",
+      "desc": "互斥标签(RS-485+RS-232)",
+      "severity": "medium",
+      "auto_fix": false
+    },
+    {
+      "id": "empty_fields",
+      "desc": "空section/features",
+      "severity": "high",
+      "auto_fix": false
+    },
+    {
+      "id": "garbled_params",
+      "desc": "参数乱码(merge_headers失败)",
+      "severity": "medium",
+      "auto_fix": false
+    },
+    {
+      "id": "param_feature_gap",
+      "desc": "params有功能但features缺标签",
+      "severity": "medium",
+      "auto_fix": true
+    },
+    {
+      "id": "section_tag_mismatch",
+      "desc": "section和features品类不一致",
+      "severity": "low",
+      "auto_fix": false
+    }
+  ],
+  "domain_knowledge": {
+    "synonyms": {
+      "partial networking": {
+        "tag": "特定帧唤醒",
+        "standard": "ISO 11898-6",
+        "context": "CAN收发器选型"
+      },
+      "rail-to-rail": {
+        "tag": "轨到轨",
+        "context": "运放输入/输出"
+      },
+      "low iq": {
+        "tag": "低功耗",
+        "context": "静态电流指标"
+      },
+      "spread spectrum": {
+        "tag": "展频",
+        "context": "DCDC转换器"
+      },
+      "bidirectional": {
+        "tag": "双向",
+        "context": "电平转换/电流检测"
+      },
+      "soft-start": {
+        "tag": "软启动",
+        "context": "DCDC/电源管理"
+      },
+      "short-circuit protection": {
+        "tag": "短路保护",
+        "context": "驱动/电源"
+      },
+      "differential output": {
+        "tag": "差分输出",
+        "context": "放大器"
+      },
+      "tracking": {
+        "tag": "跟踪输出",
+        "context": "LDO"
+      },
+      "low input bias": {
+        "tag": "低Ib",
+        "context": "运放"
+      },
+      "zero crossover": {
+        "tag": "零交越失真",
+        "context": "运放"
+      },
+      "single-ended": {
+        "tag": "单端输出",
+        "context": "运放/放大器"
+      },
+      "low-side": {
+        "tag": "低边检测",
+        "context": "电流检测"
+      },
+      "open-load": {
+        "tag": "开路检测",
+        "context": "驱动/开关"
+      },
+      "reverse current": {
+        "tag": "防反接",
+        "context": "电源保护"
+      },
+      "overcurrent": {
+        "tag": "过流保护",
+        "context": "电源/驱动"
+      },
+      "remote sense": {
+        "tag": "远端采样",
+        "context": "电源管理"
+      },
+      "shift register": {
+        "tag": "移位寄存器接口",
+        "context": "IO扩展"
+      },
+      "brake": {
+        "tag": "刹车功能",
+        "context": "马达驱动"
+      }
+    },
+    "known_traps": [
+      "TPDA系列是ASN音频总线，不是CAN收发器",
+      "1mV≠1Mbps：参数提取时注意单位上下文",
+      "收发器≠CAN：需确认Technology Family",
+      "非隔离=不要隔离标签，不是否定品类",
+      "标签不能含空格(前端split拆分)",
+      "精密(≤1mV)必须校验Vos(Max)实际值",
+      "隔离标签需要参数支撑(kV/CMTI/隔离电压)",
+      "autofix后必须跑tag_audit(autofix会覆盖tag_config标签)"
+    ],
+    "vendor_param_aliases": {
+      "3peak-analog": {
+        "Vos (Max) (mV)": "offset_voltage_max",
+        "Data Rate (Max) (kBPS)": "speed_max_kbps",
+        "Supply Voltage (Min) (V)": "vin_min",
+        "Isolation Rating (Vrms)": "isolation_rating"
+      },
+      "novosense": {
+        "Offset Voltage": "offset_voltage_max",
+        "Data Rate": "speed_max",
+        "CMTI": "cmti",
+        "Isolation Voltage": "isolation_rating"
+      }
+    }
+  },
+  "tag_constraints": {
+    "精密(≤1mV)": {
+      "description": "Vos(Max)必须 ≤ 1.0mV",
+      "param_pattern": "Vos\\s*\\(Max\\)\\s*\\(mV\\)\\s*[:：]\\s*([\\d.]+)",
+      "validate": "float(value) <= 1.0",
+      "fail_action": "remove_tag"
+    },
+    "轨到轨": {
+      "description": "Rail-Rail In 必须为 Yes（仅输出轨到轨不算）",
+      "param_pattern": "Rail-Rail\\s*In\\s*[:：]\\s*Yes",
+      "validate": "match is not None",
+      "fail_action": "remove_tag"
+    },
+    "高PSRR": {
+      "description": "PSRR 需有 dB 值且 ≥ 60dB",
+      "param_pattern": "PSRR.*?(\\d+)\\s*dB",
+      "validate": "float(value) >= 60",
+      "fail_action": "remove_tag"
+    },
+    "低功耗唤醒": {
+      "description": "需有 wake/唤醒/standby/sleep 或 partial networking",
+      "param_pattern": "(?:wake|唤醒|standby|sleep|partial.network)",
+      "validate": "match is not None",
+      "fail_action": "remove_tag"
+    },
+    "低噪声": {
+      "description": "需有 noise/PSRR/噪声/Vn 参数",
+      "param_pattern": "(?:noise|psrr|噪声|vn.at|peak.noise)",
+      "validate": "match is not None",
+      "fail_action": "remove_tag"
+    }
+  }
+}

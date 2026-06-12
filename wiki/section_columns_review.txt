@@ -1,0 +1,1185 @@
+思瑞浦-模拟 坐标法提取 — Section→列名总表 (供FAE审核)
+======================================================================
+总898款 | 71个section | 多重分类109款
+======================================================================
+
+
+【高压运算放大器(Vs＞10V)】 (62款, 20列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Operating Temperature Range (℃)
+   18. Features
+   19. Package
+   样例: LM2902A → LM2902A | Production | Industrial | 4 | 3 | 36 | 200 | 0.9 | 0.5 | No, to V- only | Yes | 30 | 3 | 7 | 60 | 70 | 20 | -4
+
+【低压运算放大器(Vs＜10V)】 (104款, 21列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/ rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Shutdown/ Disable
+   18. Operating Temperature Range (℃)
+   19. Features
+   20. Package
+   样例: LMV321B → LMV321B | Production | Industrial | 1 | 2.5 | 5.5 | 130 | 1 | 0.7 | Yes | Yes | 100 | 4 | 2 | 1 | 35 | 8 | / | -40 to 12
+
+【精密运算放大器(Vos ＜＝1mV)】 (75款, 21列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/ rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Shutdown/ Disable
+   18. Operating Temperature Range (℃)
+   19. Features
+   20. Package
+   样例: SNA0002 → SNA0002 | Production | Industrial | 2 | 2 | 5.5 | 55 | 0.35 | 0.16 | Yes | Yes | 60 | 0.01 | 0.008 | 50 | 55 | 1.1 | / |
+
+【高速运算放大器(GBW＞＝50MHz)】 (8款, 20列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Shutdown/ Disable
+   18. Operating Temperature Range (℃)
+   19. Package
+
+【低功耗运算放大器 (Iq Per Ch <= 50μa)】 (17款, 21列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/ rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Shutdown/ Disable
+   18. Operating Temperature Range (℃)
+   19. Features
+   20. Package
+
+【小尺寸封装运算放大器 (DFN, QFN, Wafer-Level CSP)】 (16款, 19列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Number of Channels
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. Iq per channel (typ) (μA)
+    7. GBW (Typ) (MHz)
+    8. Slew Rate (Typ) (V/μs)
+    9. Rail-Rail In
+   10. Rail-Rail Out
+   11. Ishort (Typ) (mA)
+   12. Vos (Max) (mV)
+   13. Offset Drift (Typ) (μV/°C)
+   14. Ib (typ) (pA)
+   15. Vn at 1 kHz (Typ) (nV/rtHz)
+   16. Peak Noise at 0.1 to 10Hz (μVpp)
+   17. Operating Temperature Range (℃)
+   18. Package
+
+【音频线路驱动】 (5款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Features
+    4. VDD (Min) (V)
+    5. VDD (Max) (V)
+    6. Iq (typ) (mA)
+    7. Output Voltage, RL = 2.5kΩ, VCC = 5.0V (Min) (Vrms)
+    8. Output Voltage, RL = 2.5kΩ, VCC = 3.3V (Min) (Vrms)
+    9. Input Type
+   10. Shutdown
+   11. UVP Control
+   12. Click-Pop Suppression
+   13. Package
+   样例: TPF605A → TPF605A | Production | Industrial | / | 2.7 | 5.5 | 4 | 3.05 | 2.05 | Single End | Yes | Yes | Yes | EMSOP10
+
+【视频滤波驱动】 (15款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Resolution
+    4. Number of Channels
+    5. VDD (Min) (V)
+    6. VDD (Max) (V)
+    7. Quiescent Current (Typ) (mA)
+    8. Voltage Gain (Typ) (dB)
+    9. Stop-Band Rejection@27MHz (dB)
+   10. Diff. Gain (Typ) (%)
+   11. Diff. Phase (Typ) (Deg)
+   12. THD (Typ) (%)
+   13. Package
+   样例: TPF110 → TPF110 | Production | Industrial | 480i, 576i | 1-SD | 2.85 | 5.5 | 3.9 | 6 | 51.2dB@27MHz | 0.4 | 0.7 | 0.1 | SOT23-6,S
+
+【隔离放大器和调制器】 (8款, 8列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Product Family
+    4. Features
+    5. Input Range (V)
+    6. Insulation Rating (Vrms)
+    7. Package
+   样例: TPA8000 → TPA8000 | Production | Industrial | Isolated Amplifer | G = 8, Differential Output | 0.25 | 5000 | SMP8,WSOP8
+
+【比较器】 (42款, 18列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Output Type
+    4. Vs (Min) (V)
+    5. Number of Channels
+    6. Vs (max) (V)
+    7. Iq per channel (typ) (μA)
+    8. Propagation Delay (ns)
+    9. Vos (offset voltage at 25°C) (max) (mV)
+   10. Input bias current (typ) (nA)
+   11. Rail-to-rail Input
+   12. Rail-to-rail Output
+   13. VICR (Max) (V)
+   14. VICR (Min) (V)
+   15. Operating Temperature Range (℃)
+   16. Features
+   17. Package
+   样例: LM211 → LM211 | Production | Industrial | Open-Collector, Open-Drain | 3.5 | 1 | 36 | 6000 | 360 | 3 | 35 | No | Yes | VCC-2 | V
+
+【电流信号检测放大器】 (18款, 22列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Features
+    4. VCM Min
+    5. VCM Max
+    6. Vos drift Typ (μV/c)
+    7. Input Direction
+    8. CMRR (Min) (dB)
+    9. BW (kHz)
+   10. Gain Option
+   11. GE Max at full temp range (%)
+   12. GE Drift, max (ppm/c)
+   13. Vos max (μV)
+   14. Ib (Typ) (nA)
+   15. PWM Rejection
+   16. VS Min
+   17. VS Max
+   18. Iq (Max) (μA)
+   19. Number of Channels
+   20. Compa rator
+   21. Package
+   样例: TP181 → TP181 | Production | Industrial | / | -0.3 | 36 | 0.1 | Bi-dir | 95 | 48 at G=50;30 at G=100;20 at | G = 50, 100, 200 | 
+
+【仪表放大器】 (2款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Product Family
+    4. Supply Voltage (Min) (V)
+    5. Supply Voltage (Max) (V)
+    6. VOS (Max) (\u00b5V)
+    7. Ib (Typ) (nA)
+    8. Bandwidth at G=1 (Typ) (MHz)
+    9. Slew Rate (Typ) (V/ \u00b5s)
+   10. Gain Seting (V/V)
+   11. Gain Error at G=1 (Max) (%)
+   12. CMRR at G=1 (Min) (dB)
+   13. Package
+   样例: TPA1286 → TPA1286 | Production | Industrial | Instrumentation Amplifer | 4.5 | 36 |  | 0.3 | 1.6 |  | 1 to 1000 | 0.05 | 80 | DFN3
+
+【差动放大器】 (12款, 16列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Features
+    4. Product Family
+    5. Supply Voltage (Min) (V)
+    6. Supply Voltage (Max) (V)
+    7. Iq (Max) (mA)
+    8. VOS (Max) (\u00b5V)
+    9. Bandwidth (Typ) (MHz)
+   10. Slew Rate (Typ) (V/ \u00b5s)
+   11. Gain Seting (V/V)
+   12. Gain Error (Max) (%)
+   13. Input Range (V)
+   14. CMRR (Typ) (dB)
+   15. Package
+   样例: TPA9151 → TPA9151 | Production | Industrial | Two reference pin. | Difference Amplifer | 4.5 | 36 | 3 |  | 0.5 |  | 1 | 0.03 | ±27
+
+【对数放大器】 (1款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. CH
+    4. VDD (V)
+    5. Iq (Max) (mA)
+    6. Input Current Range
+    7. Logarithmic Slope (mV/dec, Typ.)
+    8. Law Conformance Error (dB, Max.)
+    9. Package
+   样例: TPA8304 → TPA8304 | Production | Industrial | 1 | 4.5~5.5 | 10 | 1nA to 10mA | 200 | 0.25 at Input>10nA | QFN3X3-16,TSSOP14
+
+【带电压基准的放大器】 (5款, 9列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Working Voltage (Max) (V)
+    4. Vos (Max) (mV)
+    5. Voltage Reference (Typ) (V)
+    6. Voltage Reference Accuracy (Max) (%)
+    7. Reference for Current (Typ) (mV)
+    8. Package
+   样例: TPA7252 → TPA7252 | Production | Industrial | 3~36 | 4 | 2.5 | 1 | / | SOP8
+
+【匹配电阻网络】 (19款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Product Family
+    4. Resistor Configuration
+    5. Working Voltage (Max) (V)
+    6. Resistor Matching Ratio (Max) (%)
+    7. Resistor Matching Ratio Temperature Drift (Max) (ppm/°C)
+    8. Matching for CMRR (Max) (%)
+    9. Package
+   样例: TPR8200 → TPR8200 | Production | Industrial | Matched Resistor Network | 10k,10k,10k,10k | 20 | 0.1 | 5 | 0.04 | EMSOP8
+
+【传感器接口】 (4款, 6列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VDD (V)
+    4. Description
+    5. Package
+   样例: TPA8801B → TPA8801B | Production | Industrial | 2.1~5.5 | TPA8801B is a high sensitivity current input inter | TSSOP14
+
+【线性充电芯片】 (2款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Vin (Max) (V)
+    4. Float Voltage (V)
+    5. Float Voltage Accuracy
+    6. Max Output Current (mA)
+    7. IBAT (μA)
+    8. OVP (V)
+    9. Temperature Range (℃)
+   10. Package
+   样例: TPB4056A → TPB4056A | Production | Industrial | 26.5 | 4.2 | 0.01 | 1000 | 4 | 6.8 | -40 to +125 | DFN2X2-8,ESOP8
+
+【高边驱动】 (1款, 5列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Temperature Range (℃)
+    4. Package
+   样例: TPB76200 → TPB76200 | Production | Industrial | -40 to +125 | TSSOP16
+
+【电池监控】 (4款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Device Type
+    4. Product Description
+    5. Max Number Of Series Cells
+    6. Accuracy
+    7. Vin (Max) (V)
+    8. Communication Interface
+    9. Operating Temperature Range (℃)
+   10. Package
+   样例: TPB76016 → TPB76016 | Production | Industrial | Cell monitor and balancer,Protector,Low-side driver | 17-ch BMS AFE | 17 | ±5mV | 7
+
+【精密数模转换器(DAC)】 (19款, 21列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Resolution
+    4. VDD (V)
+    5. Number of Channels
+    6. Output Type
+    7. Reference Type
+    8. Settling Time (μS)
+    9. Architecture
+   10. Output POR Status
+   11. INL
+   12. DNL (LSB, Max)
+   13. Offset Error (mV, Max)
+   14. IDD (μA/CH, Max) (μA)
+   15. Gain Error (% of FSR, Max)
+   16. Voltage Output Range (V)
+   17. D to A Glitch Impulse (nV- sec)
+   18. Interface Type
+   19. Temperature Range (℃)
+   20. Package
+   样例: TPC112S1 → TPC112S1 | Production | Industrial | 12 | 2.7~5.5 | 1 | Bufferred Voltage | Ext | 14 | String | 0 | ±2 | ±1 | ±30 | 80 |
+
+【精密模数转换器（ADC）】 (30款, 19列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Resolution
+    4. VDD (V)
+    5. Number of Channels
+    6. Throughput Rate (Msps)
+    7. Architecture
+    8. Input Type
+    9. Multichannel Configuration
+   10. INL (LSB, Max)
+   11. DNL (LSB, Max)
+   12. Offset Error (LSB, Max)
+   13. Gain Error (LSB)
+   14. Voltage Input Range (V)
+   15. IDD (mA)
+   16. Digital Interface
+   17. Temperature Range (℃)
+   18. Package
+   样例: TPAFE5160 → TPAFE5160 | Production | Industrial | 16 | 4.75~5.25 | 8 | 0.35 | SAR | Pseudo-Differential | Simultaneous | ±2 | ±1 | ±
+
+【高速数模转换器（DAC）】 (2款, 12列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. CH
+    4. Resolution
+    5. Update Rate (MSPS)
+    6. Interface
+    7. Output
+    8. SNR (dB)
+    9. VDD (V)
+   10. Reference
+   11. Package
+   样例: 3PD5651E → 3PD5651E | Production | Industrial | 1 | 10 | 125 | Parallel | 2mA - 20mA | 52 | 2.7 - 5.5 | Internal/External | TSSOP28
+
+【高速模数转换器（ADC）】 (3款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Resolution
+    4. Update Rate (MSPS)
+    5. CH
+    6. Interface
+    7. VIN (V)
+    8. DNL (LSB)
+    9. SINAD (dB)
+   10. VDD (V)
+   11. Power (mW)
+   12. Datum
+   13. Package
+   样例: 3PA1030 → 3PA1030 | Production | Industrial | 10 | 50 | 1 | Parallel | 0~2 | 0.3 | 56.5 | 2.7~5.5 | 84 | Internal | TSSOP28
+
+【数字式电流/功率检测器】 (6款, 16列)
+    0. Part Number
+    1. Status
+    2. Features
+    3. Number of Channels
+    4. Resolution (Bits)
+    5. Rating
+    6. Common Mode Voltage (Max) (V)
+    7. Shunt Offset (+/-) (Max) (μV)
+    8. Gain Error (%)
+    9. CMRR (Min) (dB)
+   10. Supply Voltage (Max) (V)
+   11. Supply Voltage (Min) (V)
+   12. Iq (typ) (mA)
+   13. Digital Interface
+   14. Operating Temperature Range (℃)
+   15. Package
+   样例: TPA6190 → TPA6190 | Production | Bidirectional, Intergrated Power Monitor, | 1 | 12 | Industrial | 0~36 | 50 | 0.4 | 110 | 5.5 | 2
+
+【多通道可配置模数/数模转换器】 (6款, 17列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. ADC Input Channel
+    4. ADC Resolution (Bits)
+    5. ADC Input Range (V)
+    6. DAC Channel
+    7. DAC Resolution (Bits)
+    8. DAC Output Type
+    9. DAC Output Range
+   10. GPIO Number
+   11. VREF
+   12. Temperature Sensor
+   13. Interface
+   14. Features
+   15. Temperature Range (℃)
+   16. Package
+   样例: TPA7836B → TPA7836B | Production | Industrial | 21 | 12 | High precision inputs: | 16 | 12 | Voltage | -10V,-5V,5V,-10V | 8 | Inter
+
+【温度传感器】 (1款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Type
+    4. Local Sensor Accuracy (℃) (max)
+    5. Temperature Resolution (Bits)
+    6. Features
+    7. Supply Voltage (Max) (V)
+    8. Supply Voltage (Min) (V)
+    9. Iq (Typ) (μA) (max)
+   10. Digital Interface
+   11. Operating Temperature Range (℃)
+   12. Package
+   样例: TPTMP75 → TPTMP75 | Production | Industrial | Local | ±1@-20~85℃±1.5@-40~85℃±2@-40~125℃ | 12 | ALERT,One-shot conversion | 5.5 | 2
+
+【宽压降压变换器】 (53款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Output (V)
+    5. Max Output Current (A)
+    6. Control Mode
+    7. Switching Frequency (kHz)
+    8. Features
+    9. Temperature Range (℃)
+   10. Package
+   样例: TPP00031 → TPP00031 | Production | Industrial | 4.5~100 | 1.225~100 | 0.3 | Constant On Time | 1000 | FPWM | -40 to +125 | DFN3X3-8
+
+【中压降压变换器】 (4款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Output (V)
+    5. Max Output Current (A)
+    6. Control Mode
+    7. Switching Frequency (kHz)
+    8. Features
+    9. Temperature Range (℃)
+   10. Package
+   样例: TPP2020 → TPP2020 | Production | Industrial | 4.5~17 | 0.8~17 | 2 | Constant On-time | 500 | / | -40 to +125 | TSOT23-6
+
+【低压降压变换器】 (4款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Output (V)
+    5. Max Output Current (A)
+    6. Control Mode
+    7. Switching Frequency (kHz)
+    8. Features
+    9. Temperature Range (℃)
+   10. Package
+   样例: TPP056080 → TPP056080 | Production | Industrial | 2.8~6 | 0.6~6 | 6 | Peak Current Mode | 200-1600 | Softstart | -40 to +125 | QFN3X
+
+【功率级DrMOS】 (1款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Max Output Current (A)
+    5. Temperature Range (℃)
+    6. Current Limit (A)
+    7. Trise (ns)
+    8. tfall (ns)
+    9. PWM Logic (V)
+   10. Package
+   样例: TPM1525 → TPM1525 | Production | Industrial | 7~140 | 1 | -40 to +125 | 20 | 40 | 40 | 3.3 | SOP8
+
+【升压变换器】 (16款, 8列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Output (V)
+    5. Max Output Current (A)
+    6. Temperature Range (℃)
+    7. Package
+   样例: TPQ05100 → TPQ05100 | Production | Industrial | 0.9~5.5 | 1.8~5.5 | 0.6 | -40 to +125 | DFN2X2-6,WLCSP
+
+【以太网供电】 (2款, 16列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Temperature Range (℃)
+    5. PD Hot-Swap Swith Rdson (Ω)
+    6. PoE Standards Supported
+    7. PoE Current Limit (mA)
+    8. DCDC Controller or Converter
+    9. DCDC Topology
+   10. DCDC Integrated Switch Rdson (Ω)
+   11. Switching Frequency (kHz)
+   12. Max Duty Cycle (%)
+   13. Fault Response
+   14. Special Features
+   15. Package
+   样例: TPE15017 → TPE15017 | Production | Industrial | 24~57 | -40 to +125 | 0.56 | 802.3af | 460 | Converter | Flyback | 0.36/0.78 | 200 
+
+【隔离电源】 (9款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Max Output Current (A)
+    5. Topology
+    6. Regulation
+    7. Switching Frequency (kHz)
+    8. Temperature Range (℃)
+    9. Package
+   样例: TPM6501 → TPM6501 | Production | Industrial | 2.5~25 | 1 | Push-pull | Open-loop | 420, 2200 | -40 to +125 | SOT23-5
+
+【直流马达驱动】 (4款, 9列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Rdson (H+L) (Ω)
+    5. Max Output Current (A)
+    6. # of Half Bridges
+    7. Temperature Range (℃)
+    8. Package
+   样例: TPM1202 → TPM1202 | Production | Industrial | 16~100 | 14.5 | 0.2 | 2 | -40 to +125 | QFN4X4-16
+
+【步进马达驱动】 (9款, 8列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Number of Channels
+    5. Max Output Current (A)
+    6. Features
+    7. Package
+   样例: TPM0596 → TPM0596 | Production | Industrial | 5~50 | 8 | 0.5 | Shift Register | TSSOP16
+
+【隔离栅极驱动】 (9款, 15列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Isolation Rating
+    4. Isolation Rating (Vrms)
+    5. Number of Channels
+    6. Input
+    7. Driver UVLO Threshold Typ (V)
+    8. Peak Output Current (A)
+    9. Features
+   10. Output Voltage Max (V)
+   11. Output Voltage Min (V)
+   12. Propagation Delay (ns)
+   13. Junction Temperature Range (℃)
+   14. Package
+   样例: TPM21520 → TPM21520 | Production | Industrial | Reinforced | 5700 | 2 | TTL/CMOS | 12 | 4.2/7.8 | Deadtime Control | 30 | 13.5 | 30
+
+【非隔离栅极驱动】 (18款, 12列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VIN (V)
+    4. Number of Channels
+    5. Max Output Current (A)
+    6. Input Range (V)
+    7. Junction Temperature Range (℃)
+    8. Rise/Fall Time (ns)
+    9. Propagation Delay (ns)
+   10. Delay Matching (ns)
+   11. Package
+   样例: TPM1020 → TPM1020 | Production | Industrial | 4.75~5.25 | 1 | 7 | 0~5 | -40 to +150 | 0.225/0.44 | 0.3 | N/A | WLCSP
+
+【高压模拟开关】 (8款, 21列)
+    0. Part Number
+    1. Status
+    2. Number of Channels
+    3. Switch Config
+    4. Rating
+    5. VCC-VEE (Min) (V)
+    6. VCC-VEE (Max) (V)
+    7. VCC (Min) (V)
+    8. VCC (Max) (V)
+    9. VEE (Min) (V)
+   10. VEE (Max) (V)
+   11. Input Range
+   12. BW (MHz)
+   13. IQ (μA)
+   14. Ron (Ω)
+   15. Leakage Current (nA)
+   16. VIH (Min) (V)
+   17. VIL (Max) (V)
+   18. tON (ns)
+   19. tOFF (ns)
+   20. Package
+   样例: TPW4051 → TPW4051 | Production | 1 | 8:1 | Industrial | 3 | 12 | 3 | 12 | -6 | 0 | VEE to VDD | 200 | 8 | 60 | 400 | 2 | 0.8 | 60 
+
+【低压模拟开关】 (15款, 17列)
+    0. Part Number
+    1. Status
+    2. Number of Channels
+    3. Rating
+    4. Switch Config
+    5. VCC (Min) (V)
+    6. VCC (Max) (V)
+    7. Input Range
+    8. BW (MHz)
+    9. IQ (μA)
+   10. Ron (Ω)
+   11. Leakage Current (nA)
+   12. VIH (Min) (V)
+   13. VIL (Max) (V)
+   14. tON (ns)
+   15. tOFF (ns)
+   16. Package
+   样例: TPW1221 → TPW1221 | Production | 2 | Industrial | 2:1 | 1.65 | 5.5 | -2.5V to VCC | 60 | 0.3 | 0.9 | 100 | 1.6 | 0.6 | 100 | 60 | 
+
+【电平转换器】 (9款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Drivers Per Package
+    4. Receivers Per Package
+    5. VCC (Min) (V)
+    6. VCC (Max) (V)
+    7. Data Rate (Max) (kBPS)
+    8. ICC (Max) (mA)
+    9. ESD HBM (kV)
+   10. IEC-61000-4-2 Contact (kV)
+   11. Operating Temperature Range (℃)
+   12. Package
+   样例: TPT24857 → TPT24857 | Production | Industrial | 7 | 7 | 1.1 | 3.6 | 208000 | 0.15 | 7 | 8 | -40 to +85 | WLCSP20
+
+【IO 扩展器】 (14款, 12列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Drivers Per Package
+    4. Receivers Per Package
+    5. VCC (Min) (V)
+    6. VCC (Max) (V)
+    7. Data Rate (Max) (kBPS)
+    8. ICC (Max) (mA)
+    9. ESD HBM (kV)
+   10. Operating Temperature Range (℃)
+   11. Package
+   样例: TPT29536A → TPT29536A | Production | Industrial | 2 | 4 | 1.65 | 5.5 | 400 | 0.03 | 3 | -40 to +105 | MSOP8
+
+【CAN收发器】 (27款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Supply Voltage (V)
+    4. Bus Fault Protection Voltage (V)
+    5. Max Data Rate (Mbps)
+    6. Number of Channels
+    7. Features
+    8. BUS Contact ESD (kV)
+    9. Package
+   样例: TPT1042 → TPT1042 | Production | Industrial | 4.5 to 5.5 | -70 to +70 | 5 | 1 | Standby | 15 | DFN3X3-8,SOP8
+
+【LIN收发器】 (7款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Supply Voltage (V)
+    4. Bus Fault Protection Voltage (V)
+    5. Data Rate (Max) (kBPS)
+    6. Number of Channels
+    7. Features
+    8. BUS Contact ESD (kV)
+    9. Package
+   样例: TPT1021EQ → TPT1021EQ | Production | Automotive | 5.5 to 40 | -45 to +45 | 20 | 1 | INH pin, WAKE pin | 15 | DFN3X3-8,SOP8
+
+【RS232收发器】 (6款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Drivers Per Package
+    4. Receivers Per Package
+    5. VCC (Min) (V)
+    6. VCC (Max) (V)
+    7. Data Rate (Max) (kBPS)
+    8. ICC (Max) (mA)
+    9. ESD HBM (kV)
+   10. IEC-61000-4-2 Contact (kV)
+   11. Operating Temperature Range (℃)
+   12. Package
+   样例: TPT3122EH → TPT3122EH | Production | Industrial | 2 | 2 | 3 | 5.5 | 1000 | 2 | 15 | 12 | -40 to +125 | QFN4X4-24
+
+【RS485收发器】 (39款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Drivers Per Package
+    4. Receivers Per Package
+    5. VCC (Min) (V)
+    6. VCC (Max) (V)
+    7. Data Rate (Max) (kBPS)
+    8. ICC (Max) (mA)
+    9. ESD HBM (kV)
+   10. IEC-61000-4-2 Contact (kV)
+   11. Operating Temperature Range (℃)
+   12. Package
+   样例: TP8480 → TP8480 | Production | Industrial | 0 | 1 | 3 | 5.5 | 250 | 0.6 | 12 | N/A | -40 to +125 | SOP8
+
+【高速数据复用器/解复用器】 (2款, 15列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Function
+    4. Type
+    5. Speed (Mbits/s)
+    6. Number of Channels
+    7. Supply Voltage (Max) (V)
+    8. Supply Voltage (Min) (V)
+    9. Ron (typ) (mΩ)
+   10. Input/Output Voltage (Min) (V)
+   11. Input/Output Voltage (Max) (V)
+   12. Configuration
+   13. Operating Temperature Range (℃)
+   14. Package
+   样例: TPD160221 → TPD160221 | Production | Industrial | Type-C,USB 3.0,DP1.4,PCIe 4.0. | Passive mux | 16000 | 2 | 3.6 | 3 | 7500 | 0 | VC
+
+【收发器】 (4款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Subcategory
+    4. Technology Family
+    5. Master/Slave
+    6. Function
+    7. TDM Ports
+    8. PDM Ports
+    9. Supply Voltage (V)
+   10. Maximum Nodes
+   11. MSL
+   12. Temperature Range (℃)
+   13. Package
+   样例: TPDA1000Q → TPDA1000Q | Production | Automotive | TRX | ASN1.0 | Master Node and Slave Nodes | Full Version | 2 | 2 | 3.8~12 | 17 (1
+
+【数字隔离器】 (14款, 11列)
+    0. WPN
+    1. Status
+    2. Rating
+    3. Forward/Reverse Channels
+    4. Isolation Rating (Vrms)
+    5. Surge Voltage Capability (Vpk)
+    6. CMTI (kV/μs) (Static)
+    7. CMTI (kV/μs) (Dynamic)
+    8. Max Data Rate (Mbps)
+    9. Default Output
+   10. Package
+   样例: TPT7621 → TPT7621 | Production | Industrial | 1/1 | 8000 | 12000 | 200 | 150 | 100 | High | SOP8
+
+【隔离RS485】 (4款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Isolation Rating (Vrms)
+    4. Surge Voltage Capability (Vpk)
+    5. CMTI (kV/μs) (Static)
+    6. CMTI (kV/μs) (Dynamic)
+    7. Max Data Rate (Mbps)
+    8. Mode
+    9. Package
+   样例: TPT7481 → TPT7481 | Production | Industrial | 5000 | 10000 | 200 | 150 | 20 | Half Duplex | WSOP16
+
+【隔离CAN】 (2款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Isolation Rating (Vrms)
+    4. Surge Voltage Capability (Vpk)
+    5. CMTI (kV/μs) (Static)
+    6. CMTI (kV/μs) (Dynamic)
+    7. Max Data Rate (Mbps)
+    8. Bus Fault Protection Voltage (V)
+    9. Package
+   样例: TPT71044 → TPT71044 | Production | Industrial | 5000 | 10000 | 200 | 150 | 5 | 42V | WSOP16,WSOP8
+
+【隔离I2C】 (3款, 10列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Isolation Rating (Vrms)
+    4. Surge Voltage Capability (Vpk)
+    5. CMTI (kV/μs) (Static)
+    6. CMTI (kV/μs) (Dynamic)
+    7. Max Data Rate (Mbps)
+    8. Clock Direction
+    9. Package
+   样例: TPT7250 → TPT7250 | Production | Industrial | 8000 | 12000 | 200 | 150 | 1 | Bidirection | SOP8
+
+【低压LDO】 (26款, 15列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Minimum Input Voltage (V)
+    4. Maximum Input Voltage (V)
+    5. Output Voltage (V)
+    6. Accuracy (max)
+    7. Max Output Current (mA)
+    8. Iq (typ) (mA)
+    9. Dropout (typ) (mV)
+   10. PSRR @ 1kHz (dB)
+   11. Noise (μVRMS)
+   12. Temperature Range (℃)
+   13. Features
+   14. Package
+   样例: TPL5031 → TPL5031 | Production | Industrial | 1.5 | 5.5 | Fixed (0.8, 1.2, 1.5, 1.8, 2.5, 2.8, 3.3) | ±2% | 300 | 0.055 | 250 | 70
+
+【高压 LDO】 (23款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Minimum Input Voltage (V)
+    4. Maximum Input Voltage (V)
+    5. Output Voltage (V)
+    6. Accuracy (max)
+    7. Max Output Current (mA)
+    8. Iq (mA)
+    9. Dropout (mV)
+   10. PSRR (dB)
+   11. Noise (μVRMS)
+   12. Temperature Range (℃)
+   13. Package
+   样例: TPL5080 → TPL5080 | Production | Industrial | 2.7 | 16 | Fixed (3.3, 5) | ±2% | 800 | 0.8 | 320 | 50 | 0.003%VOUT | -40 to +125 | 
+
+【并联型电压基准】 (8款, 12列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Output Voltage
+    4. Isink (min) (mA)
+    5. Isink (max) (mA)
+    6. Accuracy
+    7. TC (ppm/℃)
+    8. 10 to 10kHz Voltage Noise (μVrms)
+    9. Output Capacitor Load (μF)
+   10. Features
+   11. Package
+   样例: TPR431 → TPR431 | Production | Industrial | Adjustable (VREF to 36) | 1 | 80 | 0.005 | 50 | / | / | / | SOT23G-3
+
+【串联型电压基准】 (7款, 16列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Vin (Min) (V)
+    4. Vin (Max) (V)
+    5. Output Voltage
+    6. Iq (Max) (μA)
+    7. Accuracy (max)
+    8. TC (-40 to 85℃) (ppm/℃)
+    9. TC (-40 to 125℃) (ppm/℃)
+   10. 0.1 to 10Hz Output Voltage Noise (uVpp)
+   11. Line Regulation (max) (ppm/V)
+   12. Load Regulation (max) (ppm/mA)
+   13. Output Capacitor Load (μF)
+   14. Features
+   15. Package
+   样例: TPR31-S → TPR31-S | Production | Industrial | max (Ver+0.2, 3) | 15 | Fixed (1.25, 2.048, 2.5, 3.0, 3.3, 4.096, 4.5, 5.0) | 1000 |
+
+【电子保险丝】 (3款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Minimum Operating Voltage (V)
+    4. Maximum Operating Voltage (V)
+    5. Ron (typ) (mΩ)
+    6. Number of Channels
+    7. Current Limit Type
+    8. Minimum Current Limit (mA)
+    9. Maximum Current Limit (mA)
+   10. Current Limit Accuracy
+   11. Current Sense Accuracy
+   12. Temperature Range (℃)
+   13. Package
+   样例: TPS05P50 → TPS05P50 | Production | Industrial | 4.5 | 5.5 | 27 | 1 | Adjustable | 2000 | 5000 | ±15% | / | -40 to +125 | DFN3X3-10
+
+【理想二极管|ORing 控制器】 (3款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Minimum Operating Voltage (V)
+    4. Maximum Operating Voltage (V)
+    5. Number of Channels
+    6. Typical Iq (μA)
+    7. Iq (Max) (μA)
+    8. Typical IGATE Source (μA)
+    9. Minimum IGATE Source (μA)
+   10. Typical IGATE Sink (mA)
+   11. Temperature Range (℃)
+   12. Package
+   样例: TPS65R01Q → TPS65R01Q | Production | Automotive | 4 | 60 | 1 | 60 | 100 | 13000 | 3000 | 2370 | -40 to +125 | SOT23-6
+
+【高边开关】 (1款, 13列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Minimum Operating Voltage (V)
+    4. Maximum Operating Voltage (V)
+    5. Number of Channels
+    6. Ron (mΩ)
+    7. Iq (Max) (μA)
+    8. Maximum Output Current (A)
+    9. Current Limit Type
+   10. Maximum Current Limit (A)
+   11. Temperature Range (℃)
+   12. Package
+   样例: TPS42S40Q → TPS42S40Q | Production | Automotive | 5 | 40 | 1 | 100 | 5000 | 4 | Adjustable | 13 | -40 to +125 | ETSSOP14
+
+【负载开关】 (1款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Function
+    4. Number of Channels
+    5. Vin (min)
+    6. Vin (Max)
+    7. Imax
+    8. Rdson
+    9. Shutdown Current
+   10. Quiescent current
+   11. Soft Start
+   12. Features
+   13. Package
+   样例: TPS05S60 → TPS05S60 | Production | Industrial | Load Switch | 1 | 2.5 | 5.5 | 6 | 13 | 1.27 | 230 | Y | Build-in SS & Inrush contro
+
+【电源时序控制】 (3款, 12列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. VCC (V)
+    4. Timing Control
+    5. Power-up Sequence Control
+    6. Power-down Sequence Control
+    7. Open-Drain Output
+    8. Output Voltage (V)
+    9. Number of Channels
+   10. Junction Temperature Range (℃)
+   11. Package
+   样例: TPK1031 → TPK1031 | Production | Industrial | 2.7 ~ 5.5 |  | FLAG1->FLAG2->FLAG3 |  |  | 0 ~ VCC | 3 | -40 to +125 | MSOP8
+
+【复位芯片】 (13款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Power Consumption (μA)
+    4. Power Supervisor
+    5. Manual Reset Input
+    6. Watchdog
+    7. Power Fail Input (PFI)
+    8. Reset Timeout Period (mS)
+    9. Watchdog Timeout Period (S)
+   10. Reset Output Polarity
+   11. Reset Output Type
+   12. Temperature Range (℃)
+   13. Package
+   样例: TPV706 → TPV706 | Production | Industrial | 2.2 | Yes | Yes | Yes | Yes | 200 | 1.6 | Low Active | Push-Pull | -40 to +125 | SOP8
+
+【集成看门狗的复位芯片】 (5款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Power Consumption (μA)
+    4. Power Supervisor
+    5. Manual Reset Input
+    6. Watchdog
+    7. Power Fail Input (PFI)
+    8. Reset Timeout Period (mS)
+    9. Watchdog Timeout Period (S)
+   10. Reset Output Polarity
+   11. Reset Output Type
+   12. Temperature Range (°C)
+   13. Package
+   样例: TPV6820Q → TPV6820Q | Production | Automotive | 6 | Yes | Yes | Yes | No | 5ms | 200ms | Low Active | Open Drain | -40 to 125 | SOT
+
+【与门】 (17款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Technology Family
+    4. Number of Channels
+    5. Supply Range (V)
+    6. Input Type
+    7. Output Type
+    8. DC Drive Strength (mA)
+    9. Operating Temperature Range (℃)
+   10. Package
+   样例: T74L1G32Q → T74L1G32Q | Production | Automotive | LVC | 1 | 1.65-5.5 | CMOS | Push-pull output | 32 | -40 to +125 | SOT-353
+
+【自动方向】 (8款, 11列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Technology Family
+    4. Number of Channels
+    5. Supply Range (V)
+    6. Input Type
+    7. Output Type
+    8. DC Drive Strength (mA)
+    9. Operating Temperature Range (℃)
+   10. Package
+   样例: TPT20104 → TPT20104 | Production | Industrial | TXS | 4 | 1.65-3.6/1.65-5.5 | Transition Gate | Push-pull output/Open drain | 1 | -
+
+【1节-检测MOS】 (31款, 18列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Overcharge detection voltage (V)
+    4. Overcharge release voltage(V)
+    5. Overdischarge detection voltage(V)
+    6. Overdischarge release voltage(V)
+    7. Discharge overcurrent detection voltage(V)
+    8. Load short- circuiting detection voltage(V)
+    9. Charge overcurrent detection voltage(V)
+   10. Overcharge Detection Delay Time(mS)
+   11. Overdischarge Detection Delay Time(mS)
+   12. Discharge Overcurrent Detection Delay Time(mS)
+   13. Charge Overcurrent Detection Delay Time(mS)
+   14. Load Short circuiting Detection Delay Time(mS)
+   15. 0V Battery Charging Function
+   16. Sleep Function
+   17. Package
+   样例: CM1003-CED → CM1003-CED | Production | Industrial | 4.55 | 4.35 | 2.5 | 2.7 | 0.06 | 0.19 | -0.06 | 1000 | 64 | 16 | 16 | 280 | Enabl
+
+【1节-检测Rsense】 (20款, 18列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Overcharge detection voltage (V)
+    4. Overcharge release voltage(V)
+    5. Overdischarge detection voltage(V)
+    6. Overdischarge release voltage(V)
+    7. Discharge overcurrent detection voltage(V)
+    8. Load short- circuiting detection voltage(V)
+    9. Charge overcurrent detection voltage(V)
+   10. Overcharge Detection Delay Time(mS)
+   11. Overdischarge Detection Delay Time(mS)
+   12. Discharge Overcurrent Detection Delay Time(mS)
+   13. Charge Overcurrent Detection Delay Time(mS)
+   14. Load Short circuiting Detection Delay Time(mS)
+   15. 0V Battery Charging Function
+   16. Sleep Function
+   17. Package
+   样例: CM1004-BCD → CM1004-BCD | Production | Industrial | 4.525 | 4.375 | 2.35 | 2.55 | 0.0105 | 0.041 | -0.015 | 1024 | 64 | 3584 | 16 | 2
+
+【1节-复合IC】 (23款, 18列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Overcharge detection voltage (V)
+    4. Overcharge release voltage(V)
+    5. Overdischarge detection voltage(V)
+    6. Overdischarge release voltage(V)
+    7. Discharge overcurrent detection (A)
+    8. Load short- circuiting detection (A)
+    9. Charge overcurrent detection (A)
+   10. Overcharge Detection Delay Time(mS)
+   11. Overdischarge Detection Delay Time(mS)
+   12. Discharge Overcurrent Detection Delay Time(mS)
+   13. Charge Overcurrent Detection Delay Time(mS)
+   14. Load Short circuiting Detection Delay Time(mS)
+   15. 0V Battery Charging Function
+   16. Sleep function
+   17. Package
+   样例: CM1112-DBE → CM1112-DBE | Production | Industrial | 4.475 | 4.275 | 2.8 | 3 | 3.2 | 9.6 | 3.4 | 1000 | 64 | 16 | 16 | 280 | Disable |
+
+【3~16节-全功能保护】 (39款, 14列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Overcharge detection voltage (V)
+    4. Overcharge release voltage(V)
+    5. Overdischarge detection voltage(V)
+    6. Overdischarge release voltage(V)
+    7. Discharge overcurrent detection voltage(V)
+    8. Load short-circuiting detection voltage(V)
+    9. Charge overcurrent detection voltage(V)
+   10. Sleep function
+   11. Low voltage charging prohibition function
+   12. Temperature protection
+   13. Package
+   样例: CM1048-AT → CM1048-AT | Production | Industrial | 4.225 | 4.125 | 2.5 | 3 | 0.05 | 0.2 | -0.025 | Y | Y | Y | TSSOP16
+
+【2~16节-次级保护】 (10款, 17列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Overcharge detection voltage (V)
+    4. Overcharge release voltage(V)
+    5. Overcharge Detection Delay Time(S)
+    6. Overdischarge detection voltage(V)
+    7. Overdischarge release voltage(V)
+    8. Overdischarge Detection Delay Time(S)
+    9. CO output
+   10. DO output
+   11. Output logic
+   12. Output voltage of High level
+   13. open-circuit protection
+   14. Output voltage of LDO(V)
+   15. Temperature protection
+   16. Package
+   样例: CM1250-BGA-M8A → CM1250-BGA-M8A | Production | Industrial | 3.8 | 3.7 | 2 | - | - | - | CMOS | - | Dynamics“H” | VCC | Y | - | N | MSOP8
+
+【电池均衡IC】 (9款, 9列)
+    0. Part Number
+    1. Status
+    2. Rating
+    3. Balancing Start-up Voltage(V)
+    4. Balancing Recovery Voltage
+    5. Balancing Start-up Delay Time(mS)
+    6. Standby voltage(V)
+    7. Output logic
+    8. Package
+   样例: CM1010-A → CM1010-A | Production | Industrial | 4.2 | 4.19 | 250 | 2.7 | Dynamics“H” | SOT23-6
