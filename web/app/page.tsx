@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { expandSearch } from "@/lib/synonyms";
+import { applyConstraints, describeMatch, type ConstraintScore } from "@/app/api/interpret/constraint-match";
 
 type Product = Record<string, string>;
 type VendorData = { name: string; productCount: number; products: Product[] };
@@ -20,6 +21,12 @@ type LLMInterpretation = {
   category_hint: string | null;
   explanation: string;
   confidence: string;
+  suggestions?: { text: string; query: string; reason: string }[];
+  exclude_tags?: string[];
+  must?: string[];
+  nice?: string[];
+  mustMeta?: import("@/app/api/interpret/constraint-match").MustConstraint[];
+  sortKey?: import("@/app/api/interpret/constraint-match").SortIntent;
 } | null;
 
 export default function Home() {
@@ -29,6 +36,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [llmResult, setLlmResult] = useState<LLMInterpretation>(null);
   const [llmLoading, setLlmLoading] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0);
   const [compareList, setCompareList] = useState<string[]>([]);
 
   const toggleCompare = (part: string) => {
@@ -44,29 +52,45 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
-  // LLM query interpretation (debounced)
+  // Shared fetch function
+  const doSearch = async (query: string) => {
+    if (!query.trim() || query.trim().length < 3) {
+      setLlmResult(null);
+      return;
+    }
+    setLlmLoading(true);
+    try {
+      const res = await fetch("/api/interpret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query.trim(), vendor: activeVendor }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) setLlmResult(data);
+      }
+    } catch {} 
+    finally { setLlmLoading(false); }
+  };
+
+  // Debounced auto-search on typing
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!search.trim() || search.trim().length < 3) {
       setLlmResult(null);
       return;
     }
-    const timer = setTimeout(async () => {
-      setLlmLoading(true);
-      try {
-        const res = await fetch("/api/interpret", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: search.trim() }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.error) setLlmResult(data);
-        }
-      } catch {} 
-      finally { setLlmLoading(false); }
-    }, 600);
-    return () => clearTimeout(timer);
+    debounceRef.current = setTimeout(() => doSearch(search), 600);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
+
+  // Immediate search on button/Enter
+  useEffect(() => {
+    if (searchTrigger > 0 && search.trim().length >= 3) {
+      doSearch(search);
+    }
+  }, [searchTrigger]);
 
   const vendors = useMemo(() => Object.entries(data), [data]);
 
@@ -135,6 +159,10 @@ export default function Home() {
           matched.push(effectiveTerm);
           const partField = (product.part_number + " " + (product._section || "") + " " + (product._features || "")).toLowerCase();
           score += partField.includes(effectiveTerm) ? 3 : 1;
+          // Exact PN match or PN prefix match → huge boost
+          const pnLower = product.part_number.toLowerCase();
+          if (pnLower === effectiveTerm) score += 100;
+          else if (pnLower.startsWith(effectiveTerm)) score += 50;
         } else {
           allOriginalMatched = false;
         }
@@ -143,7 +171,12 @@ export default function Home() {
       // Product qualifies only if: all original terms match, OR phrase query matches,
       // OR LLM high-confidence features ALL match (enforce every constraint)
       const llmAllMatched = llmResult?.confidence === "high" && llmResult.features.length > 0 &&
-        llmResult.features.every((f) => searchable.includes(f.toLowerCase()));
+        llmResult.features.every((f) => {
+          const ft = f.toLowerCase();
+          // Word-boundary match: split searchable into tokens, check exact token match
+          const tokens = searchable.split(/\s+/);
+          return tokens.includes(ft);
+        });
       
       if (!allOriginalMatched && !phraseMatched && !llmAllMatched) continue;
 
@@ -184,6 +217,48 @@ export default function Home() {
     return scored;
   }, [allProducts, search, activeVendor, llmResult]);
 
+  // Filter products by exclude_tags from parser/LLM response (single source of truth)
+  const filteredResults = results && llmResult?.exclude_tags?.length
+    ? results.filter(r => {
+        const tokens = (r.product._features || '').toLowerCase().split(/\s+/);
+        const excludeSet = new Set(llmResult.exclude_tags!.map(t => t.toLowerCase()));
+        return !tokens.some(t => excludeSet.has(t));
+      })
+    : results;
+
+  // ── 约束层: must/nice 硬过滤 + 三级降级 ──
+  // 灰度门控: 仅对"已验证数据标签质量"的品类启用. 未列入的品类 must 仍为空走老逻辑.
+  // 验证记录: 以太网(裕太微68款) / 电源·放大器·接口·数据转换(思瑞浦模拟894款) 已压测通过.
+  const CONSTRAINED_CATEGORIES = new Set(["以太网", "电源", "电源保护", "放大器", "比较器", "接口", "隔离接口", "数据转换"]);
+  const isConstrainedQuery = !!(llmResult?.must && llmResult.must.length > 0 && llmResult.category_hint && CONSTRAINED_CATEGORIES.has(llmResult.category_hint));
+  const constrained = useMemo(() => {
+    if (!isConstrainedQuery || !filteredResults) return null;
+    const must = llmResult!.must!;
+    const nice = llmResult!.nice || [];
+    const mustMeta = llmResult!.mustMeta || [];
+    const sortKey = llmResult!.sortKey;
+    // 用约束层重新筛选/排序(基于已通过文本初筛的 filteredResults 的产品集)
+    const prods = filteredResults.map(r => r.product);
+    const cr = applyConstraints(prods, must, nice, mustMeta, sortKey);
+    // 回填 vendor 信息(从 filteredResults 建索引)
+    const vendorByPn = new Map(filteredResults.map(r => [r.product.part_number, { vendor: r.vendor, vendorName: r.vendorName }]));
+    return { ...cr, vendorByPn };
+  }, [isConstrainedQuery, filteredResults, llmResult]);
+
+  // 最终展示列表: 以太网走约束层, 其他走老逻辑
+  const displayResults: SearchResult[] = constrained
+    ? constrained.items.map((s: ConstraintScore) => {
+        const v = constrained.vendorByPn.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
+        return {
+          vendor: v.vendor,
+          vendorName: v.vendorName,
+          product: s.product as Product,
+          score: s.score,
+          matchedTerms: [...s.mustHit, ...s.niceHit],
+        };
+      })
+    : (filteredResults || []);
+
   const totalProducts = vendors.reduce((s, [, v]) => s + v.productCount, 0);
 
   // Get displayable params for a product
@@ -213,10 +288,10 @@ export default function Home() {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0d1117]/90 border-b border-[#30363d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1e6ef0] to-[#58a6ff] flex items-center justify-center text-white font-bold text-sm">CS</div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1e6ef0] to-[#58a6ff] flex items-center justify-center text-white font-bold text-sm">TP</div>
             <div>
-              <h1 className="text-lg font-bold text-white">ChipSelect</h1>
-              <p className="text-xs text-[#8b949e] hidden sm:block">芯片选型平台 · {totalProducts} 产品 · {vendors.length} 厂商</p>
+              <h1 className="text-lg font-bold text-white">Teampo 选型平台</h1>
+              <p className="text-xs text-[#8b949e] hidden sm:block">Teampo 选型平台 · {totalProducts} 产品 · {vendors.length} 厂商</p>
             </div>
           </div>
           <nav className="flex items-center gap-4 text-sm">
@@ -230,7 +305,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#1e6ef0]/10 via-transparent to-[#58a6ff]/5" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
           <h2 className="text-3xl sm:text-5xl font-bold mb-4">
-            <span className="text-gradient">半导体芯片</span>
+            <span className="text-gradient">Teampo</span>
             <span className="text-white"> 选型平台</span>
           </h2>
           <p className="text-[#8b949e] text-lg max-w-2xl mx-auto mb-8">
@@ -241,13 +316,27 @@ export default function Home() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索型号、参数或销售用语，如 CAN FD 特定帧唤醒..."
-              className="w-full px-5 py-3.5 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
+              placeholder="搜索型号、参数或销售用语，如 CAN-FD 特定帧唤醒..."
+              className="w-full px-5 py-3.5 pr-12 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
               autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter' && search.trim()) setSearchTrigger(c => c + 1); }}
             />
-            <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8b949e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <button
+              onClick={() => {
+                if (search.trim().length >= 3) setSearchTrigger(c => c + 1);
+              }}
+              disabled={llmLoading}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1e6ef0]/10 hover:bg-[#1e6ef0]/20 border border-[#1e6ef0]/30 hover:border-[#1e6ef0]/50 transition-all disabled:opacity-50"
+              title="搜索"
+            >
+              {llmLoading ? (
+                <div className="w-4 h-4 border-2 border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 text-[#58a6ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
+            </button>
           </div>
           {/* Synonym hint */}
           {search.trim() && (() => {
@@ -313,12 +402,30 @@ export default function Home() {
         ) : results ? (
           <>
             <div className="mb-4 text-sm text-[#8b949e] flex items-center justify-between">
-              <span>找到 {results.length} 个匹配 · 按相关度排序</span>
-              <span className="text-xs">显示 {Math.min(results.length, 200)} 个</span>
+              <span>找到 {displayResults.length} 个匹配 · {constrained && constrained.tier > 1 ? "降级排序" : (llmResult?.sortKey ? llmResult.sortKey.label : "按相关度排序")}</span>
+              <span className="text-xs">显示 {Math.min(displayResults.length, 200)} 个</span>
             </div>
 
+            {/* 约束横幅 — tier2/3 降级说明, 或 tier1 带排序意图(高PSRR等)的说明 */}
+            {constrained && constrained.banner && (
+              <div className="mb-4 max-w-3xl bg-[#d29922]/8 border border-[#d29922]/30 rounded-lg p-3">
+                <p className="text-[#e6edf3] text-sm">{constrained.banner}</p>
+              </div>
+            )}
+
+            {/* Suggestion banner — always show when AI has advice */}
+            {llmResult?.suggestions && llmResult.suggestions.length > 0 && displayResults.length > 0 && !constrained && (
+              <div className="mb-4 max-w-3xl">
+                {llmResult.suggestions.map((s, i) => (
+                  <div key={i} className="bg-[#d29922]/5 border border-[#d29922]/20 rounded-lg p-3 mb-2">
+                    <p className="text-[#e6edf3] text-sm">{s.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {results.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms }) => (
+              {displayResults.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms }) => (
                 <div key={`${vendor}-${product.part_number}`} className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#1e6ef0] hover:shadow-[0_0_16px_rgba(30,110,240,0.1)] transition-all group">
                   {/* Part number + vendor + score */}
                   <div className="flex items-start justify-between mb-2">
@@ -330,12 +437,29 @@ export default function Home() {
                     </span>
                   </div>
 
-                  {/* Section hint */}
-                  {product._section && (
-                    <div className="mb-2 text-xs text-[#3fb950] bg-[#3fb950]/10 px-2 py-0.5 rounded inline-block">
-                      {product._section}
-                    </div>
-                  )}
+                  {/* Category tag from _features (more reliable than _section) */}
+                  {(() => {
+                    const feat = product._features || "";
+                    const categoryTag = feat.split(" ").filter((t: string) => 
+                      !["工业级","车规AEC-Q100","消费级","生产","Production"].includes(t)
+                    ).pop() || "";
+                    return categoryTag ? (
+                      <div className="mb-2 text-xs text-[#3fb950] bg-[#3fb950]/10 px-2 py-0.5 rounded inline-block">
+                        {categoryTag}
+                      </div>
+                    ) : product._section ? (
+                      <div className="mb-2 text-xs text-[#8b949e] bg-[#8b949e]/10 px-2 py-0.5 rounded inline-block">
+                        {product._section}
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Match quality badge */}
+                  {score >= 30 ? (
+                    <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[#3fb950]/20 text-[#3fb950]">精确匹配</span>
+                  ) : score >= 10 ? (
+                    <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[#d29922]/20 text-[#d29922]">接近匹配</span>
+                  ) : null}
 
                   {/* Params */}
                   <div className="space-y-1">
@@ -372,14 +496,27 @@ export default function Home() {
               ))}
             </div>
 
-            {results.length > 200 && (
+            {displayResults.length > 200 && (
               <div className="text-center py-8 text-[#8b949e] text-sm">显示前 200 个 · 请缩小搜索范围</div>
             )}
 
-            {results.length === 0 && (
-              <div className="text-center py-20 text-[#8b949e]">
-                <div className="text-4xl mb-4">🔍</div>
-                <p>未找到匹配 &quot;{search}&quot; 的芯片</p>
+            {displayResults.length === 0 && search.trim() && (
+              <div className="text-center py-12 text-[#8b949e]">
+                {llmResult?.suggestions && llmResult.suggestions.length > 0 ? (
+                  <div className="max-w-xl mx-auto text-left space-y-3">
+                    <div className="text-2xl mb-2">💡 建议</div>
+                    {llmResult.suggestions.map((s, i) => (
+                      <div key={i} className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
+                        <p className="text-[#e6edf3] text-sm leading-relaxed">{s.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-4xl mb-4">🔍</div>
+                    <p>未找到匹配 &quot;{search}&quot; 的芯片</p>
+                  </>
+                )}
               </div>
             )}
           </>
@@ -387,7 +524,7 @@ export default function Home() {
           <div className="text-center py-20 text-[#8b949e]">
             <div className="text-5xl mb-4">🔎</div>
             <p className="text-lg">输入型号、参数或需求开始搜索</p>
-            <p className="text-sm mt-2">试试：便宜运放 · CAN FD · 小封装 · 车规隔离</p>
+            <p className="text-sm mt-2">试试：便宜运放 · CAN-FD · 小封装 · 车规隔离</p>
           </div>
         )}
       </main>
@@ -434,7 +571,7 @@ export default function Home() {
           const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
-          a.href = url; a.download = "chipselect_compare.csv"; a.click();
+          a.href = url; a.download = "teampo_compare.csv"; a.click();
           URL.revokeObjectURL(url);
         };
 
@@ -516,8 +653,13 @@ export default function Home() {
       })()}
 
       <footer className="border-t border-[#30363d] py-6 text-center text-xs text-[#484f58]">
-        ChipSelect · {totalProducts} products · 4 vendors · 智能语义搜索
+        Teampo · {totalProducts} products · 4 vendors · 智能语义搜索
       </footer>
+
+      {/* Teampo Intelligence badge */}
+      <div className="fixed bottom-4 right-4 z-50 bg-gradient-to-r from-[#1e6ef0]/15 to-[#58a6ff]/10 border border-[#1e6ef0]/30 rounded-lg px-3.5 py-1.5 text-[11px] text-[#58a6ff] backdrop-blur-sm tracking-wide select-none pointer-events-none">
+        ⚡ Teampo Intelligence v1.0
+      </div>
     </div>
   );
 }

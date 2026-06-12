@@ -17,6 +17,11 @@ Thumbs.db
 # Vercel
 .vercel
 
+# Data backups / archived scripts (keep local, don't version)
+web/public/data/*.backup_*.json
+web/public/data/*.bak
+scripts/_archived/
+
 # IDE
 .vscode/
 .idea/

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ChipSelect — 芯片选型平台",
+  title: "Teampo 选型平台",
   description:
     "纳芯微、思瑞浦、裕太微等半导体芯片产品选型对比平台。快速查找、筛选、对比芯片参数。",
   keywords: ["芯片选型", "半导体", "纳芯微", "思瑞浦", "裕太微", "PHY", "以太网"],

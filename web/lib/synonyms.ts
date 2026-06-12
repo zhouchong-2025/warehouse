@@ -20,11 +20,24 @@ export const SALES_SYNONYMS: Record<string, string[]> = {
   "网口芯片": ["PHY", "Ethernet", "收发器", "transceiver"],
   "以太网": ["Ethernet", "PHY", "收发器"],
   "网络芯片": ["Ethernet", "PHY", "transceiver"],
+  // 注: tx/TX 物理层介质由 query_parser.ts 精确处理(TX=100Base-TX双绞线铜口, ≠100FX光纤, ≠MAC侧RGMII).
+  //     原 "tx接口"→100FX/RGMII 是领域错误(介质层与MAC层混淆), 已移除避免污染搜索.
+  "光纤": ["100FX", "fiber"],
+  "光口": ["100FX", "fiber"],
   
   // Speed
   "高速": ["high speed", "high-speed", "GHz", "Mbps"],
   "快的": ["high speed", "高速"],
   
+  
+  // Networking / 交换机 / PHY
+  "交换机": ["switch", "交换"],
+  "网卡": ["NIC", "网口"],
+  "五口": ["5口", "5口交换机"],
+  "八口": ["8口", "8口交换机"],
+  "四口": ["4口"],
+  // 注: TX/T1/FX 物理层介质语义由 query_parser.ts 精确处理(TX=线路侧双绞线, 非MAC侧RGMII).
+  //     此处不做 TX→RGMII 映射, 避免污染(线路侧介质≠MAC侧接口, FAE铁律).
   // Wake-up / Sleep (CAN specific)
   "特定帧唤醒": ["partial networking", "selective wake", "特定帧唤醒"],
   "选择性唤醒": ["partial networking", "selective wake", "特定帧唤醒"],
