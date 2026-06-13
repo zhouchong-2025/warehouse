@@ -61,14 +61,10 @@ def extract_speed(v, param_key=''):
         elif unit == 'M': rate = val
         elif unit == 'G': rate = val * 1000
         else: rate = val
-        thresholds = [200, 150, 100, 50, 20, 10, 5, 2, 1]
-        tags = [f'{int(t)}Mbps' for t in thresholds if rate >= t]
-        # Always include exact rate if it matches
-        exact = int(rate) if rate == int(rate) else rate
-        exact_tag = f'{int(exact)}Mbps' if exact == int(exact) else f'{exact}Mbps'
-        if exact_tag not in tags and rate >= 1:
-            tags.append(exact_tag)
-        return tags
+        # ★ 方案甲(2026-06-12): 速率存真实值单一标签, 不再梯子展开.
+        #   与 autofix.py speed 块一致. 搜索≥语义由 constraint-match.ts '速率' downgradable 分支做数值比较.
+        if rate <= 0: return []
+        return [f'{int(rate)}Mbps' if rate == int(rate) else f'{round(rate, 3)}Mbps']
     except:
         return []
 
@@ -284,19 +280,19 @@ TAG_RULES = {
         'paired:(minimum operating voltage,maximum operating voltage)': extract_vin,
     },
 
-    # ── ADC/DAC: bit depth + channels + speed + Vin ──
+    # ── ADC/DAC: bit depth + channels + Vin ──
+    #   ★ 2026-06-12: 删除 ADC 'rate (msps)'→extract_speed 和 DAC 'settling time'→extract_speed.
+    #   MSPS(采样率)和 Settling Time(建立时间μs)都不是数据速率(Mbps), 单位语义不同, 误抽成Mbps是语义推断错误.
+    #   ADC采样率排序由 SortIntent(paramKeys=throughput/msps 读_params_numeric)处理, 不需要Mbps布尔标签.
     'ADC': {
         'resolution': extract_bits,
         'number of channels': extract_channels,
         'vdd (v)': extract_vin,
-        'rate (msps)': extract_speed,
-        'throughput': extract_speed,
     },
     'DAC': {
         'resolution': extract_bits,
         'number of channels': extract_channels,
         'vdd (v)': extract_vin,
-        'settling time': extract_speed,
     },
     # ── 数字隔离器: channels (Forward/Reverse) + speed ──
     '数字隔离器': {

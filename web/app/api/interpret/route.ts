@@ -109,7 +109,12 @@ A: {"features":["车规AEC-Q100","百兆","100Base-TX"],"vendor":null,"category_
 Q: 千兆phy 光口
 A: {"features":["千兆","100FX"],"vendor":null,"category_hint":"以太网","explanation":"千兆以太网PHY，光口对应光纤介质","confidence":"high"}
 
-仅输出JSON: {"features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low"}`;
+== 意图识别(intent) ==
+- 默认 intent="spec_search"(按品类/参数找料)。
+- 仅当用户明确在"用某竞品型号找国产替代/pin-to-pin/兼容料"时 intent="cross_ref", 并把竞品型号填入 cross_ref_target(大写)。例: "把我现在用的那颗TI双通道隔离换成国产"→intent="cross_ref"(若有明确型号则填, 没有则留空走品类搜索)。
+- 注意: 大多数"型号+替代"查询已被规则层拦截, LLM 只需兜底口语化、没明说型号的模糊表达。拿不准就用 spec_search, 不要乱标 cross_ref。
+
+仅输出JSON: {"features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -177,6 +182,10 @@ export async function POST(req: NextRequest) {
           if (parsed.exclude_tags && parsed.exclude_tags.length > 0) {
             llmResult.exclude_tags = parsed.exclude_tags;
           }
+          // LLM intent 兜底(snake_case→camelCase): 规则层未识别 cross_ref 时, 采纳 LLM 判断
+          if (llmResult.intent === 'cross_ref' && llmResult.cross_ref_target) {
+            llmResult._llmCrossRef = String(llmResult.cross_ref_target).toUpperCase().trim();
+          }
         }
       }
     }
@@ -196,6 +205,17 @@ export async function POST(req: NextRequest) {
     // 独立于 must: 排序意图对所有品类有效(高PSRR的LDO / 大电流的DCDC等), 不门控以太网.
     if (parsed.sortKey) {
       result.sortKey = parsed.sortKey;
+    }
+    // ── 透传意图分类(2026-06-12): cross_ref 竞品反查由前端用 crossRefSearch 确定性检索"可替代产品"字段 ──
+    // 优先级: 规则层(parsed)识别的 cross_ref 最权威; 规则未识别时采纳 LLM 兜底判断.
+    if (parsed.intent === 'cross_ref' && parsed.crossRefTarget) {
+      result.intent = 'cross_ref';
+      result.crossRefTarget = parsed.crossRefTarget;
+    } else if (result._llmCrossRef) {
+      result.intent = 'cross_ref';
+      result.crossRefTarget = result._llmCrossRef;
+    } else {
+      result.intent = 'spec_search';
     }
     const fixConf = () => { if (result.confidence === "medium") result.confidence = "high"; };
 

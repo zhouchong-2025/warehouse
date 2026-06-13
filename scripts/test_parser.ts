@@ -78,9 +78,9 @@ const TESTS: TestCase[] = [
   { query: '音频总线', expectedFeatures: ['音频总线'], needsLLM: false },
   { query: 'EMI滤波器', expectedFeatures: ['EMI滤波器'], needsLLM: false },
 
-  // ── Speed / params ──
-  { query: '20Mbps', expectedFeatures: ['20Mbps', '10Mbps', '5Mbps', '2Mbps', '1Mbps'] },
-  { query: '1Gbps', expectedFeatures: ['200Mbps', '150Mbps', '100Mbps', '50Mbps', '20Mbps', '10Mbps', '5Mbps', '2Mbps', '1Mbps'] },
+  // ── Speed / params ── (方案甲 2026-06-12: 单一真实值标签, 不再梯子展开)
+  { query: '20Mbps', expectedFeatures: ['20Mbps'], forbiddenFeatures: ['10Mbps', '5Mbps', '2Mbps', '1Mbps'] },
+  { query: '1Gbps', expectedFeatures: ['1000Mbps'], forbiddenFeatures: ['200Mbps', '100Mbps', '50Mbps'] },
 
   // ── LLM fallback (fuzzy) ──
   { query: '帮我找个高速的接口芯片', expectedFeatures: [], needsLLM: true },

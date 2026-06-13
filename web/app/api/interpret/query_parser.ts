@@ -23,6 +23,11 @@ export interface ParseResult {
   nice: string[];               // 软约束: 等级/特性, 满足更好(用于排序)
   mustMeta: MustConstraint[];   // must 的维度标注(用于维度感知降级)
   sortKey?: SortIntent;         // 排序意图(高/低 + 参数), 排序层读 _params_numeric 数值排序
+  // ── 意图分类(2026-06-12) ──
+  //   'spec_search'(默认): 按品类/参数找料, 走 parser+约束层
+  //   'cross_ref': 竞品型号反查国产替代料, 走"可替代产品"字段确定性反查
+  intent: 'spec_search' | 'cross_ref';
+  crossRefTarget?: string;      // intent=cross_ref 时, 用户输入的竞品型号(规范化大写, 如 'ISO7721')
 }
 
 // 排序意图 — "高PSRR/低噪声/大电流" 这类程度修饰查询的语义.
@@ -237,6 +242,11 @@ const SORT_RULES: SortRule[] = [
   { pattern: /高\s*esd|esd\s*高|高\s*防护|高\s*静电/i, categories: ['RS-485', 'RS-232', 'CAN-FD', 'LIN'],
     intent: { param: 'ESD', paramKeys: ['esd_hbm', 'esd', 'contact'], direction: 'high', require: true, label: '按 ESD 防护从高到低' } },
 
+  // ── 数字隔离器 专属 ──
+  // 数据速率(码流): 越高越好 ("高速数字隔离器") — 数字隔离器核心指标, 47/81 有数据速率数值.
+  { pattern: /高\s*速率|速率高|高\s*data\s*rate|高速/i, categories: ['数字隔离器'],
+    intent: { param: '数据速率', paramKeys: ['data_rate', 'max_data_rate', '码流'], direction: 'high', require: true, label: '按数据速率从高到低' } },
+
   // ── DCDC 专属 ──
   // 开关频率: 越高越好 ("高频DCDC/高开关频率") — 高频=小电感小体积
   { pattern: /高\s*频|频率高|高\s*开关频率|开关频率高/i, categories: ['DCDC'],
@@ -258,6 +268,11 @@ const SORT_RULES: SortRule[] = [
 //  PARAM RULES
 // ═══════════════════════════════════════════════════════════
 
+// 数值→标签字符串(整数去小数, 小数保留): 208→"208", 0.5→"0.5"
+function fmtNum(value: number): string {
+  return Number.isInteger(value) ? `${value}` : `${parseFloat(value.toFixed(3))}`;
+}
+
 function cumulativeThresholds(value: number, thresholds: number[], unit: string): string[] {
   const tags: string[] = [];
   for (const t of thresholds) {
@@ -271,14 +286,17 @@ function cumulativeThresholds(value: number, thresholds: number[], unit: string)
 }
 
 const PARAM_RULES: ParamRule[] = [
+  // ★ 方案甲(2026-06-12): 速率查询发单一真实值标签, 不再梯子展开(cumulativeThresholds).
+  //   "50Mbps" → must=[50Mbps] (family=Mbps, downgradable), 产品速率≥50 即满足(constraint-match ≥比较).
+  //   旧 cumulativeThresholds 依赖产品侧梯子标签做≥, 现产品侧也改单一真实值, 改由数值比较实现≥.
   { pattern: /(\d+\.?\d*)\s*(G|g)\s*bps/i,
-    extract: (m) => cumulativeThresholds(parseFloat(m[1]) * 1000, [200, 150, 100, 50, 20, 10, 5, 2, 1], 'Mbps') },
+    extract: (m) => [`${fmtNum(parseFloat(m[1]) * 1000)}Mbps`] },
   { pattern: /(\d+\.?\d*)\s*(M|m)\s*bps/i,
-    extract: (m) => cumulativeThresholds(parseFloat(m[1]), [200, 150, 100, 50, 20, 10, 5, 2, 1], 'Mbps') },
+    extract: (m) => [`${fmtNum(parseFloat(m[1]))}Mbps`] },
   { pattern: /(\d+\.?\d*)\s*(k|K)\s*bps/i,
-    extract: (m) => cumulativeThresholds(parseFloat(m[1]) / 1000, [200, 150, 100, 50, 20, 10, 5, 2, 1], 'Mbps') },
+    extract: (m) => [`${fmtNum(parseFloat(m[1]) / 1000)}Mbps`] },
   { pattern: /(\d+)\s*(M|兆|m)\s*bps/i,
-    extract: (m) => cumulativeThresholds(parseInt(m[1]), [200, 150, 100, 50, 20, 10, 5, 2, 1], 'Mbps') },
+    extract: (m) => [`${fmtNum(parseInt(m[1]))}Mbps`] },
   { pattern: /(\d+)\s*T\s*(\d+)\s*R/i,
     extract: (m) => [`${m[1]}T${m[2]}R`] },
   { pattern: /(\d+)\s*发\s*(\d+)\s*收/,
@@ -308,11 +326,66 @@ const PARAM_RULES: ParamRule[] = [
 //  PARSER ENGINE
 // ═══════════════════════════════════════════════════════════
 
+// ── 竞品型号反查(cross_ref)检测 ────────────────────────────
+//   返回规范化型号(大写)表示命中反查意图; 返回 null 表示非反查查询.
+//   方案A(2026-06-12): 形似型号一律走确定性反查"可替代产品"字段, 不要求替代词, 零命中诚实降级.
+//   原因: 纯输入型号(如"tja9999")时 LLM 会凭训练知识脑补品类推荐(实测把不存在的TJA9999编成
+//   "NXP车规CAN收发器"). 走确定性反查切断脑补.
+//   不做"自家/竞品"前缀判别: 思瑞浦大量沿用行业通用前缀(LM/TPS/TL), 前缀黑名单会误判
+//   (LM2901自家有LM2901A, TPS竞品也有TPS5430). 用户拍板: 反查照做, 结果里标注品牌即可区分.
+const REPLACE_INTENT = /替代|替换|代换|pin\s*to\s*pin|pin2pin|p2p|国产化?替代|兼容|对标|平替|替代料|替代品|cross\s*ref|equivalent|drop[\s-]?in/i;
+// 品类/参数意图词: 出现这些说明用户想按品类找(如"类似tja1145的CAN收发器"), 尊重品类意图不走反查.
+//   仅在"无替代词"时作为闸门; 带替代词时一律反查(替代意图最明确).
+const CATEGORY_INTENT = /收发器|运放|放大器|比较器|稳压|LDO|DCDC|转换器|ADC|DAC|基准|隔离器|驱动|传感器|开关|二极管|保险丝|滤波|逻辑|网关|交换机|网卡|PHY|MCU|电源|接口|的[A-Za-z]/i;
+// 总线/协议/品类标准名: 形似"字母+数字"但本质是接口品类名, 不是厂商型号(领域知识, 非硬编码).
+//   "高速率rs485"里 RS485 是接口标准, 误抽成竞品型号会错误触发反查(2026-06-12 回归 bug).
+const PROTOCOL_NAMES = new Set([
+  'RS485', 'RS232', 'RS422', 'RS-485', 'RS-232', 'RS-422',
+  'I2C', 'I2S', 'SPI', 'CAN', 'CANFD', 'CAN-FD', 'LIN', 'MLVDS', 'LVDS',
+  'USB2', 'USB3', 'M2', 'IO500', 'PCIE',
+]);
+export function detectCrossRef(query: string): string | null {
+  // 候选型号片段: 从查询里抽出所有"连续的字母数字(可含-)"片段.
+  //   中文连写无空格("iso7721替代"/"INA240替代品"), 必须按非[字母数字-]字符切分.
+  //   竞品型号形如 ISO7721 / INA240 / TJA1021 / LM2901 / ADUM1201.
+  const fragments = query.toUpperCase().match(/[A-Z][A-Z0-9-]*\d[A-Z0-9-]*/g) || [];
+  let competitorPN: string | null = null;
+  for (const frag of fragments) {
+    if (PROTOCOL_NAMES.has(frag)) continue;   // 接口品类名(RS485等)不是竞品型号
+    const letters = (frag.match(/[A-Z]/g) || []).length;
+    const hasNumBlock = /\d{3,}/.test(frag);
+    if (letters >= 2 && hasNumBlock) { competitorPN = frag; break; }
+  }
+  if (!competitorPN) return null;
+  // 带替代词: 替代意图最明确, 一律反查.
+  if (REPLACE_INTENT.test(query)) return competitorPN;
+  // 无替代词: 纯型号查询也走反查(切断LLM脑补); 但若用户明确带品类/参数意图词, 尊重品类搜索.
+  if (CATEGORY_INTENT.test(query)) return null;
+  return competitorPN;
+}
+
+
 export function parseQuery(query: string): ParseResult {
   const features: string[] = [];
   const sources = new Map<string, string>();
   let categoryMatched = false;
   let categoryHint = '';
+
+  // Step 0: 竞品型号反查意图(cross_ref) — 优先于品类匹配.
+  //   FAE 高频场景: "有没有 ISO7721 的替换" = 我在用 TI 的 ISO7721, 要国产 pin-to-pin 替代料.
+  //   必须在品类匹配前拦截, 否则 ISO7721 会被误解成"找双通道数字隔离器"(LLM 实测如此跑偏).
+  //   判据(零假阳性): (1)查询含替代意图词; (2)含一个"竞品型号"——非自家前缀(TP/NS/NSI/YT/SZ)、
+  //   形如字母+数字混合(≥2字母≥2数字, 排除纯标签词/纯数字规格). 检索由代码扫"可替代产品"字段确定性产生.
+  const crossRef = detectCrossRef(query);
+  if (crossRef) {
+    return {
+      features: [], exclude_tags: [], category_hint: '替代查询',
+      explanation: `竞品型号反查: 查找可替代 ${crossRef} 的国产料`,
+      confidence: 'high', needsLLM: false, residualQuery: '',
+      must: [], nice: [], mustMeta: [], sortKey: undefined,
+      intent: 'cross_ref', crossRefTarget: crossRef,
+    };
+  }
 
   // Step 1: Category matching (priority order, first match wins)
   // 例外1: 以太网内部速率(千兆/百兆/2.5G)与子品类(交换机/网卡)是正交维度, 允许共存
@@ -382,13 +455,21 @@ export function parseQuery(query: string): ParseResult {
   }
 
   // Pre-process: normalize Chinese numerals to digits
-  const CN_DIGITS: Record<string, string> = {
-    '一': '1', '二': '2', '两': '2', '三': '3', '四': '4',
-    '五': '5', '六': '6', '七': '7', '八': '8', '九': '9', '十': '10'
+  //   ★ 2026-06-12: 复合数处理 十/二十/二十五. 旧逐字替换把"二十"→"210"(二→2,十→10拼接), 是潜在bug,
+  //   被旧速率梯子掩盖(210Mbps含20档碰巧命中). 方案甲单值暴露后修复.
+  const CN_UNIT: Record<string, number> = {
+    '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
+    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9
   };
-  let normalizedQuery = query;
-  for (const [cn, digit] of Object.entries(CN_DIGITS)) {
-    normalizedQuery = normalizedQuery.replace(new RegExp(cn, 'g'), digit);
+  // 先处理含"十"的复合数: [一-九]?十[一-九]?  → 数值
+  let normalizedQuery = query.replace(/([一二两三四五六七八九])?十([一二三四五六七八九])?/g, (_m, tens, ones) => {
+    const t = tens ? CN_UNIT[tens] : 1;       // "十"=10, "二十"=20
+    const o = ones ? CN_UNIT[ones] : 0;       // "十五"=15, "二十五"=25
+    return String(t * 10 + o);
+  });
+  // 再处理剩余的个位中文数字
+  for (const [cn, digit] of Object.entries(CN_UNIT)) {
+    normalizedQuery = normalizedQuery.replace(new RegExp(cn, 'g'), String(digit));
   }
 
   // Step 3: Param extraction
@@ -469,8 +550,9 @@ export function parseQuery(query: string): ParseResult {
   const nice: string[] = [];
   const mustMeta: MustConstraint[] = [];
 
-  // 维度判定: 端口/通道可向下兼容(要N, ≥N也可); 其他spec就近; 物理层=media; 品类=category
-  const DOWNGRADABLE_FAMILIES = new Set(['端口', '通道']);
+  // 维度判定: 端口/通道/速率可向下兼容(要N, ≥N也可); 其他spec就近; 物理层=media; 品类=category
+  //   速率(Mbps)纳入向下兼容(2026-06-12 方案甲): 要50Mbps, 产品≥50即满足(高速兼容低速场景).
+  const DOWNGRADABLE_FAMILIES = new Set(['端口', '通道', 'Mbps']);
   const portFamily = (tag: string): { family: string; value: number } | null => {
     const m = tag.match(/^(\d+)口$/);
     return m ? { family: '端口', value: +m[1] } : null;
@@ -542,5 +624,6 @@ export function parseQuery(query: string): ParseResult {
     nice,
     mustMeta,
     sortKey,
+    intent: 'spec_search',
   };
 }

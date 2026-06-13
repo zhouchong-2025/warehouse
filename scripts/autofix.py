@@ -255,10 +255,13 @@ for slug, vd in data.items():
         
         if rate_mbps is not None:
             parts = [t for t in ft.split() if not t.endswith('Mbps')]
-            for t in SPEED:
-                if rate_mbps >= t:
-                    t_str = f'{fmtv(t)}Mbps' if t != int(t) else f'{int(t)}Mbps'
-                    parts.append(t_str)
+            # ★ 方案甲(2026-06-12): 速率标签存真实值单一标签, 不再梯子展开.
+            #   旧逻辑 `for t in SPEED: if rate>=t` 会把 ≤真实值的所有标准档都打上(208Mbps→挂20/50/100/150/200),
+            #   既丢真实值(208不在梯子上→无208标签)又污染(挂一堆它并非的低档). 搜索的≥语义改由
+            #   constraint-match.ts tagSatisfied 的 '速率' downgradable 分支做数值比较(要50→产品≥50即满足).
+            #   亚Mbps真实值(0.5/0.25)也如实保留, 不再丢失.
+            rstr = f'{fmtv(rate_mbps)}Mbps' if rate_mbps != int(rate_mbps) else f'{int(rate_mbps)}Mbps'
+            parts.append(rstr)
             new_ft = ' '.join(parts)
             if new_ft != ft:
                 if not DRY_RUN: p['_features'] = new_ft
@@ -568,6 +571,10 @@ def section_to_tag(sec):
 # e.g. TPDA prefix=音频总线 but section=CAN收发器 → correct section
 PREFIX_SECTION = {
     'TPDA': 'ASN 音频总线',
+    # MLVDS 误标修复(2026-06-12): TPT9H/TPT9L 系列在原始PDF第39页 section=MLVDS,
+    #   但被早期提取误标成 'RS-485 收发器'(脏数据残留). MLVDS(TIA/EIA-899)与
+    #   RS-485(TIA/EIA-485)是互斥物理层标准. 全库仅这5款 TPT9*, 前缀无冲突.
+    'TPT9': 'MLVDS',
 }
 
 for slug, vd in data.items():
@@ -581,6 +588,42 @@ for slug, vd in data.items():
                     p.setdefault('_sections', []).append(sec)
                 fixes['sec_fix'].append(f'{pn}: section {sec}→{correct_sec}')
                 break
+
+# ── 协议互斥护栏(2026-06-12): section 决定的物理层协议是唯一的, 剥离其他互斥协议标签 ──
+#   MLVDS/RS-485/RS-232/LIN/CAN-FD/I2C 是互斥的串行/差分物理层标准, 一颗收发器只属一种.
+#   当 _section 明确映射到某协议时, _features 里残留的其他协议标签是误标(脏数据), 全部剥离.
+#   判据只信 section(权威), 不信 PN 前缀. 同时清掉协议专属的"XX收发器"中文别名标签.
+EXCLUSIVE_PROTOCOLS = {'MLVDS', 'RS-485', 'RS-232', 'LIN', 'CAN-FD', 'I2C'}
+PROTOCOL_ALIASES = {  # 协议→该协议专属的别名标签(剥离其他协议时一并清掉)
+    'RS-485': ['RS485收发器', 'RS485', 'RS-485收发器'],
+    'RS-232': ['RS232收发器', 'RS232', 'RS-232收发器'],
+    'LIN': ['LIN收发器'],
+    'CAN-FD': ['CAN收发器', 'CAN'],
+    'MLVDS': ['MLVDS收发器'],
+}
+for slug, vd in data.items():
+    for p in vd['products']:
+        sec = p.get('_section', '')
+        sec_tag = section_to_tag(sec)
+        if sec_tag not in EXCLUSIVE_PROTOCOLS:
+            continue  # section 不是明确的互斥协议品类, 不动(避免误伤多协议器件需FAE确认的情形)
+        feats = p.get('_features', '').split()
+        # 要剥离的: 其他互斥协议标签 + 它们的中文别名
+        strip = set()
+        for proto in EXCLUSIVE_PROTOCOLS:
+            if proto == sec_tag:
+                continue
+            strip.add(proto)
+            strip.update(PROTOCOL_ALIASES.get(proto, []))
+        new_feats = [f for f in feats if f not in strip]
+        if new_feats != feats:
+            removed = [f for f in feats if f in strip]
+            if not DRY_RUN:
+                p['_features'] = ' '.join(new_feats)
+            fixes.setdefault('proto_exclusive', []).append(
+                f'{p["part_number"]}({sec_tag}): -{",".join(removed)}')
+
+
 
 for slug, vd in data.items():
     for p in vd['products']:
@@ -753,6 +796,30 @@ for slug, vd in data.items():
             p['_features'] = ' '.join(feats)
         except Exception:
             pass
+
+# ── Mbps 标签品类护栏(2026-06-12): 只有真正有"数据速率"的品类能带 Mbps 标签 ──
+#   速率(Mbps)只对接口/隔离器/MLVDS/以太网等有数据速率概念的品类有意义.
+#   比较器(传播延迟ns)/DAC(建立时间μs)/ADC(采样率MSPS)被旧梯子逻辑从无关参数列误抽成Mbps,
+#   是单位语义混淆(ns/μs/MSPS ≠ Mbps). 这些品类的 Mbps 标签一律剥离(零假阳性: 该品类无此概念).
+#   判据信品类标签(_features里的品类词), 不是section, 因为以太网产品section名多样.
+#   ★ 必须放在 FIX 6(tag_config生成)之后, 否则品类标签可能还没生成会误删真接口料的Mbps.
+MBPS_ALLOWED_CATS = {'RS-485', 'RS-232', 'CAN-FD', 'LIN', 'MLVDS', '数字隔离器',
+                     'SBC', '以太网', '交换机', '网卡', 'IO扩展器'}
+_mbps_re = re.compile(r'^\d+\.?\d*Mbps$')
+for slug, vd in data.items():
+    for p in vd['products']:
+        feats = p.get('_features', '').split()
+        if not any(_mbps_re.match(f) for f in feats):
+            continue
+        if any(cat in feats for cat in MBPS_ALLOWED_CATS):
+            continue
+        new_feats = [f for f in feats if not _mbps_re.match(f)]
+        if new_feats != feats:
+            removed = [f for f in feats if _mbps_re.match(f)]
+            if not DRY_RUN:
+                p['_features'] = ' '.join(new_feats)
+            fixes.setdefault('mbps_guard', []).append(
+                f'{p["part_number"]}({p.get("_section","")}): -{",".join(removed)}')
 
 # ═══════════════════════════════════════════
 if not DRY_RUN:

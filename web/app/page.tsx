@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { expandSearch } from "@/lib/synonyms";
-import { applyConstraints, describeMatch, type ConstraintScore } from "@/app/api/interpret/constraint-match";
+import { applyConstraints, describeMatch, crossRefSearch, type ConstraintScore, type CrossRefHit } from "@/app/api/interpret/constraint-match";
 
 type Product = Record<string, string>;
 type VendorData = { name: string; productCount: number; products: Product[] };
@@ -27,7 +27,15 @@ type LLMInterpretation = {
   nice?: string[];
   mustMeta?: import("@/app/api/interpret/constraint-match").MustConstraint[];
   sortKey?: import("@/app/api/interpret/constraint-match").SortIntent;
+  intent?: 'spec_search' | 'cross_ref';
+  crossRefTarget?: string;
 } | null;
+
+// 约束层灰度门控: 仅对"已验证数据标签质量"的品类启用约束层(must硬过滤+降级+sortKey排序).
+// 验证记录: 以太网(裕太微68款) / 电源·放大器·接口·数据转换(思瑞浦模拟894款) / 驱动(173款,跨3vendor) 已压测通过.
+// 2026-06-12 推广: 隔离(数字隔离器81款, 数据速率47/81; category_hint='隔离'经验证仅落数字隔离器, 不与已推广品类冲突).
+// 模块级单一真源: results 初筛召回 与 isConstrainedQuery 共用, 避免非约束品类被误放宽初筛.
+const CONSTRAINED_CATEGORIES = new Set(["以太网", "电源", "电源保护", "放大器", "比较器", "接口", "隔离接口", "数据转换", "驱动", "隔离"]);
 
 export default function Home() {
   const [data, setData] = useState<Record<string, VendorData>>({});
@@ -130,6 +138,19 @@ export default function Home() {
     const phraseQuery = originalTerms.length > 1 ? q : "";
     const boostTerms = allTerms.filter((t) => !originalTerms.includes(t));
 
+    // 约束品类召回: 当约束层将接管此查询时, 初筛只需保证 must 的【品类维度】标签命中,
+    // 不要求 nice/sortKey 派生标签(如"高速(≥50MHz)")字面命中——那些是排序意图, 产品文档不会字面写,
+    // 强行参与 AND 文本初筛会把整个结果集滤空(2026-06-12 "高速栅极驱动"零结果根因). 过滤交约束层.
+    // 门控: 仅约束品类放宽; 非约束品类走老逻辑不受影响.
+    const willConstrain = !!(llmResult?.must && llmResult.must.length > 0 &&
+      llmResult.category_hint && CONSTRAINED_CATEGORIES.has(llmResult.category_hint));
+    const mustCategoryTags: string[] = willConstrain
+      ? llmResult!.must!.filter((t) => {
+          const m = llmResult!.mustMeta?.find((mm) => mm.tag === t);
+          return !m || m.dimension === "category" || m.dimension === "media";
+        }).map((t) => t.toLowerCase())
+      : [];
+
     const scored: SearchResult[] = [];
 
     for (const { vendor, vendorName, product } of allProducts) {
@@ -178,7 +199,14 @@ export default function Home() {
           return tokens.includes(ft);
         });
       
-      if (!allOriginalMatched && !phraseMatched && !llmAllMatched) continue;
+      // 约束品类召回通路: 产品 _features 含全部 must 品类标签即通过初筛(放宽 AND 文本匹配).
+      // 仅 willConstrain 时 mustCategoryTags 非空; 召回后由约束层做 must 硬过滤 + sortKey 排序.
+      const mustCategoryMatched = mustCategoryTags.length > 0 && (() => {
+        const tokens = (product._features || "").toLowerCase().split(/\s+/);
+        return mustCategoryTags.every((mt) => tokens.includes(mt));
+      })();
+
+      if (!allOriginalMatched && !phraseMatched && !llmAllMatched && !mustCategoryMatched) continue;
 
       // Score boost terms (synonyms add weight)
       for (const term of boostTerms) {
@@ -227,9 +255,7 @@ export default function Home() {
     : results;
 
   // ── 约束层: must/nice 硬过滤 + 三级降级 ──
-  // 灰度门控: 仅对"已验证数据标签质量"的品类启用. 未列入的品类 must 仍为空走老逻辑.
-  // 验证记录: 以太网(裕太微68款) / 电源·放大器·接口·数据转换(思瑞浦模拟894款) 已压测通过.
-  const CONSTRAINED_CATEGORIES = new Set(["以太网", "电源", "电源保护", "放大器", "比较器", "接口", "隔离接口", "数据转换"]);
+  // 门控常量 CONSTRAINED_CATEGORIES 已提升到模块级(见文件顶部), results 初筛召回与此处共用单一真源.
   const isConstrainedQuery = !!(llmResult?.must && llmResult.must.length > 0 && llmResult.category_hint && CONSTRAINED_CATEGORIES.has(llmResult.category_hint));
   const constrained = useMemo(() => {
     if (!isConstrainedQuery || !filteredResults) return null;
@@ -245,8 +271,29 @@ export default function Home() {
     return { ...cr, vendorByPn };
   }, [isConstrainedQuery, filteredResults, llmResult]);
 
-  // 最终展示列表: 以太网走约束层, 其他走老逻辑
-  const displayResults: SearchResult[] = constrained
+  // ── 竞品型号反查(cross_ref): 扫全库"可替代产品"字段, 确定性检索 ──
+  // 不走文本初筛(竞品型号在可替代产品字段, 非常规 searchable), 直接全库 crossRefSearch.
+  const crossRef = useMemo(() => {
+    if (llmResult?.intent !== 'cross_ref' || !llmResult.crossRefTarget) return null;
+    const prods = allProducts.map(r => r.product);
+    const hits = crossRefSearch(prods as any, llmResult.crossRefTarget);
+    const vendorByPn = new Map(allProducts.map(r => [r.product.part_number, { vendor: r.vendor, vendorName: r.vendorName }]));
+    return { target: llmResult.crossRefTarget, hits, vendorByPn };
+  }, [llmResult, allProducts]);
+
+  // 最终展示列表: cross_ref反查 > 约束层 > 老逻辑
+  const displayResults: SearchResult[] = crossRef
+    ? crossRef.hits.map((h: CrossRefHit) => {
+        const v = crossRef.vendorByPn.get(h.product.part_number || "") || { vendor: "", vendorName: "" };
+        return {
+          vendor: v.vendor,
+          vendorName: v.vendorName,
+          product: h.product as Product,
+          score: h.matchType === 'exact' ? 100 : 80,
+          matchedTerms: [`可替代 ${crossRef.target}`, h.matchType === 'exact' ? '精确对标' : '系列对标'],
+        };
+      })
+    : constrained
     ? constrained.items.map((s: ConstraintScore) => {
         const v = constrained.vendorByPn.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
         return {
@@ -405,6 +452,24 @@ export default function Home() {
               <span>找到 {displayResults.length} 个匹配 · {constrained && constrained.tier > 1 ? "降级排序" : (llmResult?.sortKey ? llmResult.sortKey.label : "按相关度排序")}</span>
               <span className="text-xs">显示 {Math.min(displayResults.length, 200)} 个</span>
             </div>
+
+            {/* 竞品反查横幅(cross_ref): 命中=厂商声称标注; 零命中=诚实降级 */}
+            {crossRef && crossRef.hits.length > 0 && (
+              <div className="mb-4 max-w-3xl bg-[#1e6ef0]/8 border border-[#1e6ef0]/30 rounded-lg p-3">
+                <p className="text-[#e6edf3] text-sm">
+                  找到 {crossRef.hits.length} 款标称可替代 <span className="font-semibold">{crossRef.target}</span> 的国产料。
+                  替代关系来自厂商「可替代产品」标注，建议 FAE 核对通道数/隔离电压/速率等关键参数后选型。
+                </p>
+              </div>
+            )}
+            {crossRef && crossRef.hits.length === 0 && (
+              <div className="mb-4 max-w-3xl bg-[#d29922]/8 border border-[#d29922]/30 rounded-lg p-3">
+                <p className="text-[#e6edf3] text-sm">
+                  暂未找到标称可替代 <span className="font-semibold">{crossRef.target}</span> 的国产料（目前替代标注主要覆盖思瑞浦汽车产品线）。
+                  建议改用品类+参数搜索（如「2通道数字隔离器 100Mbps」）按规格找等效料。
+                </p>
+              </div>
+            )}
 
             {/* 约束横幅 — tier2/3 降级说明, 或 tier1 带排序意图(高PSRR等)的说明 */}
             {constrained && constrained.banner && (

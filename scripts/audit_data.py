@@ -92,7 +92,7 @@ def check_speed_unit(products):
         actual_mbps = kbps_val / 1000
         
         # Get max Mbps tag
-        mbps_tags = [int(t.replace('Mbps', '')) for t in feats.split() if t.endswith('Mbps')]
+        mbps_tags = [float(t.replace('Mbps', '')) for t in feats.split() if t.endswith('Mbps')]
         if not mbps_tags:
             continue
         

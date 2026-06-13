@@ -163,6 +163,13 @@ CASES = [
     ("集成can的sbc", None, 1, ["TPT11695XFQ-DFUR-S"], ["TPT10283Q-DFCR-S", "TPT11693Q "], None),
     ("can sbc", None, 1, ["TPT11693FQ-DFUR-S"], ["TPT10285Q-DFCR-S"], None),
     ("lin sbc", None, 1, ["TPT10283Q-DFCR-S"], ["TPT11695XFQ-DFUR-S"], None),
+    # 驱动品类 (2026-06-12 推广, 跨3vendor, vendor=None 全库): 子品类硬约束互斥
+    ("隔离栅极驱动", None, 1, ["TPM21520"], ["TPM1020"], None),
+    ("非隔离栅极驱动", None, 1, ["TPM1020"], ["TPM21520"], None),
+    ("马达驱动", None, 1, ["TPM8837C"], ["TPM21520"], None),
+    # 数字隔离器 (2026-06-12 推广, category_hint='隔离', 跨3vendor): must=数字隔离器硬过滤,
+    # 隔离放大器(TPA8000等含'隔离'但非数字隔离器)不应混入.
+    ("数字隔离器", None, 1, ["TPT7720"], ["TPA8000"], None),
 ]
 
 # ── 排序意图 case: (查询, vendor, 期望sortKey.param, 期望direction, top1需含, 校验单调) ──
@@ -188,6 +195,11 @@ SORT_CASES = [
     # 接口: 高速率(专属) + 高ESD(专属)
     ("高速率rs485", "3peak-analog", "数据速率", "high", None, True),
     ("高esd的can", "3peak-analog", "ESD", "high", None, True),
+    # 驱动品类排序 (2026-06-12 推广): 大电流→输出电流; 高速→传播延迟
+    ("大电流栅极驱动", None, "输出电流", "high", None, True),
+    ("高速栅极驱动", None, "传播延迟", "low", None, True),
+    # 数字隔离器排序 (2026-06-12 推广): 高速→数据速率(码流), 47/81有值, require过滤无值款
+    ("高速数字隔离器", None, "数据速率", "high", None, True),
 ]
 
 # ── 负向 case: 品类门控应阻止跨品类误触发. (查询) 期望不触发sortKey ──
@@ -200,6 +212,24 @@ NEG_SORT_CASES = [
     "高采样率的ldo",    # 采样率 不应作用于 LDO
     "高频的运放",       # 开关频率 不应作用于 运放
 ]
+
+# ── 竞品型号反查(cross_ref) case: (查询, 期望target, 期望命中PN含, 不应误判cross_ref?) ──
+# 验证意图识别(含中文连写) + 确定性反查"可替代产品"字段. 数据现实: 仅思瑞浦汽车有对标标注.
+CROSS_REF_CASES = [
+    ("有没有iso7721的替换", "ISO7721", "TPT7721", False),  # 用户实际查询(中文连写)
+    ("iso7721替代", "ISO7721", "TPT7721", False),
+    ("INA240替代", "INA240", "TPA132", False),
+    ("LM2901替代品", "LM2901", "LM2901A", False),
+    ("TJA1145 pin to pin", "TJA1145", "TPT1145", False),
+    # 方案A(2026-06-12): 纯型号输入(无替代词)也走反查, 切断LLM脑补
+    ("iso7721", "ISO7721", "TPT7721", False),         # 纯型号(非自家PN)
+    ("TJA1145", "TJA1145", "TPT1145", False),          # 纯型号(非自家PN)
+    # 前缀冲突修复: LM 既是自家又是竞品前缀, 去掉OWN_PREFIX黑名单后带替代词能反查.
+    # 注: 纯"lm2901"会精确命中自家PN(库里真有LM2901), 走PN-exact展示该料, 属正确行为不在此测.
+]
+# 负向: 不应被误判为 cross_ref(纯品类查询/纯规格/带品类意图词的型号查询/协议名)
+CROSS_REF_NEG = ["数字隔离器", "2通道隔离器", "4通道运放", "高速can", "高psr的ldo",
+                 "类似tja1145的CAN收发器", "tja1145 收发器", "高速率rs485", "rs485收发器"]
 
 def main():
     d = json.load(open(DATA))
@@ -248,7 +278,11 @@ def main():
             print(f"✗ {query!r}: 无sortKey(SORT_RULES未命中)"); failed+=1; continue
         if sk.get("param") != exp_param: errs.append(f"param={sk.get('param')}≠{exp_param}")
         if sk.get("direction") != exp_dir: errs.append(f"direction={sk.get('direction')}≠{exp_dir}")
-        prods = d[vendor]["products"]
+        # vendor=None → 全库搜(驱动等跨vendor品类); 否则限定单一vendor
+        if vendor is None:
+            prods = [p for vd in d.values() if isinstance(vd, dict) and "products" in vd for p in vd["products"]]
+        else:
+            prods = d[vendor]["products"]
         tier, items = apply_constraints(prods, must, nice, meta, sk)
         vals = [sort_value(s["p"], sk["paramKeys"], sk["direction"]) for s in items]
         # require模式: 不应有None值进入结果
@@ -281,6 +315,49 @@ def main():
         else:
             print(f"✓ {query!r} [neg] → 品类门控正确阻止, 无误触发sortKey")
             passed+=1
+
+    # ── 竞品型号反查(cross_ref) 测试 ──
+    allp = [p for vd in d.values() if isinstance(vd, dict) and "products" in vd for p in vd["products"]]
+    def _extract_alt(p):
+        for seg in (p.get("_params","") or "").split("|"):
+            s=seg.strip()
+            if s.startswith("可替代产品") or s.startswith("可替代") or s.startswith("替代产品"):
+                m=re.search(r"[:：]",s)
+                if m: return s[m.end():].strip()
+        return ""
+    def _cross_ref_search(target):
+        tgt=target.upper().strip(); hits=[]
+        for p in allp:
+            alt=_extract_alt(p)
+            if not alt: continue
+            toks=[t.strip() for t in re.split(r"[/,，、;；\s]+",alt.upper()) if t.strip()]
+            for at in toks:
+                if at==tgt or ((at.startswith(tgt) or tgt.startswith(at)) and min(len(at),len(tgt))>=4):
+                    hits.append(p.get("part_number","")); break
+        return hits
+    for query, exp_target, hit_pn, _ in CROSS_REF_CASES:
+        try:
+            r = interpret(query)
+        except Exception as e:
+            print(f"✗ {query!r}: API错误 {e}"); failed+=1; continue
+        errs=[]
+        if r.get("intent") != "cross_ref": errs.append(f"intent={r.get('intent')}≠cross_ref")
+        if (r.get("crossRefTarget") or "").upper() != exp_target: errs.append(f"target={r.get('crossRefTarget')}≠{exp_target}")
+        hits=_cross_ref_search(exp_target)
+        if not any(hit_pn in h for h in hits): errs.append(f"反查无命中含{hit_pn}(得{hits[:3]})")
+        if errs:
+            print(f"✗ {query!r} [xref]: {'; '.join(errs)}"); failed+=1
+        else:
+            print(f"✓ {query!r} → cross_ref({exp_target}), 反查{len(hits)}款含{hit_pn}"); passed+=1
+    for query in CROSS_REF_NEG:
+        try:
+            r = interpret(query)
+        except Exception as e:
+            print(f"✗ {query!r}: API错误 {e}"); failed+=1; continue
+        if r.get("intent") == "cross_ref":
+            print(f"✗ {query!r} [xref-neg]: 误判为cross_ref(target={r.get('crossRefTarget')})"); failed+=1
+        else:
+            print(f"✓ {query!r} [xref-neg] → 正确未误判cross_ref"); passed+=1
 
     print(f"\n{'='*50}\n通过 {passed}/{passed+failed}")
     sys.exit(0 if failed==0 else 1)

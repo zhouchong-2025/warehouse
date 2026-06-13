@@ -82,6 +82,17 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     });
   }
 
+  // 速率(Mbps)向下兼容(2026-06-12 方案甲): 要 N Mbps, 产品速率 ≥N 即满足(高速兼容低速).
+  //   产品侧现存真实值单一标签(如 208Mbps), 取产品所有 Mbps 标签的最大值与要求值比较.
+  if (meta?.downgradable && meta.value != null && meta.family === 'Mbps') {
+    let maxMbps = -1;
+    for (const tk of tokens) {
+      const m = tk.match(/^(\d+\.?\d*)mbps$/);
+      if (m) { const v = parseFloat(m[1]); if (v > maxMbps) maxMbps = v; }
+    }
+    return maxMbps >= meta.value;
+  }
+
   // 端口精确(无 meta 时的回退, 防 15口 误配 5口)
   const portMatch = t.match(/^(\d+)口$/);
   if (portMatch) {
@@ -304,3 +315,52 @@ export function describeMatch(s: ConstraintScore): string {
   const miss = s.mustMiss.length ? `  ·  缺：${s.mustMiss.join("、")}` : "";
   return hit + miss;
 }
+
+// ── 竞品型号反查(cross_ref)确定性检索 ──────────────────────
+//   扫产品的"可替代产品"字段, 找声称可替代目标竞品型号的国产料.
+//   零假阳性: 只匹配字段里实际写明的型号, 不做任何语义推断/参数推测.
+//   匹配粒度(FAE确认): 精确匹配优先, 系列前缀模糊匹配兜底(ISO7721 也命中 ISO7721F).
+export type CrossRefHit = {
+  product: ConstraintProduct;
+  altField: string;       // 该产品"可替代产品"字段原文(透明展示)
+  matchType: 'exact' | 'series';  // exact=精确同名, series=系列前缀(如 ISO7721→ISO7721F)
+};
+
+// 从产品 _params 原文提取"可替代产品"字段值
+function extractAltField(product: ConstraintProduct): string {
+  const params = (product._params as string) || "";
+  for (const seg of params.split("|")) {
+    const s = seg.trim();
+    if (s.startsWith("可替代产品") || s.startsWith("可替代") || s.startsWith("替代产品")) {
+      const idx = s.search(/[:：]/);
+      if (idx >= 0) return s.slice(idx + 1).trim();
+    }
+  }
+  return "";
+}
+
+export function crossRefSearch(products: ConstraintProduct[], target: string): CrossRefHit[] {
+  const tgt = target.toUpperCase().trim();
+  if (!tgt) return [];
+  const exact: CrossRefHit[] = [];
+  const series: CrossRefHit[] = [];
+  for (const p of products) {
+    const altField = extractAltField(p);
+    if (!altField) continue;
+    // 可替代产品字段可能含多个型号, 用 / , 、 空格分隔
+    const altTokens = altField.toUpperCase().split(/[/,，、;；\s]+/).map((t) => t.trim()).filter(Boolean);
+    let hit: 'exact' | 'series' | null = null;
+    for (const at of altTokens) {
+      if (at === tgt) { hit = 'exact'; break; }
+      // 系列前缀模糊: 一方是另一方的前缀(ISO7721 ↔ ISO7721F), 且公共前缀≥4字符避免误匹配
+      if ((at.startsWith(tgt) || tgt.startsWith(at)) && Math.min(at.length, tgt.length) >= 4) {
+        hit = 'series';
+      }
+    }
+    if (hit === 'exact') exact.push({ product: p, altField, matchType: 'exact' });
+    else if (hit === 'series') series.push({ product: p, altField, matchType: 'series' });
+  }
+  // 精确匹配排前, 系列匹配兜底
+  return [...exact, ...series];
+}
+
