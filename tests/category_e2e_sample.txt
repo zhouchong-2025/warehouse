@@ -1,0 +1,20 @@
+# 小样本 E2E-lite
+# 先覆盖已推广主链路，再补传感器/电压基准/马达驱动代表性查询
+# 字段:
+#   query, pool, tier, must_have, must_not, top1_contains, scan_top
+
+category=驱动 | query=隔离栅极驱动 | pool=all | tier=1 | must_have=TPM21520 | must_not=TPM1020 | top1_contains=TPM21520 | scan_top=10
+category=驱动 | query=非隔离栅极驱动 | pool=all | tier=1 | must_have=TPM1020 | must_not=TPM21520 | scan_top=10
+category=隔离 | query=数字隔离器 | pool=all | tier=1 | must_have=TPT7720 | must_not=TPA8000 | scan_top=10
+category=电压基准 | query=低噪声 电压基准 | pool=all | tier=1 | must_have=TPR31-S | must_not=TPL8033 | top1_contains=TPR70 | scan_top=10
+category=电压基准 | query=串联型电压基准 | pool=all | tier=1 | must_have=TPR31-S | must_not=TPR431 | top1_contains=TPR31-S | scan_top=10
+category=电压基准 | query=并联型电压基准 | pool=all | tier=1 | must_have=TPR431 | must_not=TPR31-S | top1_contains=TPR431 | scan_top=10
+category=传感器 | query=车规温度传感器 | pool=all | tier=1 | must_have=NST175-Q1 | must_not=TPR31-S | top1_contains=NST175-Q1 | scan_top=10
+category=传感器 | query=电流传感器 5kVrms | pool=all | tier=1 | must_have=NSM2011 | must_not=TPA132 | top1_contains=NSM2011 | scan_top=10
+category=传感器 | query=位置传感器 | pool=all | tier=1 | must_have=MT9105 | must_not=NST1001,NSM3011,MT6826S | top1_contains=MT910 | scan_top=10
+category=传感器 | query=磁阻角度编码器 | pool=all | tier=1 | must_have=MT6826S | must_not=NSM3011,MT9105 | top1_contains=MT68 | scan_top=10
+category=传感器 | query=霍尔角度编码器 | pool=all | tier=1 | must_have=NSM3011 | must_not=MT6826S,MT9105 | top1_contains=NSM301 | scan_top=10
+category=传感器 | query=速度传感器 | pool=all | tier=1 | must_have=NSM4101 | must_not=NSM3011 | top1_contains=NSM4101 | scan_top=10
+category=传感器 | query=压力传感器 | pool=all | tier=1 | must_have=NSPGL1 | must_not=NST1001 | top1_contains=NSPGL1 | scan_top=10
+category=驱动 | query=直流马达驱动 1A | pool=all | tier=1 | must_have=TPM8837C | must_not=TPM21520 | top1_contains=TPM8837C | scan_top=10
+category=驱动 | query=步进马达驱动 | pool=all | tier=1 | must_have=TPM8803 | must_not=TPM8837C | top1_contains=TPM0596 | scan_top=10

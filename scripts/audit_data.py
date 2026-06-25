@@ -42,37 +42,47 @@ def check_asn_can(products):
 
 
 def check_isolation_context(products):
-    """隔离标签但 section 不含隔离（非隔离产品误标隔离）"""
+    """隔离标签但无隔离上下文（避免把非隔离字样/隔离子拓扑误判成问题）"""
     issues = []
     for p in products:
         feats = p.get('_features', '')
-        sec = p.get('_section', '').lower()
+        sec_raw = p.get('_section', '')
+        sec = sec_raw.lower()
         params = p.get('_params', '')
-        
+
         feat_tokens = feats.split()
-        
-        # "隔离" standalone tag on non-isolation product
-        if '隔离' in feat_tokens and not any(k in sec for k in ['隔离', 'isolat']):
-            # Check if params actually indicate isolation (kVrms, CMTI, isolation rating)
-            params_lower = params.lower()
-            has_isolation_param = any(k in params_lower for k in ['kv', 'isolation', 'cmti', 'vrms', '隔离'])
-            if has_isolation_param:
-                continue  # Product genuinely has isolation, tag is correct
-            # Skip if features already indicate the product is genuinely isolated
-            feature_tokens_lower = [t.lower() for t in feat_tokens]
-            if any(k in feature_tokens_lower for k in ['隔离电源', '隔离放大器', '隔离i2c', '隔离can', '隔离rs485']):
-                continue  # Product is genuinely isolated, tag is correct
-            # Exception: BMS, TVS, ESD, 复位芯片 sometimes have "隔离" tag for other reasons
-            if not any(k in sec for k in ['bms', 'tvs', 'esd', '复位', '电池']):
-                issues.append({
-                    'type': 'ISOLATION_NO_CONTEXT',
-                    'severity': 'medium',
-                    'pn': p['part_number'],
-                    'section': p.get('_section', ''),
-                    'features': feats,
-                    'fix': "verify if product truly has isolation; if not, remove 隔离 tag",
-                    'auto_fix': False  # needs human verification
-                })
+        feature_tokens_lower = [t.lower() for t in feat_tokens]
+        params_lower = params.lower()
+
+        has_generic_iso = '隔离' in feat_tokens
+        has_iso_family = any(t in feat_tokens for t in ['隔离电源', '隔离放大器', '隔离I2C', '隔离CAN', '隔离RS485', '隔离栅极驱动', '数字隔离器'])
+        has_iso_voltage = any('kVrms隔离' in t for t in feat_tokens)
+        if not (has_generic_iso or has_iso_family or has_iso_voltage):
+            continue
+
+        # 注意: "非隔离栅极驱动"包含字面"隔离", 但语义是非隔离, 不能当作隔离上下文.
+        section_has_iso = ('隔离' in sec_raw and '非隔离' not in sec_raw) or ('isolat' in sec)
+
+        # 参数真隔离证据
+        has_isolation_param = any(k in params_lower for k in ['kv', 'isolation', 'cmti', 'vrms', 'viorm', 'viowm'])
+
+        # 隔离电源子拓扑: section 仍可能落在升压/降压, 但 params 明确是 Isolated-Buck / Flyback / Push-pull Isolated DCDC
+        has_isolated_power_topology = any(k in params_lower for k in ['isolated-buck', 'push-pull isolated', 'flyback'])
+
+        if section_has_iso or has_isolation_param or has_iso_family or has_isolated_power_topology:
+            continue
+
+        # Exception: BMS, TVS, ESD, 复位芯片 sometimes have "隔离" tag for other reasons
+        if not any(k in sec for k in ['bms', 'tvs', 'esd', '复位', '电池']):
+            issues.append({
+                'type': 'ISOLATION_NO_CONTEXT',
+                'severity': 'medium',
+                'pn': p['part_number'],
+                'section': p.get('_section', ''),
+                'features': feats,
+                'fix': "verify if product truly has isolation; if not, remove 隔离 tag",
+                'auto_fix': False
+            })
     return issues
 
 
@@ -140,6 +150,28 @@ def check_conflicting_tags(products):
     return issues
 
 
+def check_q1_missing_automotive(products):
+    """料号含 -Q1 但缺车规AEC-Q100 标签"""
+    issues = []
+    for p in products:
+        pn = p.get('part_number', '')
+        feats = p.get('_features', '')
+        if '-Q1' not in pn.upper():
+            continue
+        if '车规AEC-Q100' in feats.split():
+            continue
+        issues.append({
+            'type': 'Q1_MISSING_AEC_Q100',
+            'severity': 'high',
+            'pn': pn,
+            'section': p.get('_section', ''),
+            'features': feats,
+            'fix': 'derive 车规AEC-Q100 from -Q1 automotive suffix in part number',
+            'auto_fix': True,
+        })
+    return issues
+
+
 def check_empty_fields(products):
     """空 section 或空 features"""
     issues = []
@@ -170,17 +202,31 @@ def check_garbled_params(products):
     """参数乱码（merge_headers 失败产物）"""
     issues = []
     garbled_patterns = [
-        (r'\b\d{2,}\s*℃(?!\s*-?\d)', 'unexpected numeric value before ℃'),
-        (r'Temperature.*\d{3,}(?!\d*\s*-)', 'suspicious temperature values (3+ digits)'),
+        (r'Temperature[^|]{0,80}\b\d{3,}(?!\d*\s*-)', 'suspicious temperature values (3+ digits)'),
     ]
     legit_param_indicators = [
         r'Status:', r'Rating:', r'Supply', r'Voltage', r'Data Rate', r'Package',
         r'Channel', r'Channels', r'Resolution', r'Current', r'Output',
     ]
+    chinese_legit_indicators = [
+        r'工作电压', r'供电电压', r'工作温度', r'温度范围', r'工作环境温度',
+        r'输出电压', r'工作电流', r'功耗', r'产品状态', r'封装', r'封装形式',
+        r'通道数', r'类型', r'端口', r'扩展接口', r'产品描述', r'接口类型',
+        r'最高精度', r'最高分辨率', r'典型应用',
+    ]
     for p in products:
         params = p.get('_params', '')
-        # Skip if params contain >= 3 standard field indicators (looks legit)
+        parts = [x.strip() for x in re.split(r'\s*\|\s*', params) if x.strip()]
+        kv_count = sum(1 for part in parts if ':' in part or '：' in part)
+
+        # Skip structured KV params — many current vendors use Chinese field names rather than
+        # the legacy English indicators this audit was originally written around.
+        if kv_count >= 5:
+            continue
+
+        # Skip if params contain enough standard field indicators (looks legit)
         legit_count = sum(1 for ind in legit_param_indicators if re.search(ind, params))
+        legit_count += sum(1 for ind in chinese_legit_indicators if re.search(ind, params))
         if legit_count >= 3:
             continue
         for pat, desc in garbled_patterns:
@@ -206,6 +252,10 @@ def check_param_feature_gap(products):
     # Tier 1: FAE确认的映射 — 自动修复
     AUTO_FIX_MAP = [
         # (param regex, tag, FAE 判断依据)
+        (r'aec[ -]?q100|q100 qualified|汽车级', '车规AEC-Q100', 'AEC-Q100/Q100 qualified/汽车级 → 车规标签'),
+        (r'(integrated|intergrated|integreted)\s+ldo', 'LDO', 'Integrated LDO → 并入现有 LDO 标签（FAE已确认）'),
+        (r'^load\s+switch$|load\s+switch', '负载开关', 'Load Switch → 并入现有负载开关标签（FAE已确认）'),
+        (r'\balert\b|alert.*(func|warn)|warning.func', '警报输出', 'ALERT/Warning → 并入现有警报输出标签（FAE已确认）'),
         (r'partial.network', '特定帧唤醒', 'ISO 11898-6 Partial Networking = 选择性帧唤醒'),
         (r'partial.network', '低功耗唤醒', 'Partial Networking 的前提是低功耗唤醒'),
         (r'psrr.*\d+.*db', '高PSRR', 'PSRR 带 dB 值 → 电源抑制比指标'),
@@ -290,6 +340,9 @@ def check_param_feature_gap(products):
             r'^[a-z]+\d+[a-z]+[-\d]+$',       # SOT23G-3, TSSOP14
             r'[-+\d]+\s*to\s*[-+\d]+',           # -40 to +125 (temp range)
             r'^\d+(\.\d+)?\s*[vmadbhz%℃°]+$',  # 5V, 100mA
+            r'^\d+(?:\.\d+)?\s*-[a-z%℃°]+$',   # 5-V / 35-ns line-wrap fragments
+            r'^\d+\s*ns$',                         # 50ns / 55ns comparator delay fragments
+            r'^\d+\s*ch$',                         # 1ch / 2ch channel count fragments
             r'^(standby|sleep|silent|shut.?down|inhibit|inh|vio)$',
             r'^(psm|fpwm|ccm|dcm|burst|forced.pwm)(\s*mode)?$',
             r'^(spi|i2c|uart|gpio|adc|dac|pwm|i/o|io)$',
@@ -322,6 +375,32 @@ def check_param_feature_gap(products):
             r'^configurable.averag',                   # "configurable averaging"
             r'^tdm.only|pdm.disabled',                 # audio modes with period
             r'^dfn\d',                                 # dfn0.8x0.8-4
+            r'^(automotive\s+)?(?:\d+\s*-\s*v|\d+v)\s+comparator.*$',  # 5V comparator / automotive 5V comparator
+            r'^\d+\s*-[v]\s+low-power\s+comparators?.*$',                 # 5-V low-power comparators with push-
+            r'^(automotive\s+)?\d+\s*-\s*v\s+high-power(?:\s+comparators?)?(?:\s+with)?$',  # marketing fragment line-wraps
+            r'^\d+\s*ch\s+pacc\s+control\s+circuit$',
+            r'^\d+\s*idacs?$',
+            r'^\d+\s*vdacs?\s+with\s+positive$',
+            r'^negative$',
+            r'^low-offset$',
+            r'^low-overdrive$',
+            r'^current-$',
+            r'^\d+\s*-?channel$',
+            r'^\d+\s*bits?\s*adc$',
+            r'^(sixteen|eight|four)\s+\d+\s*-bits?$',
+            r'^\d+\s*analog\s+pins\s+configurable\s+as\s+adc$',
+            r'^standalone\s+drain\s+and\s+emitter\s+output$',
+            r'^(one|two)\s+reference\s+pin\.?$',
+            r'^\d+\s*v\s+uvlo$',
+            r'^high\s+cmti$',
+            r'^opto-coupler\s+compatible\s+input$',
+            r'^deadtime\s+control$',
+            r'^miller\s+clamp$',
+            r'^isolated-buck$',
+            r'^with\s+internal\s+reference$',
+            r'^comparator\s+with\s+internal\s+reference$',
+            r'^high-side\s+variable\s+gain$',
+            r'^one-shot\s+conversion$',
             r'^(crc|eeprom|idle|open|short|esd|fault|over|brake|obc|dcdc|bms)$',  # single-word noise
             r'^(产品型号|击穿电压|qualified)$',          # Chinese noise
             r'^supply.monitor',                         # supply monitor
@@ -573,6 +652,7 @@ def main():
         vendor_issues.extend(check_isolation_context(products))
         vendor_issues.extend(check_speed_unit(products))
         vendor_issues.extend(check_conflicting_tags(products))
+        vendor_issues.extend(check_q1_missing_automotive(products))
         vendor_issues.extend(check_empty_fields(products))
         vendor_issues.extend(check_garbled_params(products))
         vendor_issues.extend(check_param_feature_gap(products))

@@ -1,0 +1,84 @@
+﻿tag	count	type	in_prompt	in_parser	in_semantic	in_ui_badge	in_constrained_categories	in_whitelist	in_validate	vendors	sections	example_vendor	example_pn	example_section
+工业级	1156	语义证据tag	True	False	True	False	False	True	False	3peak-analog:769;novosense:299;3peak-auto:62;yutai:26	低压运算放大器(Vs＜10V):92;高压运算放大器(Vs＞10V):57;隔离栅极驱动:51;比较器:43;宽压降压变换器:43;3~16节-全功能保护:39;低压LDO:33;数字隔离器选型表:32	3peak-analog	LM2902A	高压运算放大器(Vs＞10V)
+车规AEC-Q100	984	语义证据tag	True	False	True	False	False	True	False	novosense:656;3peak-auto:198;3peak-analog:125;yutai:5	隔离栅极驱动:185;霍尔开关/ 锁存器选型表:91;CAN 收发器:49;数字隔离器选型表:30;线性位置传感器选型表:28;DC-DC 开关变换器选型表:28;智能高边开关选型表:27;升压变换器:25	3peak-analog	TPA1861Q	高压运算放大器(Vs＞10V)
+隔离	408	品类/等级/结构tag	True	True	False	False	True	True	False	novosense:338;3peak-analog:49;3peak-auto:21	隔离栅极驱动:212;数字隔离器选型表:62;集成式电流传感器选型表:30;数字隔离器:29;隔离放大器和调制器:11;集成隔离电源的隔离CAN 选型表:10;隔离CAN:9;隔离电源:7	3peak-analog	TPA8000	隔离放大器和调制器
+栅极驱动	289	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:252;3peak-analog:27;3peak-auto:10	隔离栅极驱动:236;非隔离栅极驱动:52;磁通门传感器调理芯片选型表:1	3peak-analog	TPM21520	隔离栅极驱动
+运放	252	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:164;novosense:51;3peak-auto:37	低压运算放大器(Vs＜10V):100;高压运算放大器(Vs＞10V):62;高压通用运算放大器选型表:27;低压通用运算放大器选型表:22;高压运算放大器:17;零漂运算放大器:7;微功耗放大器:5;低压运算放大器:5	3peak-analog	LM2902A	高压运算放大器(Vs＞10V)
+隔离栅极驱动	236	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:223;3peak-analog:9;3peak-auto:4	隔离栅极驱动:236	3peak-analog	TPM21520	隔离栅极驱动
+5kVrms隔离	163	品类/等级/结构tag	True	False	False	False	False	False	False	novosense:163	隔离栅极驱动:122;集成式电流传感器选型表:23;数字隔离器选型表:12;隔离CAN:6	novosense	NSM2011	集成式电流传感器选型表
+DCDC	141	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:77;novosense:45;3peak-auto:19	宽压降压变换器:53;DC-DC 开关变换器选型表:35;升压变换器:25;降压变换器:10;Boost 控制器选型表:10;中压降压变换器:4;低压降压变换器:4	3peak-analog	TPP00031	宽压降压变换器
+BMS	137	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:136;3peak-auto:1	3~16节-全功能保护:39;1节-检测MOS:31;1节-复合IC:23;1节-检测Rsense:20;2~16节-次级保护:10;电池均衡IC:9;电池监控:5	3peak-analog	TPB76016	电池监控
+LDO	108	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:49;3peak-auto:34;novosense:25	低压LDO:35;高压LDO:25;LDO 线性稳压器选型表:25;高压 LDO:23	3peak-analog	TPL5031	低压LDO
+3kVrms隔离	92	品类/等级/结构tag	True	False	False	False	False	False	False	novosense:92	隔离栅极驱动:69;数字隔离器选型表:15;集成式电流传感器选型表:7;隔离CAN:1	novosense	NSM2012	集成式电流传感器选型表
+数字隔离器	91	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:62;3peak-auto:15;3peak-analog:14	数字隔离器选型表:62;数字隔离器:29	3peak-analog	TPT7621	数字隔离器
+霍尔开关/锁存器	91	品类/等级/结构tag	True	True	False	True	False	False	True	novosense:91	霍尔开关/ 锁存器选型表:91	novosense	NSM1011-A-Q0	霍尔开关/ 锁存器选型表
+降压	71	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:61;3peak-auto:10	宽压降压变换器:53;降压变换器:10;中压降压变换器:4;低压降压变换器:4	3peak-analog	TPP00031	宽压降压变换器
+CAN-FD	67	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-auto:31;3peak-analog:29;novosense:7	CAN 收发器:58;CAN 收发器选型表:7;隔离CAN:2	3peak-analog	TPT1042	CAN 收发器
+比较器	65	品类/等级/结构tag	True	True	False	True	True	True	True	3peak-analog:42;3peak-auto:12;novosense:11	比较器:54;比较器选型表:9;隔离比较器选型表:2	3peak-analog	LM211	比较器
+以太网	64	品类/等级/结构tag	True	True	False	False	True	True	True	yutai:64	92系列 / 交换机:24;85系列/phy系列:22;88系列PHY:6;80系列/车规:4;85/86系列/多口Phy:4;68系列网卡:3;81系列/phy系列:1	yutai	YT8010A	80系列/车规
+复位芯片	59	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:31;3peak-analog:17;3peak-auto:11	电压监控复位IC 选型表:31;复位芯片:21;集成看门狗的复位芯片:4;带看门狗的复位芯片:3	3peak-analog	TPV706	复位芯片
+电压基准	59	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:27;3peak-auto:17;3peak-analog:15	串联电压基准选型表:24;串联型电压基准:18;并联型电压基准:14;MEMS 麦克风信号调理芯片选型表:3	3peak-analog	TPR431	并联型电压基准
+ADC	54	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:42;novosense:7;3peak-auto:5	精密模数转换器（ADC）:30;模数转换器ADC 选型表:7;多通道可配置模数/数模转换器:6;高精度ADC:5;传感器接口:3;高速模数转换器（ADC）:3	3peak-analog	TPAEF0040	传感器接口
+非隔离栅极驱动	52	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:28;3peak-analog:18;3peak-auto:6	非隔离栅极驱动:52	3peak-analog	TPM1020	非隔离栅极驱动
+霍尔	49	语义证据tag	True	False	True	False	False	False	False	novosense:49	线性位置传感器选型表:28;集成式电流传感器选型表:16;线性电流传感器选型表:4;位置传感器专用芯片选型表:1	novosense	NSM2012P	集成式电流传感器选型表
+马达驱动	43	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:29;3peak-analog:13;3peak-auto:1	直流有刷电机驱动选型表:18;步进马达驱动:10;微步控制步进电机驱动选型表:6;直流有刷与三相无刷电机预驱选型表:5;直流马达驱动:4	3peak-analog	TPM1202	直流马达驱动
+电平转换	41	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:34;3peak-auto:7	与门:19;自动方向:13;电平转换器:9	3peak-analog	TPT24857	电平转换器
+电流检测放大器	38	品类/等级/结构tag	True	False	False	False	False	True	True	3peak-analog:18;3peak-auto:16;novosense:4	电流信号检测放大器:34;电流传感放大器选型表:4	3peak-analog	TP181	电流信号检测放大器
+消费级	37	语义证据tag	True	False	True	False	False	True	False	yutai:37	92系列 / 交换机:17;85系列/phy系列:11;85/86系列/多口Phy:4;88系列PHY:3;68系列网卡:2	yutai	YT8510C	85系列/phy系列
+升压	35	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:16;novosense:10;3peak-auto:9	升压变换器:25;Boost 控制器选型表:10	3peak-analog	TPQ05100	升压变换器
+电流传感器	35	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:35	集成式电流传感器选型表:30;线性电流传感器选型表:4;电流传感器磁调理选芯片选型表:1	novosense	NSM2011	集成式电流传感器选型表
+位置传感器	33	品类/等级/结构tag	True	True	False	True	False	False	True	novosense:33	线性位置传感器选型表:28;位置传感器专用芯片选型表:5	novosense	MT9105DT	线性位置传感器选型表
+模拟开关	33	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:28;3peak-auto:5	低压模拟开关:20;高压模拟开关:8;电源时序控制:3;高速数据复用器/解复用器:2	3peak-analog	TPW4051	高压模拟开关
+RS-485	30	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:30	RS-485 收发器:26;隔离RS485:4	3peak-analog	TP8480	RS-485 收发器
+温度传感器	30	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:29;3peak-analog:1	温度传感器选型表:23;温湿度传感器选型表:6;温度传感器:1	3peak-analog	TPTMP75	温度传感器
+PHY	29	品类/等级/结构tag	True	False	False	False	False	True	True	yutai:29	85系列/phy系列:21;85/86系列/多口Phy:8	yutai	YT8510H	85系列/phy系列
+线性位置传感器	28	品类/等级/结构tag	True	True	False	True	False	False	True	novosense:28	线性位置传感器选型表:28	novosense	MT9105DT	线性位置传感器选型表
+高边驱动	28	品类/等级/结构tag	True	True	False	True	False	False	True	novosense:27;3peak-analog:1	智能高边开关选型表:27;高边驱动:1	3peak-analog	TPB76200	高边驱动
+MCU/DSP	27	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:27	实时控制MCU/DSP 选型表:21;MCU/DSP:5;通用低功耗高性能微控制器选型表:1	novosense	NS800RT5075	实时控制MCU/DSP 选型表
+传感器接口	26	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:21;3peak-analog:4;3peak-auto:1	压力传感器信号调理芯片选型表:9;MEMS 麦克风信号调理芯片选型表:6;工业压力变送器信号调理芯片选型表:5;传感器接口:4;AFE:1;磁通门传感器调理芯片选型表:1	3peak-analog	TPA8801B	传感器接口
+隔离电源	26	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:14;3peak-analog:9;3peak-auto:3	集成隔离电源的隔离CAN 选型表:10;隔离电源:7;集成隔离电源的隔离RS485 选型表:4;升压变换器:3;宽压降压变换器:2	3peak-analog	TPP38002	宽压降压变换器
+磁阻开关/锁存器	25	品类/等级/结构tag	True	True	False	True	False	False	True	novosense:25	磁阻开关/ 锁存器选型表:25	novosense	NSM1051-0	磁阻开关/ 锁存器选型表
+MEMS	24	未归类/待判断	False	False	False	False	False	False	False	novosense:24	MEMS 压力传感器选型表:18;MEMS 麦克风信号调理芯片选型表:6	novosense	NSPGL1	MEMS 压力传感器选型表
+交换机	24	品类/等级/结构tag	True	True	False	True	False	True	True	yutai:24	92系列 / 交换机:24	yutai	YT9215S	92系列 / 交换机
+I2C	22	品类/等级/结构tag	True	True	False	False	False	True	True	3peak-analog:19;3peak-auto:3	IO 扩展器:17;电平转换器:5	3peak-analog	TPT29511B	电平转换器
+DAC	21	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:21	精密数模转换器(DAC):19;高速数模转换器（DAC）:2	3peak-analog	TPC112S1	精密数模转换器(DAC)
+EMI滤波器	20	品类/等级/结构tag	True	True	False	False	False	True	True	3peak-analog:20	视频滤波驱动:15;音频线路驱动:5	3peak-analog	TPF605A	音频线路驱动
+放大器	20	品类/等级/结构tag	True	True	False	True	True	True	True	3peak-analog:20	差动放大器:12;带电压基准的放大器:5;仪表放大器:2;对数放大器:1	3peak-analog	TPA1286	仪表放大器
+匹配电阻	19	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:19	匹配电阻网络:19	3peak-analog	TPR8200	匹配电阻网络
+逻辑门	19	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:17;3peak-auto:2	与门:19	3peak-analog	T74L1G32Q	与门
+隔离放大器	19	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:8;novosense:8;3peak-auto:3	隔离放大器和调制器:11;隔离电流放大器选型表:5;隔离电压放大器选型表:3	3peak-analog	TPA8000	隔离放大器和调制器
+压力传感器	18	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:18	MEMS 压力传感器选型表:18	novosense	NSPGL1	MEMS 压力传感器选型表
+IO扩展器	17	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:14;3peak-auto:3	IO 扩展器:17	3peak-analog	TPT29536A	IO 扩展器
+SBC	17	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-auto:9;3peak-analog:8	SBC:17	3peak-analog	TPT10283Q	SBC
+低边驱动	17	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:17	低边驱动/ 开关选型表:17	novosense	NSD5604E-DHTSTR	低边驱动/ 开关选型表
+视频滤波	15	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:15	视频滤波驱动:15	3peak-analog	TPF110	视频滤波驱动
+LIN	14	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-auto:7;3peak-analog:5;novosense:2	LIN 收发器:7;LIN收发器:5;LIN 收发器选型表:2	3peak-analog	TPT1021EQ	LIN收发器
+集成隔离电源的隔离CAN	10	未归类/待判断	False	False	False	False	False	False	False	novosense:10	集成隔离电源的隔离CAN 选型表:10	novosense	NSIP9042-DSWTR	集成隔离电源的隔离CAN 选型表
+霍尔角度编码器	10	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:10	霍尔角度编码器选型表:10	novosense	NSM3011	霍尔角度编码器选型表
+LED驱动	9	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:8;3peak-auto:1	线性LED 驱动选型表:8;LED 驱动:1	3peak-auto	TPM92611Q-EV1R-S	LED 驱动
+MLVDS	9	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:5;novosense:4	MLVDS:9	3peak-analog	TPT9H111	MLVDS
+隔离CAN	9	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:7;3peak-analog:2	隔离CAN:9	3peak-analog	TPT71044	隔离CAN
+负载开关	8	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-auto:6;3peak-analog:2	高边开关:7;负载开关:1	3peak-analog	TPS42S40Q	高边开关
+速度传感器	8	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:8	速度传感器选型表:8	novosense	NSM4101	速度传感器选型表
+隔离ADC	7	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:7	隔离ADC:7	novosense	NSI1306M25	隔离ADC
+高边开关	7	品类/等级/结构tag	True	False	False	True	False	True	True	3peak-auto:6;3peak-analog:1	高边开关:7	3peak-analog	TPS42S40Q	高边开关
+RS-232	6	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:6	RS-232 收发器:6	3peak-analog	TPT3122EH	RS-232 收发器
+氮化镓功率芯片	6	品类/等级/结构tag	True	True	False	False	False	True	True	novosense:6	氮化镓功率芯片选型表:6	novosense	NSG65N15K-DQAFR	氮化镓功率芯片选型表
+电流功率检测器	6	品类/等级/结构tag	True	False	False	False	False	True	True	3peak-analog:6	数字式电流/功率检测器:6	3peak-analog	TPA6190	数字式电流/功率检测器
+磁阻角度编码器	6	品类/等级/结构tag	True	True	False	True	False	True	True	novosense:6	磁阻角度编码器选型表:6	novosense	MT6835	磁阻角度编码器选型表
+隔离I2C	6	品类/等级/结构tag	True	True	False	False	False	True	True	3peak-analog:3;novosense:3	隔离I2C:6	3peak-analog	TPT7250	隔离I2C
+隔离RS485	6	品类/等级/结构tag	True	True	False	False	False	True	True	3peak-analog:4;novosense:2	隔离RS485:6	3peak-analog	TPT7481	隔离RS485
+音频总线	6	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:4;3peak-auto:2	ASN 音频总线:6	3peak-analog	TPDA1000Q	ASN 音频总线
+音频功放	5	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:5	音频线路驱动:5	3peak-analog	TPF605A	音频线路驱动
+半双工	4	语义证据tag	True	True	True	False	False	False	False	novosense:4	隔离RS485:2;集成隔离电源的隔离RS485 选型表:2	novosense	NSI84085-DSWR	隔离RS485
+理想二极管	4	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:3;3peak-auto:1	理想二极管|ORing 控制器:3;理想二极管控制器:1	3peak-analog	TPS65R01Q	理想二极管|ORing 控制器
+电子保险丝	4	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:3;3peak-auto:1	电子保险丝:3;eFuse:1	3peak-analog	TPS05P50	电子保险丝
+集成隔离电源的隔离RS485	4	英文描述/可能噪声	False	False	False	False	False	False	False	novosense:4	集成隔离电源的隔离RS485 选型表:4	novosense	NSIP93086C-DSWTR	集成隔离电源的隔离RS485 选型表
+电源时序	3	品类/等级/结构tag	True	True	False	True	False	True	True	3peak-analog:3	电源时序控制:3	3peak-analog	TPK1031	电源时序控制
+网卡	3	品类/等级/结构tag	True	True	False	True	False	True	True	yutai:3	68系列网卡:3	yutai	YT6801	68系列网卡
+PMIC	2	品类/等级/结构tag	True	True	False	False	False	False	True	3peak-auto:2	PMIC:2	3peak-auto	TPU25401Q-FS5R-S	PMIC
+以太网供电	2	品类/等级/结构tag	True	True	False	True	False	False	True	3peak-analog:2	以太网供电:2	3peak-analog	TPE15017	以太网供电
+全双工	2	语义证据tag	True	True	True	False	False	False	False	novosense:2	集成隔离电源的隔离RS485 选型表:2	novosense	NSIP93086C-DSWTR	集成隔离电源的隔离RS485 选型表
+电池充电	2	品类/等级/结构tag	True	False	False	False	False	True	True	3peak-analog:2	线性充电芯片:2	3peak-analog	TPB4056A	线性充电芯片
+DrMOS	1	品类/等级/结构tag	True	True	False	False	False	True	True	3peak-analog:1	功率级DrMOS:1	3peak-analog	TPM1525	功率级DrMOS
+磁阻	1	语义证据tag	True	False	True	False	False	False	False	novosense:1	电流传感器磁调理选芯片选型表:1	novosense	NSA5312	电流传感器磁调理选芯片选型表

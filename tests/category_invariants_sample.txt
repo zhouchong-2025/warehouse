@@ -1,0 +1,36 @@
+# 小样本 invariants
+# kind 支持:
+#   tag_count
+#   forbid_overlap
+#   numeric_coverage
+#   sample_has_tags
+
+category=电压基准 | kind=tag_count | tag=电压基准 | min=30
+category=电压基准 | kind=tag_count | tag=串联型电压基准 | min=18
+category=电压基准 | kind=tag_count | tag=并联型电压基准 | min=14
+category=电压基准 | kind=forbid_overlap | include=电压基准 | forbid=LDO,DCDC
+category=电压基准 | kind=sample_has_tags | pn=TPR31-S | tags=电压基准,串联型电压基准,Vout_2.5V,低噪声
+category=电压基准 | kind=sample_has_tags | pn=TPR431 | tags=电压基准,并联型电压基准,Vout_36V
+
+category=传感器 | kind=tag_count | tag=温度传感器 | min=20
+category=传感器 | kind=tag_count | tag=电流传感器 | min=60
+category=传感器 | kind=tag_count | tag=位置传感器 | min=30
+category=传感器 | kind=tag_count | tag=线性位置传感器 | min=15
+category=传感器 | kind=tag_count | tag=霍尔角度编码器 | min=8
+category=传感器 | kind=tag_count | tag=磁阻角度编码器 | min=5
+category=传感器 | kind=tag_count | tag=速度传感器 | min=8
+category=传感器 | kind=numeric_coverage | tag=温度传感器 | keys_any=供电电压,supply_voltage | min_ratio=0.80
+category=传感器 | kind=sample_has_tags | pn=NSM2011 | tags=电流传感器,隔离,5kVrms隔离
+category=传感器 | kind=sample_has_tags | pn=NST1001 | tags=温度传感器,Vin_3.3V,Vin_5V
+category=传感器 | kind=sample_has_tags | pn=MT9105DT | tags=位置传感器,线性位置传感器
+category=传感器 | kind=sample_has_tags | pn=NSM3011 | tags=霍尔角度编码器,工业级
+category=传感器 | kind=sample_has_tags | pn=MT6826S | tags=磁阻角度编码器
+category=传感器 | kind=sample_has_tags | pn=NSM4101 | tags=速度传感器,工业级
+
+category=驱动 | kind=tag_count | tag=马达驱动 | min=10
+category=驱动 | kind=tag_count | tag=步进马达驱动 | min=10
+category=驱动 | kind=tag_count | tag=直流马达驱动 | min=4
+category=驱动 | kind=forbid_overlap | include=马达驱动 | forbid=栅极驱动,隔离栅极驱动
+category=驱动 | kind=sample_has_tags | pn=NSI6801B-DSPR | tags=隔离栅极驱动,栅极驱动
+category=驱动 | kind=sample_has_tags | pn=TPM8837C | tags=马达驱动,直流马达驱动,Iout_1A,Vin_17V
+category=驱动 | kind=sample_has_tags | pn=TPM8803 | tags=马达驱动,步进马达驱动,Iout_3A

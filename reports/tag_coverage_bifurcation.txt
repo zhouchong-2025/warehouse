@@ -1,0 +1,33 @@
+Phase2 coverage gap bifurcation
+
+总盲区: 188
+
+建议保留为运行时证据: 155
+建议沉淀为结构标签候选: 33
+
+一、建议保留为运行时证据
+- SIC (7) | dim=technology strength=nice
+  样例: TPT1462Q-DFCR-S、TPT1462Q-SO1R-S、TPT1462VQ-DFCR-S、TPT1462VQ-SO1R-S、TPT1463Q-DFKR-S
+  原因: 软条件/加权项，不是硬过滤；继续作为运行时 nice 更符合“有更好、没有也可参考”的产品推荐逻辑。
+- 低功耗唤醒 (45) | dim=feature strength=nice
+  样例: TPT1042、TPT1042EVQ、TPT1042Q、TPT1042V、TPT1042VQ
+  原因: 证据词过宽，含 Standby/Sleep/WAKE/INH；若直接回填 features 容易把普通待机能力误当作用户要找的“低功耗唤醒”。更适合继续做运行时 nice/解释项，并单独提高正向证据门槛。
+- 特定帧唤醒 (8) | dim=technology strength=nice
+  样例: TPT1145ENQ、TPT1145NQ、TPT1445Q、TPT1145NQ-DFKR-S、TPT1145NQ-SO2R-S
+  原因: 已能通过 detail/params 命中，且本质是 selective wake / partial networking 能力证据；当前搜索链路已可用，不必先回填 features。
+- 轨到轨 (95) | dim=technology strength=nice
+  样例: LM211、LM2901A、LM2901A-Q100、LM2903、LM2903A
+  原因: 用户查询高频，但命中证据主要来自 RRIO / rail-to-rail 原文。现阶段运行时识别已足够，是否大规模结构化应单独评估放大器/比较器全品类收益。
+
+二、建议沉淀为结构标签候选
+- 千兆 (28) | dim=media strength=must
+  样例: YT8011A、YT8011AN、YT8011AR、YT8511H、YT8511C
+  原因: media/must 且用户会直接检索，适合结构化沉淀速率层级
+- 霍尔 (5) | dim=technology strength=must
+  样例: NSM2012P、NSM2013P、NSM2013P-Q1、NSM2015P-Q1、NSM2019P
+  原因: must 技术路线，且当前命中集中在电流传感器真实子类，适合沉淀结构标签
+
+三、下一步建议
+1. 先做 霍尔/千兆 的确定性结构化沉淀，因为这两项既是强约束，又有清晰子类边界。
+2. 低功耗唤醒 不直接补 features，先把证据门槛收窄：Standby/Sleep 单独降权，WAKE/INH/remote/local wake 联合证据再命中。
+3. 特定帧唤醒/SIC/轨到轨 暂留运行时；除非后续前端筛选确实需要结构列，否则不急着回填数据。

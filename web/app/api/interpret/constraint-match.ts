@@ -1,19 +1,13 @@
 // constraint-match.ts
 // must/nice 约束匹配 + 维度感知的三级降级兜底
-//
-// 设计原则(FAE级筛选, 非关键词词袋):
-//   1. must 分维度: category(品类,绝不放松) > media(物理层,硬) > spec(规格,可就近) > grade(等级,可放松)
-//   2. 降级时按维度优先级放松: 先保品类+物理层, 再松等级, 最后松规格(端口就近)
-//   3. 端口/通道向下兼容: 要5口, 9口/11口也能用(多口可作少口), 但精确5口排最前
-//   4. 零结果不冷处理: 说清楚"为了找到产品, 放松了哪个维度", 主动给替代方案
 
-export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade';
+export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade' | 'technology';
 export interface MustConstraint {
   tag: string;
   dimension: ConstraintDimension;
   family?: string;
   value?: number;
-  downgradable?: boolean;  // 端口/通道: 要N, ≥N也可
+  downgradable?: boolean;
 }
 
 export type ConstraintProduct = {
@@ -21,21 +15,23 @@ export type ConstraintProduct = {
   _features?: string;
   _section?: string;
   _params?: string;
+  _detail_intro?: string;
+  _detail_features?: string;
   _params_numeric?: Record<string, unknown>;
+  __vendor?: string;
+  __vendorGroup?: string;
   [k: string]: unknown;
 };
 
-// 排序意图(与 query_parser.ts 的 SortIntent 同构; 在此重声明避免跨目录类型耦合)
 export interface SortIntent {
   param: string;
-  paramKeys: string[];       // _params_numeric 字段名小写子串候选
+  paramKeys: string[];
   direction: 'high' | 'low';
-  require: boolean;          // true=无该参数数值的产品过滤掉
+  require: boolean;
   label: string;
 }
 
-// 从产品的 _params_numeric 取排序数值. 命中多个候选字段时, 按方向取最优(high→max, low→min).
-// 无任何命中字段或字段无数值 → 返回 null(require 模式下会被过滤; 否则排最后).
+// ── Sort helpers ──
 export function sortValueOf(product: ConstraintProduct, sk: SortIntent): number | null {
   const pn = product._params_numeric;
   if (!pn || typeof pn !== 'object') return null;
@@ -43,7 +39,6 @@ export function sortValueOf(product: ConstraintProduct, sk: SortIntent): number 
   for (const [key, val] of Object.entries(pn)) {
     const kl = key.toLowerCase();
     if (!sk.paramKeys.some((pk) => kl.includes(pk))) continue;
-    // val 形如 {value, unit, raw} 或区间 {min,max}. 取标量 value(无则 range 的代表值).
     const v = val as { value?: unknown; min?: unknown; max?: unknown } | null;
     let num: number | null = null;
     if (v && typeof v.value === 'number') num = v.value;
@@ -55,45 +50,384 @@ export function sortValueOf(product: ConstraintProduct, sk: SortIntent): number 
   return best;
 }
 
-// 比较两个产品的排序数值. require/有值优先, 然后按方向. 返回负=a在前.
 function compareBySort(a: ConstraintProduct, b: ConstraintProduct, sk: SortIntent): number {
   const va = sortValueOf(a, sk);
   const vb = sortValueOf(b, sk);
   if (va == null && vb == null) return 0;
-  if (va == null) return 1;   // 无值排后
+  if (va == null) return 1;
   if (vb == null) return -1;
   return sk.direction === 'high' ? vb - va : va - vb;
 }
 
-// 单个 must 约束是否被产品满足。meta 提供维度/向下兼容语义。
-//   - 端口/通道(downgradable): 产品规格 ≥ 要求值即满足(多口可作少口用); 精确相等在排序时加权
-//   - 其他: 产品 token 等于约束, 或包含约束作为完整段
+// ── Params text parsing ──
+function parseTaggedValues(tokens: string[], prefix: string, suffix: string): number[] {
+  const vals: number[] = [];
+  for (const tk of tokens) {
+    if (tk.startsWith(prefix) && tk.endsWith(suffix)) {
+      const n = parseFloat(tk.slice(prefix.length, -suffix.length));
+      if (!Number.isNaN(n)) vals.push(n);
+    }
+  }
+  return vals;
+}
+
+function normalizeCurrentToA(key: string, v: { value?: unknown; unit?: unknown; raw?: unknown } | null): number | null {
+  if (!v || typeof v.value !== 'number' || Number.isNaN(v.value)) return null;
+  const unit = String(v.unit || '').toLowerCase();
+  const raw = String(v.raw || '').toLowerCase();
+  const kl = key.toLowerCase();
+  let num = v.value;
+  if (unit === 'ma' || raw.includes('ma') || kl.includes('__ma_')) num /= 1000;
+  return num;
+}
+
+// ── Param extractors ──
+function portCountOf(product: ConstraintProduct, tokens: string[]): number | null {
+  let best: number | null = null;
+  for (const tk of tokens) {
+    const m = tk.match(/^(\d+)口$/);
+    if (m) { const n = parseInt(m[1], 10); best = best == null ? n : Math.max(best, n); }
+  }
+  const paramsText = String(product._params || '').toLowerCase();
+  for (const re of [
+    /简介\s*[:：][^|]*?\b(\d+)\s*g(?:e)?\b/gi,
+    /端口\s*[:：]\s*(\d+)\s*ge/gi,
+    /\b(\d+)\s*ge\b/gi,
+    /\b(\d+)\s*ports?\b/gi,
+    /端口\s*[:：]\s*(\d+)/gi,
+  ]) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(paramsText)) !== null) {
+      const n = parseInt(m[1], 10);
+      if (!Number.isNaN(n)) best = best == null ? n : Math.max(best, n);
+    }
+  }
+  return best;
+}
+
+function vinRangeOf(product: ConstraintProduct, tokens: string[]): [number, number] | null {
+  const pn = product._params_numeric;
+  if (pn && typeof pn === 'object') {
+    let minVin: number | null = null;
+    let maxVin: number | null = null;
+    for (const [key, rawVal] of Object.entries(pn)) {
+      const kl = key.toLowerCase();
+      const v = rawVal as { value?: unknown; is_range?: boolean; min?: number; max?: number } | null;
+      if (!v) continue;
+      if (kl.includes('output') || kl.includes('vout') || kl.includes('输出') || kl.includes('vcc_vee')) continue;
+      const isSupplyVin = (
+        kl.includes('supply_voltage') || kl.includes('供电电压') || kl.includes('工作电压') ||
+        (kl.includes('vcc') && (kl.includes('__v_') || kl.includes('_v_')))
+      );
+      if (isSupplyVin) {
+        if (v.is_range && typeof v.min === 'number' && typeof v.max === 'number') {
+          if (minVin == null || v.min < minVin) minVin = v.min;
+          if (maxVin == null || v.max > maxVin) maxVin = v.max;
+          continue;
+        }
+        if (typeof v.value === 'number' && !Number.isNaN(v.value)) {
+          if (kl.includes('min') || kl.includes('最小')) {
+            if (minVin == null || v.value < minVin) minVin = v.value;
+          } else if (kl.includes('max') || kl.includes('最大')) {
+            if (maxVin == null || v.value > maxVin) maxVin = v.value;
+          } else {
+            if (minVin == null || v.value < minVin) minVin = v.value;
+            if (maxVin == null || v.value > maxVin) maxVin = v.value;
+          }
+        }
+        continue;
+      }
+      if (typeof v.value !== 'number' || Number.isNaN(v.value)) continue;
+      if ((kl.includes('minimum_input') || kl.includes('最小输入')) && (kl.includes('voltage') || kl.includes('电压') || kl.includes('__v_'))) {
+        if (minVin == null || v.value < minVin) minVin = v.value;
+      } else if ((kl.includes('maximum_input') || kl.includes('最大输入')) && (kl.includes('voltage') || kl.includes('电压') || kl.includes('__v_'))) {
+        if (maxVin == null || v.value > maxVin) maxVin = v.value;
+      }
+    }
+    if (minVin != null && maxVin != null) return [Math.min(minVin, maxVin), Math.max(minVin, maxVin)];
+    if (minVin != null) return [minVin, Number.POSITIVE_INFINITY];
+    if (maxVin != null) return [0, maxVin];
+  }
+  const vals = parseTaggedValues(tokens, 'vin_', 'v');
+  if (vals.length >= 2) return [Math.min(...vals), Math.max(...vals)];
+  if (vals.length === 1) return [0, vals[0]];
+  const paramsText = (product._params || '').toLowerCase();
+  const supplyMatch = paramsText.match(/(?:供电电压|supply voltage|vin|vcc)\s*(?:\([^)]*\))?\s*[:：]\s*([\d.]+)\s*(?:to|~|～|\-)\s*([\d.]+)/i);
+  if (supplyMatch) {
+    const lo = parseFloat(supplyMatch[1]);
+    const hi = parseFloat(supplyMatch[2]);
+    if (!Number.isNaN(lo) && !Number.isNaN(hi)) return [Math.min(lo, hi), Math.max(lo, hi)];
+  }
+  return null;
+}
+
+function ioutMaxOf(product: ConstraintProduct, tokens: string[]): number | null {
+  const pn = product._params_numeric;
+  let best: number | null = null;
+  if (pn && typeof pn === 'object') {
+    for (const [key, rawVal] of Object.entries(pn)) {
+      const kl = key.toLowerCase();
+      if (!(/output/.test(kl) || kl.includes('输出')) || !(/current/.test(kl) || kl.includes('电流') || kl.includes('__a_') || kl.includes('__ma_'))) continue;
+      const num = normalizeCurrentToA(key, rawVal as { value?: unknown; unit?: unknown; raw?: unknown });
+      if (num == null) continue;
+      best = best == null ? num : Math.max(best, num);
+    }
+  }
+  if (best != null) return best;
+  const vals = parseTaggedValues(tokens, 'iout_', 'a');
+  if (vals.length > 0) return Math.max(...vals);
+  return null;
+}
+
+function dataRateMaxMbpsOf(product: ConstraintProduct, tokens: string[]): number | null {
+  let best: number | null = null;
+  for (const tk of tokens) {
+    const m = tk.match(/^(\d+\.?\d*)mbps$/);
+    if (!m) continue;
+    const v = parseFloat(m[1]);
+    if (!Number.isNaN(v)) best = best == null ? v : Math.max(best, v);
+  }
+  const pn = product._params_numeric;
+  if (pn && typeof pn === 'object') {
+    for (const [key, rawVal] of Object.entries(pn)) {
+      const kl = key.toLowerCase();
+      // Only match data-rate-related keys
+      if (!/data_rate|码流|速率|mbps|kbps|gbps/.test(kl)) continue;
+      const v = rawVal as { value?: unknown; unit?: unknown; raw?: unknown } | null;
+      if (!v || typeof v.value !== 'number') continue;
+      const unit = String(v.unit || '').toLowerCase();
+      const raw = String(v.raw || '').toLowerCase();
+      let num = v.value;
+      if (kl.includes('kbps') || unit.includes('kbps') || raw.includes('kbps')) num /= 1000;
+      else if (kl.includes('gbps') || unit.includes('gbps') || raw.includes('gbps')) num *= 1000;
+      best = best == null ? num : Math.max(best, num);
+    }
+  }
+  return best;
+}
+
+function bitResolutionOf(product: ConstraintProduct, tokens: string[]): number | null {
+  let best: number | null = null;
+  for (const tk of tokens) {
+    const m = tk.match(/^(\d+)bit$/);
+    if (m) { const n = parseInt(m[1], 10); best = best == null ? n : Math.max(best, n); }
+  }
+  return best;
+}
+
+function channelCountOf(product: ConstraintProduct, tokens: string[]): number | null {
+  let best: number | null = null;
+  // Extract from _params raw text (precise regex, no false positives from _params_numeric key matching)
+  const paramsText = String(product._params || '');
+  for (const re of [
+    /(number of channels?|channel count|通道数|通道数量|adc input channel|input channel(?:\s+数量)?|参考\s*通道数|输入通道\s*数量)\s*[:：]\s*(\d+)/gi,
+    /(\d+)\s*通道/gi,
+    /\b(\d+)\s*ch\b/gi,
+  ]) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(paramsText)) !== null) {
+      const n = parseInt(m[m.length - 1], 10);
+      if (!Number.isNaN(n)) best = best == null ? n : Math.max(best, n);
+    }
+  }
+  // _features token fallback
+  for (const tk of tokens) {
+    const m = tk.match(/^(\d+)通道/);
+    if (!m) continue;
+    const n = parseInt(m[1], 10);
+    if (!Number.isNaN(n)) best = best == null ? n : Math.max(best, n);
+  }
+  return best;
+}
+
+function vosMaxMvOf(product: ConstraintProduct): number | null {
+  const pn = product._params_numeric;
+  if (!pn) return null;
+  let best: number | null = null;
+  for (const [key, rawVal] of Object.entries(pn)) {
+    const kl = key.toLowerCase();
+    if (!kl.includes('vos')) continue;
+    // Skip drift/tempco keys: dvos_dt, drift, 温漂
+    if (kl.includes('drift') || kl.includes('dvos_dt') || kl.includes('dt') || kl.includes('温漂') || kl.includes('温度漂')) continue;
+    // Prefer keys with 'max' for max Vos spec
+    const v = rawVal as { value?: unknown; max?: number; unit?: string } | null;
+    if (!v) continue;
+    let num: number | null = null;
+    if (typeof v.max === 'number') num = v.max;
+    else if (typeof v.value === 'number') num = v.value;
+    if (num == null || Number.isNaN(num)) continue;
+    // Normalize to mV
+    const unit = String(v.unit || '').toLowerCase();
+    if (unit === 'μv' || unit === 'uv') num /= 1000;
+    if (best == null || num < best) best = num;  // take minimum (best) Vos
+  }
+  return best;
+}
+
+function voutSpecOf(product: ConstraintProduct, tokens: string[]): { values: number[]; range: [number, number] | null } {
+  const pn = product._params_numeric;
+  if (pn && typeof pn === 'object') {
+    let rangeLow: number | null = null;
+    let rangeHigh: number | null = null;
+    const fixedVals: number[] = [];
+    for (const [key, rawVal] of Object.entries(pn)) {
+      const kl = key.toLowerCase();
+      const hasVoutKey = kl.includes('output_voltage') || kl.includes('vout')
+        || (kl.includes('output') && (kl.includes('__v_') || kl.includes('_v_')))
+        || (kl.includes('输出') && (kl.includes('__v_') || kl.includes('_v_')) && !kl.includes('侧') && !kl.includes('vcc') && !kl.includes('静') && !kl.includes('电流') && !kl.includes('uvlo'))
+        || kl === '输出电压';
+      if (!hasVoutKey) continue;
+      const v = rawVal as { value?: unknown; is_range?: boolean; min?: number; max?: number } | null;
+      if (!v) continue;
+      if (v.is_range && typeof v.min === 'number' && typeof v.max === 'number') {
+        rangeLow = v.min; rangeHigh = v.max;
+      } else if (typeof v.value === 'number') {
+        fixedVals.push(v.value);
+      }
+    }
+    if (fixedVals.length > 0) return { values: fixedVals, range: null };
+    if (rangeLow != null && rangeHigh != null) return { values: [], range: [rangeLow, rangeHigh] };
+  }
+  const vals = parseTaggedValues(tokens, 'vout_', 'v');
+  if (vals.length > 0) return { values: [...new Set(vals)].sort((a, b) => a - b), range: null };
+  // Fallback: "可调输出" / "adjustable output" → treat as wide-range (FAE knows it covers any reasonable Vout)
+  const paramsText = (product._params || '').toLowerCase();
+  if (/可调输出|adjustable\s*output/i.test(paramsText)) {
+    return { values: [], range: [0, 1000] };
+  }
+  return { values: [], range: null };
+}
+
+// ── Evidence registry ──
+interface EvidenceRule {
+  tag: string;
+  paramsKey?: string;
+  contextSection?: RegExp;
+  detailMatch?: RegExp;
+}
+
+const EVIDENCE_REGISTRY: EvidenceRule[] = [
+  { tag: '电压基准', paramsKey: 'voltage_reference', contextSection: /放大器|运放|比较器/ },
+  { tag: '霍尔', detailMatch: /霍尔|hall[ -]?(effect|sensor|switch|latch)/i },
+];
+
+function isIoExpanderProduct(product: ConstraintProduct, tokens: string[]): boolean {
+  const section = String(product._section || '').toLowerCase().replace(/\s+/g, '');
+  return tokens.includes('io扩展器') || section.includes('io扩展器') || section.includes('i/o扩展器');
+}
+
+// ── Core: tagSatisfied ──
 export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: MustConstraint): boolean {
   const feats = (product._features || "").toLowerCase();
   const tokens = feats.split(/\s+/).filter(Boolean);
   const t = tag.toLowerCase();
+  const paramsText = (product._params || "").toLowerCase();
+  const detailTextRaw = ((product._detail_intro || "") + " " + (product._detail_features || "")).toLowerCase();
+  const allEvidenceText = `${paramsText} ${detailTextRaw}`;
 
-  // 端口/通道向下兼容: 要 N口/N通道, 产品 ≥N 即满足
-  if (meta?.downgradable && meta.value != null && (meta.family === '端口' || meta.family === '通道')) {
-    const unit = meta.family === '端口' ? '口' : '通道';
-    return tokens.some((tk) => {
-      const m = tk.match(new RegExp(`^(\\d+)${unit}`));
-      return m !== null && +m[1] >= meta.value!;
-    });
-  }
-
-  // 速率(Mbps)向下兼容(2026-06-12 方案甲): 要 N Mbps, 产品速率 ≥N 即满足(高速兼容低速).
-  //   产品侧现存真实值单一标签(如 208Mbps), 取产品所有 Mbps 标签的最大值与要求值比较.
-  if (meta?.downgradable && meta.value != null && meta.family === 'Mbps') {
-    let maxMbps = -1;
-    for (const tk of tokens) {
-      const m = tk.match(/^(\d+\.?\d*)mbps$/);
-      if (m) { const v = parseFloat(m[1]); if (v > maxMbps) maxMbps = v; }
+  // Duplex evidence from params/detail
+  if (t === '半双工' || t === '全双工') {
+    const hasSerialContext = /rs-?\s*(?:485|232)|隔离\s*rs-?\s*485|485\s*收发器|232\s*收发器/.test(allEvidenceText)
+      || tokens.some((tk) => ['rs-485', 'rs-232', '隔离rs485', '集成隔离电源的隔离rs485'].includes(tk));
+    if (!hasSerialContext) return tokens.includes(t);
+    const paramsHasHalf = /半双工|half[ -]?duplex/.test(paramsText);
+    const paramsHasFull = /全双工|full[ -]?duplex/.test(paramsText);
+    if (t === '半双工') {
+      if (paramsHasFull && !paramsHasHalf) return false;
+      return paramsHasHalf || /半双工|half[ -]?duplex/.test(detailTextRaw) || tokens.includes(t);
     }
-    return maxMbps >= meta.value;
+    if (paramsHasHalf && !paramsHasFull) return false;
+    return paramsHasFull || /全双工|full[ -]?duplex/.test(detailTextRaw) || tokens.includes(t);
   }
 
-  // 端口精确(无 meta 时的回退, 防 15口 误配 5口)
+  if (t === '隔离rs485') {
+    return tokens.includes(t) || tokens.includes('集成隔离电源的隔离rs485')
+      || /隔离(?:式)?\s*rs-?\s*485|隔离rs485|isolated\s+rs-?485/.test(allEvidenceText);
+  }
+
+  // Op-amp rail-to-rail
+  if (t === '轨到轨') {
+    if (tokens.includes(t) || /\brrio\b|轨到轨/.test(allEvidenceText)) return true;
+    const inYes = /rail[-\s]?rail\s*in\s*[:：]\s*(yes|是)/.test(allEvidenceText);
+    const outYes = /rail[-\s]?rail\s*out\s*[:：]\s*(yes|是)/.test(allEvidenceText);
+    return inYes && outYes;
+  }
+
+  // Ethernet media
+  if (t === 't1-phy') return /(?:10|100|1000)base-t1|802\.3bw/.test(paramsText);
+  if (t === '100base-tx') {
+    if (/(?:10|100|1000)base-t1|802\.3bw/.test(paramsText)) return false;
+    return /100base-tx|\bfe\s+phy\b|双绞线/.test(paramsText);
+  }
+  if (t === '百兆') {
+    return /百兆|100base-(?:tx|t1|fx)|\bfe\s+phy\b|\b1fe\b|802\.3bw/.test(paramsText) || tokens.includes(t);
+  }
+
+  // SBC compound
+  if (tokens.includes('sbc')) {
+    if (t === 'can-fd') return /\bcan\b|uja1169|tja1145/.test(paramsText);
+    if (t === 'lin') return /\blin\b|tja1028|tlin1028/.test(paramsText);
+    if (t === 'rs-485') return /rs-?485|485\s*sbc/.test(paramsText);
+    if (t === 'rs-232') return /rs-?232|232\s*sbc/.test(paramsText);
+  }
+
+  // DCDC compound: product is DCDC but params define topology (降压/buck, 升压/boost)
+  if (tokens.includes('dcdc')) {
+    if (t === '降压') return /降压|buck|step[ -]?down/i.test(allEvidenceText);
+    if (t === '升压') return /升压|boost|step[ -]?up/i.test(allEvidenceText);
+  }
+
+  // Downgradable specs
+  if (meta?.downgradable && meta.value != null && (meta.family === '端口' || meta.family === '通道')) {
+    if (meta.family === '端口') {
+      const count = portCountOf(product, tokens);
+      return count != null && count >= meta.value;
+    }
+    const count = channelCountOf(product, tokens);
+    return count != null && count >= meta.value;
+  }
+
+  if (meta?.value != null && meta.family === 'bit') {
+    const bits = bitResolutionOf(product, tokens);
+    return bits != null && bits >= meta.value;
+  }
+
+  if (meta?.downgradable && meta.value != null && meta.family === 'Mbps') {
+    const maxMbps = dataRateMaxMbpsOf(product, tokens);
+    return maxMbps != null && maxMbps >= meta.value;
+  }
+
+  // Vin
+  if (meta?.value != null && meta.family === 'Vin') {
+    const rng = vinRangeOf(product, tokens);
+    return !!rng && rng[0] <= meta.value && meta.value <= rng[1];
+  }
+
+  // Iout
+  if (meta?.value != null && meta.family === 'Iout') {
+    const maxIout = ioutMaxOf(product, tokens);
+    return maxIout != null && maxIout >= meta.value;
+  }
+
+  // Vos
+  if ((meta?.value != null && meta.family === 'Vos') || (meta?.dimension === 'spec' && /^vos_<=/i.test(tag))) {
+    const vosVal = meta?.value ?? (() => {
+      const m = tag.match(/^Vos_<=(\d+\.?\d*)(m?)V?$/i);
+      return m ? parseFloat(m[1]) : null;
+    })();
+    if (vosVal != null) {
+      const vos = vosMaxMvOf(product);
+      return vos != null && vos <= vosVal;
+    }
+  }
+
+  // Vout
+  if (meta?.value != null && meta.family === 'Vout') {
+    const spec = voutSpecOf(product, tokens);
+    if (spec.values.some((v) => Math.abs(v - meta.value!) < 1e-6)) return true;
+    return !!spec.range && spec.range[0] <= meta.value && meta.value <= spec.range[1];
+  }
+
   const portMatch = t.match(/^(\d+)口$/);
   if (portMatch) {
     const n = portMatch[1];
@@ -103,24 +437,102 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     });
   }
 
-  return tokens.some((tk) => tk === t || tk.includes(t));
+  // Parent→children closure
+  const PARENT_CLOSURE: Record<string, string[]> = {
+    '栅极驱动': ['隔离栅极驱动', '非隔离栅极驱动'],
+    '隔离CAN': ['集成隔离电源的隔离CAN'],
+    '电压基准': ['串联型电压基准', '并联型电压基准'],
+  };
+  const children = PARENT_CLOSURE[t];
+  if (children && children.some((child) => tokens.includes(child.toLowerCase()))) return true;
+
+  // Synonym closure (includes compound→constituent reverse mapping for decomposed tags)
+  const SYNONYM_CLOSURE: Record<string, string[]> = {
+    '运放': ['放大器'],
+    // Compound reverse mapping: constituent tag matches products with compound tokens
+    'RS-485': ['隔离RS485', '集成隔离电源的隔离RS485'],
+    'CAN-FD': ['隔离CAN', '集成隔离电源的隔离CAN'],
+    'I2C': ['隔离I2C'],
+    '隔离': ['隔离RS485', '隔离CAN', '隔离I2C', '集成隔离电源的隔离CAN', '集成隔离电源的隔离RS485'],
+    '隔离电源': ['集成隔离电源的隔离CAN', '集成隔离电源的隔离RS485'],
+  };
+  const synonyms = SYNONYM_CLOSURE[t];
+  if (synonyms && synonyms.some((syn) => tokens.includes(syn.toLowerCase()))) return true;
+
+  // Evidence registry
+  const canUseEvidence = !meta || (meta.dimension !== 'category' && meta.dimension !== 'grade');
+  if (canUseEvidence) {
+    const evidenceRule = EVIDENCE_REGISTRY.find((r) => r.tag === t);
+    if (evidenceRule) {
+      let contextOk = true;
+      if (evidenceRule.contextSection) {
+        const section = (product._section || '');
+        contextOk = evidenceRule.contextSection.test(section);
+      }
+      if (contextOk) {
+        if (evidenceRule.paramsKey) {
+          const pn = product._params_numeric;
+          if (pn && Object.keys(pn).some((k: string) => k.includes(evidenceRule.paramsKey!))) return true;
+        }
+        if (evidenceRule.detailMatch) {
+          const detail = ((product._detail_intro || '') + ' ' + (product._detail_features || '')).toLowerCase();
+          if (evidenceRule.detailMatch.test(detail)) return true;
+        }
+      }
+    }
+  }
+
+  // Exact token match
+  if (tokens.some((tk) => tk === t)) return true;
+
+  // Hard category/grade
+  if (meta && (meta.dimension === 'category' || meta.dimension === 'grade')) {
+    return false;
+  }
+
+  const allowDetailEvidence = !(meta && meta.dimension === 'media');
+
+  // General fallback: search params + detail for evidence
+  if (allowDetailEvidence && allEvidenceText.length > 10) {
+    if (t.length >= 2 && /[\u4e00-\u9fff]/.test(t)) {
+      if (allEvidenceText.includes(t)) return true;
+    }
+    if (/^[a-z0-9]/i.test(t)) {
+      const re = new RegExp("\\b" + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "\\b", "i");
+      if (re.test(allEvidenceText)) return true;
+    }
+  }
+
+  // Semantic aliases
+  const evidenceText = allowDetailEvidence ? allEvidenceText : paramsText;
+  const SEMANTIC_ALIASES: Record<string, string[]> = {};
+  const aliases = SEMANTIC_ALIASES[t];
+  if (aliases && evidenceText.length > 5) {
+    for (const alias of aliases) {
+      if (/^[a-z0-9]/i.test(alias)) {
+        const re = new RegExp("\\b" + alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "\\b", "i");
+        if (re.test(evidenceText)) return true;
+      } else {
+        if (evidenceText.includes(alias)) return true;
+      }
+    }
+  }
+
+  return false;
 }
 
-// 端口/通道是否"精确"满足(用于排序: 精确5口 优于 9口降级)
-//   - 端口/通道: 产品含 N口/N通道 token 且 N === 要求值
-//   - Iout/Vin 等累积阈值规格: 产品该 family 的"最高档" === 要求值即精确
-//     (6A产品最高档=6满足"要6A"精确; 12A产品最高档=12 → 降级命中, 排在精确档之后)
+// ── Scoring ──
 function exactSpecHit(product: ConstraintProduct, meta: MustConstraint): boolean {
   if (meta.value == null) return false;
   const tokens = (product._features || "").toLowerCase().split(/\s+/);
   if (meta.family === '端口' || meta.family === '通道') {
-    const unit = meta.family === '端口' ? '口' : '通道';
-    return tokens.some((tk) => {
-      const m = tk.match(new RegExp(`^(\\d+)${unit}`));
-      return m !== null && +m[1] === meta.value;
-    });
+    if (meta.family === '端口') {
+      const count = portCountOf(product, tokens);
+      return count === meta.value;
+    }
+    const count = channelCountOf(product, tokens);
+    return count === meta.value;
   }
-  // 累积阈值规格(Iout_<n>A / Vin_<n>V): 取产品该 family 最高数值档与要求值比较
   if (meta.family === 'Iout' || meta.family === 'Vin') {
     const prefix = meta.family === 'Iout' ? 'iout_' : 'vin_';
     const suffix = meta.family === 'Iout' ? 'a' : 'v';
@@ -138,24 +550,25 @@ function exactSpecHit(product: ConstraintProduct, meta: MustConstraint): boolean
 
 export type ConstraintScore = {
   product: ConstraintProduct;
-  mustHit: string[];      // 满足的 must
-  mustMiss: string[];     // 缺失的 must
-  niceHit: string[];      // 满足的 nice
-  fullMatch: boolean;     // must 全满足
-  score: number;          // 排序分
-  exactBonus: number;     // 精确规格命中数(端口/通道精确, 用于排序: 精确优于向下兼容)
-  missDims: ConstraintDimension[];  // 缺失约束所属维度(用于降级话术)
+  mustHit: string[];
+  mustMiss: string[];
+  niceHit: string[];
+  fullMatch: boolean;
+  score: number;
+  exactBonus: number;
+  missDims: ConstraintDimension[];
+  categoryHit: boolean;
+  directTokenBonus: number;
+  /** Downgrade hits: tag → product's actual value (satisfied via downgrade, not exact match) */
+  downgradeHits: Record<string, string>;
 };
 
-// 把 must(string[]) + mustMeta 对齐成带维度的约束列表。
-// 无 mustMeta 时(向后兼容)默认每个 must 都是 category 维度(最保守, 不放松)。
 function alignMeta(must: string[], mustMeta?: MustConstraint[]): MustConstraint[] {
   if (mustMeta && mustMeta.length === must.length) return mustMeta;
   const byTag = new Map((mustMeta || []).map((m) => [m.tag, m]));
   return must.map((t) => byTag.get(t) || { tag: t, dimension: 'category' as ConstraintDimension });
 }
 
-// 对一组产品按 must/nice 评分(不过滤, 仅打分排序用)
 export function scoreByConstraints(
   products: ConstraintProduct[],
   must: string[],
@@ -168,10 +581,15 @@ export function scoreByConstraints(
     const mustMiss: string[] = [];
     const missDims: ConstraintDimension[] = [];
     let exactBonus = 0;
+    let criticalSpecHit = 0;
+    let directTokenBonus = 0;
     for (const meta of metas) {
       if (tagSatisfied(product, meta.tag, meta)) {
         mustHit.push(meta.tag);
         if (exactSpecHit(product, meta)) exactBonus++;
+        if (meta.dimension === 'spec' && !meta.downgradable) criticalSpecHit++;
+        const feats = (product._features || '').toLowerCase().split(/\s+/);
+        if (feats.includes(meta.tag.toLowerCase())) directTokenBonus++;
       } else {
         mustMiss.push(meta.tag);
         missDims.push(meta.dimension);
@@ -179,27 +597,95 @@ export function scoreByConstraints(
     }
     const niceHit = nice.filter((n) => tagSatisfied(product, n));
     const fullMatch = mustMiss.length === 0;
-    // 分数: must命中×10(主导) + 精确规格×3(精确5口优于9口降级) + nice命中×1
-    const score = mustHit.length * 10 + exactBonus * 3 + niceHit.length;
-    return { product, mustHit, mustMiss, niceHit, fullMatch, score, exactBonus, missDims };
+    const categoryHit = metas.some((m) => m.dimension === 'category' && mustHit.includes(m.tag));
+    const score = mustHit.length * 10 + (categoryHit ? 5 : 0) + exactBonus * 3 + criticalSpecHit * 2 + directTokenBonus * 5 + niceHit.length;
+    // Downgrade detection: satisfied by downgrade but not exact
+    const downgradeHits: Record<string, string> = {};
+    for (const m of metas) {
+      if (!m.downgradable || !m.value || !mustHit.includes(m.tag)) continue;
+      const toks = (product._features || '').toLowerCase().split(/\s+/);
+      let actual: number | null = null;
+      if (m.family === '通道') actual = channelCountOf(product, toks);
+      else if (m.family === '端口') actual = portCountOf(product, toks);
+      else if (m.family === 'bit') actual = bitResolutionOf(product, toks);
+      else if (m.family === 'Mbps') actual = dataRateMaxMbpsOf(product, toks);
+      if (actual !== null && actual > m.value) {
+        const unit = m.family === '端口' ? '口' : m.family === '通道' ? '通道' : m.family === 'Mbps' ? 'Mbps' : 'bit';
+        downgradeHits[m.tag] = `${actual}${unit}`;
+      }
+    }
+    return { product, mustHit, mustMiss, niceHit, fullMatch, score, exactBonus, missDims, categoryHit, directTokenBonus, downgradeHits };
   });
 }
 
+// ── ApplyConstraints ──
 export type ConstraintResult = {
-  tier: 1 | 2 | 3;                  // 1=全命中 2=部分降级 3=品类兜底
-  banner: string;                   // 顶部说明横幅
-  items: ConstraintScore[];         // 排序后的结果
+  tier: 1 | 2 | 3;
+  banner: string;
+  items: ConstraintScore[];
 };
 
 const DIM_LABEL: Record<ConstraintDimension, string> = {
-  category: '品类', media: '物理层接口', spec: '规格', grade: '等级',
+  category: '品类', media: '物理层接口', spec: '规格', grade: '等级', technology: '技术路线',
 };
 
-// 维度感知的三级降级筛选主入口
-//   tier1: must 全满足(端口/通道向下兼容). 精确规格排最前.
-//   tier2: 无全满足 → 在"保住品类+物理层"的前提下, 按维度优先级放松(先松等级, 再松规格).
-//          banner 说清楚为了找到产品放松了哪个维度.
-//   tier3: 连品类都没有 → 少量最接近 + 方向性建议.
+function productionStatusRank(product: ConstraintProduct): number {
+  const text = String(product._params || '').toLowerCase();
+  if (/状态\s*[:：]\s*(?:mp|量产|production)|status\s*[:：]\s*(?:production|active|mp)/i.test(text)) return 3;
+  if (/状态\s*[:：]\s*(?:预量产|试产)|pre[-\s]?production/i.test(text)) return 2;
+  if (/状态\s*[:：]\s*(?:样品|sample)|sample/i.test(text)) return 1;
+  return 0;
+}
+
+function productionStatusTieRank(product: ConstraintProduct): number {
+  const tokens = String(product._features || '').toLowerCase().split(/\s+/);
+  return tokens.includes('sbc') ? productionStatusRank(product) : 0;
+}
+
+function diversifyWithinTieGroups(
+  items: ConstraintScore[],
+  tieKeyOf: (item: ConstraintScore) => string
+): ConstraintScore[] {
+  if (items.length <= 2) return items;
+  const out: ConstraintScore[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const groupKey = tieKeyOf(items[i]);
+    let j = i;
+    while (j < items.length && tieKeyOf(items[j]) === groupKey) j++;
+    const group = items.slice(i, j);
+    const vendors = [...new Set(group.map((s) => String(s.product.__vendorGroup || s.product.__vendor || '')))];
+    const vendorOrder = [...vendors].sort();
+    const buckets = new Map(vendorOrder.map((v) => [v, [] as ConstraintScore[]]));
+    const singletons: ConstraintScore[] = [];
+    for (const s of group) {
+      const bucket = vendorBucketOf(s.product);
+      if (bucket && buckets.has(bucket)) buckets.get(bucket)!.push(s);
+      else singletons.push(s);
+    }
+    let singletonIdx = 0;
+    while (true) {
+      let progressed = false;
+      for (const vendor of vendorOrder) {
+        const bucketItems = buckets.get(vendor)!;
+        if (bucketItems.length === 0) continue;
+        out.push(bucketItems.shift()!);
+        progressed = true;
+        if (singletonIdx < singletons.length) out.push(singletons[singletonIdx++]);
+      }
+      if (!progressed) break;
+    }
+    if (singletonIdx < singletons.length) out.push(...singletons.slice(singletonIdx));
+    i = j;
+  }
+  return out;
+}
+
+function vendorBucketOf(product: ConstraintProduct): string | null {
+  const raw = String(product.__vendorGroup || product.__vendor || '').trim();
+  return raw || null;
+}
+
 export function applyConstraints(
   products: ConstraintProduct[],
   must: string[],
@@ -210,72 +696,139 @@ export function applyConstraints(
   const metas = alignMeta(must, mustMeta);
   const scored = scoreByConstraints(products, must, nice, mustMeta);
 
-  // 维度优先级: category/media 是"硬维度"(降级时必须保住), spec/grade 是"软维度"(可放松)
+  const scopedHardTechnologyTags = (() => {
+    const catTags = metas.filter((m) => m.dimension === 'category').map((m) => m.tag);
+    const techTags = metas.filter((m) => m.dimension === 'technology').map((m) => m.tag);
+    if (catTags.includes('马达驱动') && techTags.includes('霍尔')) return ['霍尔'];
+    return [] as string[];
+  })();
   const hardTags = new Set(metas.filter((m) => m.dimension === 'category' || m.dimension === 'media').map((m) => m.tag));
+  scopedHardTechnologyTags.forEach((t) => hardTags.add(t));
   const isHardSatisfied = (s: ConstraintScore) => [...hardTags].every((t) => s.mustHit.includes(t));
 
-  // ── 排序意图(高/低 + 参数 → 数值排序) ──
-  // require=true: 无该参数数值的产品直接出局(查"高PSRR"就该有PSRR数据, FAE确认).
-  // 命中产品按数值方向排序, 数值相同再用约束分细排.
   const applySort = (arr: ConstraintScore[]): ConstraintScore[] => {
     if (!sortKey) return arr;
     let pool = arr;
     if (sortKey.require) {
       pool = arr.filter((s) => sortValueOf(s.product, sortKey) != null);
     }
-    return [...pool].sort(
+    const sorted = [...pool].sort(
       (a, b) => compareBySort(a.product, b.product, sortKey)
         || b.exactBonus - a.exactBonus || b.niceHit.length - a.niceHit.length || b.score - a.score
     );
+    return diversifyWithinTieGroups(sorted, (s) => [
+      sortValueOf(s.product, sortKey) ?? 'null',
+      s.exactBonus, s.niceHit.length, s.score,
+    ].join('|'));
   };
 
-  // tier1: must 全满足. 有排序意图→数值排序(require时先过滤无数据); 否则 精确规格 > nice > score
+  // tier1
   const full = scored.filter((s) => s.fullMatch);
   if (full.length > 0) {
-    const sortedFull = sortKey ? applySort(full) : full.sort((a, b) => b.exactBonus - a.exactBonus || b.niceHit.length - a.niceHit.length || b.score - a.score);
+    const sortedFull = sortKey
+      ? applySort(full)
+      : diversifyWithinTieGroups(
+          [...full].sort((a, b) => {
+            const aDowngraded = Object.keys(a.downgradeHits).length > 0 ? 1 : 0;
+            const bDowngraded = Object.keys(b.downgradeHits).length > 0 ? 1 : 0;
+            return aDowngraded - bDowngraded  // 无降级的排前面
+              || b.exactBonus - a.exactBonus
+              || b.niceHit.length - a.niceHit.length
+              || productionStatusTieRank(b.product) - productionStatusTieRank(a.product)
+              || b.score - a.score;
+          }),
+          (s) => [Object.keys(s.downgradeHits).length, s.exactBonus, s.niceHit.length, productionStatusTieRank(s.product), s.score].join('|')
+        );
     if (sortedFull.length > 0) {
       const banner = sortKey ? `共 ${sortedFull.length} 款匹配，${sortKey.label}排序：` : "";
       return { tier: 1, banner, items: sortedFull };
     }
-    // require 排序把全部过滤光了(全匹配但都无该参数数值) → 落到 tier2 诚实说明
   }
 
-  // tier2: 保住所有硬维度(品类+物理层)的产品里降级. 这些产品品类对、物理层对, 只是规格/等级不完全匹配.
-  const hardOk = scored.filter((s) => hardTags.size > 0 && isHardSatisfied(s));
+  // tier2: per-product downgradable spec filter
+  const hardTagOk = scored.filter((s) => hardTags.size > 0 && isHardSatisfied(s));
+  let hardOk = hardTagOk;
+  for (const m of metas) {
+    if (!m.downgradable || m.value == null) continue;
+    if (m.family !== '通道' && m.family !== '端口' && m.family !== 'bit' && m.family !== 'Mbps') continue;
+    hardOk = hardOk.filter((s) => {
+      const toks = (s.product._features || '').toLowerCase().split(/\s+/);
+      let prodVal: number | null = null;
+      if (m.family === '端口') prodVal = portCountOf(s.product, toks);
+      else if (m.family === '通道') prodVal = channelCountOf(s.product, toks);
+      else if (m.family === 'bit') prodVal = bitResolutionOf(s.product, toks);
+      else prodVal = dataRateMaxMbpsOf(s.product, toks);
+      return prodVal == null || prodVal >= m.value!;
+    });
+  }
+  if (hardTagOk.length > 0 && hardOk.length === 0) {
+    const overSpec: string[] = [];
+    for (const m of metas) {
+      if (!m.downgradable || m.value == null) continue;
+      if (m.family !== '通道' && m.family !== '端口' && m.family !== 'bit' && m.family !== 'Mbps') continue;
+      const unit = m.family === '端口' ? '口' : m.family === '通道' ? '通道' : m.family === 'bit' ? 'bit' : 'Mbps';
+      let maxInStock = 0;
+      for (const s of hardTagOk) {
+        const toks = (s.product._features || '').toLowerCase().split(/\s+/);
+        let n: number | null = null;
+        if (m.family === '端口') n = portCountOf(s.product, toks);
+        else if (m.family === '通道') n = channelCountOf(s.product, toks);
+        else if (m.family === 'bit') n = bitResolutionOf(s.product, toks);
+        else n = dataRateMaxMbpsOf(s.product, toks);
+        if (n != null) maxInStock = Math.max(maxInStock, n);
+      }
+      if (maxInStock < m.value) overSpec.push(`${m.tag}（最高${maxInStock}${unit}）`);
+    }
+    const top = hardTagOk.sort((a,b) => a.mustMiss.length - b.mustMiss.length || b.score - a.score).slice(0, 5);
+    return {
+      tier: 2,
+      banner: overSpec.length
+        ? `品类匹配，但${overSpec.join('、')}的产品上限不满足要求。以下 ${top.length} 款最接近能力边界：`
+        : `品类匹配但无满足容量要求的产品，以下 ${top.length} 款最接近：`,
+      items: top,
+    };
+  }
+
   if (hardOk.length > 0) {
-    // ── 规格超限检测(选项B): 对端口/通道这类可向下兼容的spec, 若库存最大值 < 要求值,
-    //    说明需求超出产品能力上限. 此时不展示用不了的低规格产品, 而是诚实说明上限. ──
     const hardOkProducts = hardOk.map((s) => s.product);
     const overLimit: { family: string; want: number; max: number }[] = [];
     for (const m of metas) {
-      if (!m.downgradable || m.value == null || (m.family !== '端口' && m.family !== '通道')) continue;
-      const unit = m.family === '端口' ? '口' : '通道';
+      if (m.value == null) continue;
+      const want = m.value;
+      const isCapacitySpec = m.downgradable && (m.family === '端口' || m.family === '通道');
+      const isBitSpec = m.family === 'bit';
+      if (!isCapacitySpec && !isBitSpec) continue;
+      const family = m.family as '端口' | '通道' | 'bit';
+      const unit = family === '端口' ? '口' : family === '通道' ? '通道' : 'bit';
       let maxInStock = 0;
       for (const p of hardOkProducts) {
         const toks = (p._features || "").toLowerCase().split(/\s+/);
-        for (const tk of toks) {
-          const mm = tk.match(new RegExp(`^(\\d+)${unit}`));
-          if (mm) maxInStock = Math.max(maxInStock, +mm[1]);
+        if (family === '端口') {
+          const n = portCountOf(p, toks);
+          if (n != null) maxInStock = Math.max(maxInStock, n);
+        } else if (family === '通道') {
+          const n = channelCountOf(p, toks);
+          if (n != null) maxInStock = Math.max(maxInStock, n);
+        } else {
+          const n = bitResolutionOf(p, toks);
+          if (n != null) maxInStock = Math.max(maxInStock, n);
         }
       }
-      if (maxInStock > 0 && maxInStock < m.value) {
-        overLimit.push({ family: m.family, want: m.value, max: maxInStock });
+      if (maxInStock > 0 && maxInStock < want) {
+        overLimit.push({ family, want, max: maxInStock });
       }
     }
 
     if (overLimit.length > 0) {
-      // 规格超限: 展示库存中规格最高的少量产品(最接近能力边界), banner 明确说明上限
       const ol = overLimit[0];
-      const unit = ol.family === '端口' ? '口' : '通道';
+      const unit = ol.family === '端口' ? '口' : ol.family === '通道' ? '通道' : 'bit';
       const kept = [...hardTags].join("、");
-      // 取该 spec 达到库存上限的产品(规格最高的), 作为"能力边界"展示
       const atMax = hardOk
         .filter((s) => {
           const toks = (s.product._features || "").toLowerCase().split(/\s+/);
-          return toks.some((tk) => {
-            const mm = tk.match(new RegExp(`^(\\d+)${unit}`));
-            return mm !== null && +mm[1] === ol.max;
-          });
+          if (ol.family === '端口') return portCountOf(s.product, toks) === ol.max;
+          if (ol.family === '通道') return channelCountOf(s.product, toks) === ol.max;
+          return bitResolutionOf(s.product, toks) === ol.max;
         })
         .sort((a, b) => b.niceHit.length - a.niceHit.length || b.score - a.score)
         .slice(0, 5);
@@ -283,10 +836,8 @@ export function applyConstraints(
       return { tier: 2, banner, items: atMax };
     }
 
-    // 常规降级: 缺得越少越好 → 精确规格 → nice. (缺的都是软维度: 规格就近/等级放松)
     hardOk.sort((a, b) => a.mustMiss.length - b.mustMiss.length || b.exactBonus - a.exactBonus || b.niceHit.length - a.niceHit.length || b.score - a.score);
-    const top = hardOk.slice(0, 8);
-    // 统计放松了哪些软维度(取并集), 生成诚实话术
+    const top = diversifyWithinTieGroups(hardOk, (s) => [s.mustMiss.length, s.exactBonus, s.niceHit.length, s.score].join('|')).slice(0, 8);
     const relaxedDims = [...new Set(top[0].missDims)].map((d) => DIM_LABEL[d]);
     const relaxedTags = [...new Set(top[0].mustMiss)];
     const kept = [...hardTags].join("、");
@@ -296,8 +847,19 @@ export function applyConstraints(
     return { tier: 2, banner, items: top };
   }
 
-  // tier3: 连硬维度(品类)都没有满足的 → 命中任意 must 的, 取分最高少量, 给方向建议
-  const any = scored.filter((s) => s.mustHit.length > 0).sort((a, b) => b.score - a.score).slice(0, 5);
+  if (scopedHardTechnologyTags.length > 0) {
+    const catTags = metas.filter((m) => m.dimension === 'category').map((m) => m.tag);
+    return {
+      tier: 3,
+      banner: `没有找到同时具备「${[...catTags, ...scopedHardTechnologyTags].join("、")}」证据的产品。可尝试放宽技术路线或换个品类。`,
+      items: [],
+    };
+  }
+
+  const any = diversifyWithinTieGroups(
+    scored.filter((s) => s.mustHit.length > 0).sort((a, b) => b.score - a.score),
+    (s) => String(s.score)
+  ).slice(0, 5);
   const catTags = metas.filter((m) => m.dimension === 'category').map((m) => m.tag);
   return {
     tier: 3,
@@ -308,7 +870,6 @@ export function applyConstraints(
   };
 }
 
-// 生成单个产品的"满足/缺什么"话术(代码生成, 确定性, 零幻觉)
 export function describeMatch(s: ConstraintScore): string {
   const total = s.mustHit.length + s.mustMiss.length;
   const hit = s.mustHit.length ? `满足 ${s.mustHit.length}/${total}：${s.mustHit.join(" ✓ ")} ✓` : `满足 0/${total}`;
@@ -316,17 +877,13 @@ export function describeMatch(s: ConstraintScore): string {
   return hit + miss;
 }
 
-// ── 竞品型号反查(cross_ref)确定性检索 ──────────────────────
-//   扫产品的"可替代产品"字段, 找声称可替代目标竞品型号的国产料.
-//   零假阳性: 只匹配字段里实际写明的型号, 不做任何语义推断/参数推测.
-//   匹配粒度(FAE确认): 精确匹配优先, 系列前缀模糊匹配兜底(ISO7721 也命中 ISO7721F).
+// ── Cross-ref ──
 export type CrossRefHit = {
   product: ConstraintProduct;
-  altField: string;       // 该产品"可替代产品"字段原文(透明展示)
-  matchType: 'exact' | 'series';  // exact=精确同名, series=系列前缀(如 ISO7721→ISO7721F)
+  altField: string;
+  matchType: 'exact' | 'series';
 };
 
-// 从产品 _params 原文提取"可替代产品"字段值
 function extractAltField(product: ConstraintProduct): string {
   const params = (product._params as string) || "";
   for (const seg of params.split("|")) {
@@ -347,12 +904,10 @@ export function crossRefSearch(products: ConstraintProduct[], target: string): C
   for (const p of products) {
     const altField = extractAltField(p);
     if (!altField) continue;
-    // 可替代产品字段可能含多个型号, 用 / , 、 空格分隔
     const altTokens = altField.toUpperCase().split(/[/,，、;；\s]+/).map((t) => t.trim()).filter(Boolean);
     let hit: 'exact' | 'series' | null = null;
     for (const at of altTokens) {
       if (at === tgt) { hit = 'exact'; break; }
-      // 系列前缀模糊: 一方是另一方的前缀(ISO7721 ↔ ISO7721F), 且公共前缀≥4字符避免误匹配
       if ((at.startsWith(tgt) || tgt.startsWith(at)) && Math.min(at.length, tgt.length) >= 4) {
         hit = 'series';
       }
@@ -360,7 +915,5 @@ export function crossRefSearch(products: ConstraintProduct[], target: string): C
     if (hit === 'exact') exact.push({ product: p, altField, matchType: 'exact' });
     else if (hit === 'series') series.push({ product: p, altField, matchType: 'series' });
   }
-  // 精确匹配排前, 系列匹配兜底
   return [...exact, ...series];
 }
-

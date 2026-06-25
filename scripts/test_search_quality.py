@@ -13,9 +13,26 @@ with open(DATA_PATH) as f:
     data = json.load(f)
 
 def find_product(pn, vendor='3peak-analog'):
-    for p in data.get(vendor, {}).get('products', []):
-        if p['part_number'].upper() == pn.upper():
-            return p
+    needle = pn.upper()
+    family_prefix = needle.replace('XXX', '') if 'XXX' in needle else (needle if needle.endswith('-') else None)
+
+    def matches(part_number):
+        part = part_number.upper()
+        if part == needle:
+            return True
+        if family_prefix and part.startswith(family_prefix):
+            return True
+        return False
+
+    # Prefer requested vendor for backward compatibility, then fall back to global search.
+    if vendor and vendor in data:
+        for p in data.get(vendor, {}).get('products', []):
+            if matches(p['part_number']):
+                return p
+    for vd in data.values():
+        for p in vd.get('products', []):
+            if matches(p['part_number']):
+                return p
     return None
 
 def product_has_tag(p, tag):
@@ -42,6 +59,88 @@ TESTS = [
         'forbidden_tags_in_products': True,
         'query': '非隔离 can',
         'reason': 'TPDA是ASN音频总线，不是CAN'
+    },
+    {
+        'name': 'CAN SBC六款不再误带RS-485且补回CAN-FD',
+        'required_tags_in_products': {
+            'TPT11695XFQ': ['SBC', 'CAN-FD'],
+            'TPT11695XQ': ['SBC', 'CAN-FD'],
+            'TPT11695FQ': ['SBC', 'CAN-FD'],
+            'TPT11695Q': ['SBC', 'CAN-FD'],
+            'TPT11693FQ': ['SBC', 'CAN-FD'],
+            'TPT11693Q': ['SBC', 'CAN-FD'],
+        },
+        'check_tags': {
+            'TPT11695XFQ': ['RS-485', 'RS485收发器'],
+            'TPT11695XQ': ['RS-485', 'RS485收发器'],
+            'TPT11695FQ': ['RS-485', 'RS485收发器'],
+            'TPT11695Q': ['RS-485', 'RS485收发器'],
+            'TPT11693FQ': ['RS-485', 'RS485收发器'],
+            'TPT11693Q': ['RS-485', 'RS485收发器'],
+        },
+        'forbidden_tags_in_products': True,
+        'query': 'can sbc',
+        'reason': '跨vendor确认这6款是CAN SBC，不是RS-485收发器'
+    },
+    {
+        'name': 'LIN SBC两款补回SBC且保留LIN维度',
+        'required_tags_in_products': {
+            'TPT10283Q': ['SBC', 'LIN'],
+            'TPT10285Q': ['SBC', 'LIN'],
+        },
+        'check_tags': {
+            'TPT10283Q': ['RS-485', 'RS485收发器'],
+            'TPT10285Q': ['RS-485', 'RS485收发器'],
+        },
+        'forbidden_tags_in_products': True,
+        'query': 'lin sbc',
+        'reason': '跨vendor确认 TPT10283/10285 是 LIN SBC，不能只剩 LIN 收发器'
+    },
+    {
+        'name': '纳芯微电流传感器补回品类与隔离规格标签',
+        'required_tags_in_products': {
+            'NSM2011': ['电流传感器', '隔离', '5kVrms隔离', 'Vin_3.3V', 'Vin_5V'],
+        },
+        'query': '5000Vrms 电流传感器',
+        'reason': '纳芯微集成式电流传感器不应只剩section复读，需可被隔离/供电规格搜索命中'
+    },
+    {
+        'name': '纳芯微LDO与DCDC补回真实 Vin/Vout/Iout 标签',
+        'required_tags_in_products': {
+            'NSR30001': ['LDO', 'Vin_2.5V', 'Vin_5.5V', 'Iout_1A'],
+            'NSR10A01': ['DCDC', 'Vin_9V', 'Vin_100V', 'Iout_0.5A'],
+        },
+        'query': '宽压 dcdc / ldo',
+        'reason': '纳芯微电源类不应只有品类词，输入/输出规格必须可筛'
+    },
+    {
+        'name': '纳芯微CAN/LIN/隔离CAN补回速率与隔离标签',
+        'required_tags_in_products': {
+            'NCA1043B-Q1': ['CAN-FD', '5Mbps'],
+            'NCA1021S-Q1SPR': ['LIN', '0.02Mbps'],
+            'NSI1050C-SWR': ['隔离CAN', '隔离', '5kVrms隔离', '1Mbps'],
+        },
+        'query': 'can lin 隔离can 速率',
+        'reason': '纳芯微接口器件需要真实速率标签，不能只剩section文案'
+    },
+    {
+        'name': '纳芯微ADC与温度传感器补回基础规格标签',
+        'required_tags_in_products': {
+            'NSAD1249': ['ADC', '24bit', 'Vin_3V', 'Vin_5V'],
+            'NST1001': ['温度传感器', 'Vin_3.3V', 'Vin_5V'],
+        },
+        'query': 'adc 温度传感器',
+        'reason': '纳芯微ADC/温度传感器需要至少恢复可检索的分辨率/供电标签'
+    },
+    {
+        'name': '高边开关/理想二极管控制器/集成隔离电源补回 canonical 标签',
+        'required_tags_in_products': {
+            'TPS42S40Q': ['高边驱动'],
+            'TPS65R01Q-S6TR-S': ['理想二极管'],
+            'NSIP93086C-DSWR': ['隔离电源'],
+        },
+        'query': '高边开关 / 理想二极管 / 隔离电源',
+        'reason': 'family/section 常写成高边开关、理想二极管控制器、集成隔离电源的隔离RS485/CAN，必须归一到可检索 canonical tag'
     },
     {
         'name': '1mv不会被当成1Mbps',
@@ -139,6 +238,18 @@ for tc in TESTS:
                     if tag in p.get('_features', '').split()]
             if not found:
                 errors.append(f"  NO product has tag '{tag}'")
+
+    # Check required tags on specific products
+    if 'required_tags_in_products' in tc:
+        for pn, required in tc['required_tags_in_products'].items():
+            p = find_product(pn)
+            if not p:
+                errors.append(f"  product {pn} not found")
+                continue
+            feats = p.get('_features', '').split()
+            for tag in required:
+                if tag not in feats:
+                    errors.append(f"  {pn} missing required tag '{tag}'")
     
     # Check check_all_matching: validate ALL matching products against constraints
     if 'check_all_matching' in tc:

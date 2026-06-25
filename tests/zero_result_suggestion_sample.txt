@@ -1,0 +1,8 @@
+# Config-driven zero-result / near-miss suggestion checks
+# Fields:
+#   query=...
+#   reason=expected first suggestion reason
+#   contains=comma-separated substrings that must appear in first suggestion text
+#   not_contains=comma-separated substrings that must NOT appear in first suggestion text
+
+query=50Mbps 隔离485 | reason=best_alternative | contains=目前没有50Mbps,最高支持20Mbps,TPT7481,已满足RS-485、隔离,缺少的是50Mbps | not_contains=请尝试放宽搜索条件,0.5Mbps

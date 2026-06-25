@@ -1,0 +1,43 @@
+Structural tag fix report
+
+scope=this-session additions only
+total_fixed=33
+霍尔=5
+千兆=28
+
+霍尔
+- [novosense] NSM2012P: +霍尔 <- _detail_intro (霍尔)
+- [novosense] NSM2013P: +霍尔 <- _detail_intro (霍尔)
+- [novosense] NSM2013P-Q1: +霍尔 <- _detail_intro (霍尔)
+- [novosense] NSM2015P-Q1: +霍尔 <- _detail_intro (霍尔)
+- [novosense] NSM2019P: +霍尔 <- _detail_intro (霍尔)
+
+千兆
+- [yutai] YT8011A: +千兆 <- _params (1000base)
+- [yutai] YT8011AN: +千兆 <- _params (1000base)
+- [yutai] YT8011AR: +千兆 <- _params (1000base)
+- [yutai] YT8511H: +千兆 <- _params (1GE)
+- [yutai] YT8511C: +千兆 <- _params (1GE)
+- [yutai] YT8521SH-CA: +千兆 <- _params (1GE)
+- [yutai] YT8521SC-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531H-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531C-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531DH-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531DC-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531P-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531SH-CA: +千兆 <- _params (1GE)
+- [yutai] YT8531SC-CA: +千兆 <- _params (1GE)
+- [yutai] YT8821H: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT8821C: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT8824H: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT8824C: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT8825H: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT8825C: +千兆 <- _params (2.5GE/5GE compatible)
+- [yutai] YT6801: +千兆 <- _params (千兆)
+- [yutai] YT6801S: +千兆 <- _params (千兆)
+- [yutai] YT6801SH: +千兆 <- _params (千兆)
+- [yutai] YT9215S: +千兆 <- _params (5GE compatible)
+- [yutai] YT9215RB: +千兆 <- _params (5GE compatible)
+- [yutai] YT9215RBH: +千兆 <- _params (5GE compatible)
+- [yutai] YT9215SC: +千兆 <- _params (5GE compatible)
+- [yutai] YT9215SCH: +千兆 <- _params (5GE compatible)

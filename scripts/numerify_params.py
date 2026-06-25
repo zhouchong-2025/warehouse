@@ -68,6 +68,18 @@ COL_UNIT_HINTS = {
     'isolation': 'Vrms', 'insulation': 'Vrms', 'surge': 'Vpk',
     'psrr': 'dB', 'cmrr': 'dB', 'snr': 'dB',
     'esd': 'kV', 'accuracy': '%', 'gain error': '%',
+    # 中文列名 → 单位
+    '供电电压': 'V', '工作电压': 'V', '输入电压': 'V', '输出电压': 'V',
+    '输出电流': 'A', '输入电流': 'A', '静态电流': 'μA',
+    '带宽': 'MHz', '频率': 'Hz', '开关频率': 'kHz',
+    '温度': '℃', '工作温度': '℃',
+    '电阻': 'Ω', '导通电阻': 'Ω',
+    '延迟': 'ns', '响应时间': 'μs', '超时': 'ms',
+    '功率': 'mW', '噪声': 'nV/rtHz',
+    '隔离': 'Vrms', '绝缘': 'Vrms', '浪涌': 'Vpk',
+    '电源抑制': 'dB', '增益误差': '%',
+    '速率': 'Mbps', '数据速率': 'Mbps', '采样率': 'Msps',
+    'esd': 'kV', '静电': 'kV',
 }
 
 def parse_value(raw_str):
@@ -133,8 +145,8 @@ def infer_unit(col_name):
     for hint, unit in COL_UNIT_HINTS.items():
         if hint in cn:
             return unit
-    # 从列名中提取单位
-    unit_from_name = re.search(r'\(([^)]+)\)', cn)
+    # 从列名中提取单位 (support both half-width (V) and full-width （V）)
+    unit_from_name = re.search(r'[\(（]([^)）]+)[\)）]', cn)
     if unit_from_name:
         u = unit_from_name.group(1).strip()
         if u in UNIT_MAP:

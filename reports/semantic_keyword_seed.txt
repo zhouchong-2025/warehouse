@@ -1,0 +1,106 @@
+# Semantic keyword seed list
+# Generated from existing docs/rules on 2026-06-18
+# Sources:
+# - scripts/tag_schema.json
+# - web/lib/synonyms.ts
+# - web/app/api/interpret/query_parser.ts
+# - scripts/extract_llm.py
+# - skill refs search-layer-2026-06-followup.md / search-layer-followups.md
+
+[特定帧唤醒]
+特定帧唤醒
+选择性唤醒
+partial networking
+Partial Networking
+selective wake
+Selective Wake
+ISO 11898-6
+
+[低功耗唤醒]
+低功耗唤醒
+wake
+唤醒
+standby
+Standby
+sleep
+Sleep
+wake pin
+INH
+
+[低噪声]
+低噪声
+噪声
+输出噪声
+noise
+voltage noise
+vn at
+peak noise
+
+[高PSRR]
+高PSRR
+高电源抑制
+PSRR
+power supply rejection
+
+[轨到轨]
+轨到轨
+rail-to-rail
+rail to rail
+
+[SIC]
+SIC
+signal improvement
+信号改善
+
+[低功耗]
+低功耗
+省电
+low power
+low Iq
+nano power
+
+# Long-tail candidates from tag_schema domain_knowledge
+[双向]
+bidirectional
+
+[展频]
+spread spectrum
+
+[软启动]
+soft-start
+
+[短路保护]
+short-circuit protection
+
+[差分输出]
+differential output
+
+[跟踪输出]
+tracking
+
+[低Ib]
+low input bias
+
+[零交越失真]
+zero crossover
+
+[单端输出]
+single-ended
+
+[低边检测]
+low-side
+
+[开路检测]
+open-load
+
+[防反接]
+reverse current
+
+[过流保护]
+overcurrent
+
+[远端采样]
+remote sense
+
+[移位寄存器接口]
+shift register

@@ -3,12 +3,13 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 
 import { parseQuery } from './query_parser';
+import { tagSatisfied } from './constraint-match';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
 const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理、信号链、接口隔离、传感器驱动四大领域。根据用户描述推断芯片品类和关键参数，输出JSON特征标签。
 
 == 可用标签 ==
-低功耗(≤50µA), 低功耗唤醒, CAN-FD, 特定帧唤醒, VIO, 高耐压, LIN, 8Mbps,5Mbps,2Mbps,1Mbps, 轨到轨, 高速(≥50MHz), 中速(≥10MHz), 超低功耗(≤1µA), 精密(≤1mV), 车规AEC-Q100, 高压(≥30V), 工业级, 消费级, 千兆, 2.5G, 百兆, 100FX, 100Base-TX, T1-PHY, SGMII, RGMII, QSGMII, 交换机, 网卡, 以太网供电, 2口,4口,5口,8口, Pin-to-Pin兼容, 5kVrms隔离, 3kVrms隔离, 隔离电源, I2C, RS-485, RS-232, MLVDS, LDO, DCDC, ADC, DAC, 比较器, 电压基准, 运放, 放大器, 隔离放大器, 栅极驱动, 非隔离栅极驱动, 隔离栅极驱动, 数字隔离器, 复位芯片, IO扩展, 模拟开关, 负载开关, 马达驱动, 隔离, 电流传感器, 温度传感器, 压力传感器, 位置传感器, 降压, 升压, SBC, 电平转换, 低导通电阻, 理想二极管, TVS/ESD, EMI滤波器, BMS, 电子保险丝, 电源时序, 视频滤波, 音频功放, 音频总线, 匹配电阻, 逻辑门, 电池监控, 传感器接口, 仪表放大器, 差动放大器, 对数放大器, 线性充电, 高边驱动, 高速数据复用器, 电压基准放大器, 半双工, 全双工, 12bit,16bit,18bit,24bit, 1T1R,2T2R,3T5R,4T4R, 16:1,8:1,4:1,2:1,1:1, 1通道,2通道,4通道,8通道,16通道, 1A,2A,5A,7A,10A, 10Mbps,20Mbps,50Mbps,100Mbps,200Mbps, Vin_5V,Vin_12V,Vin_24V, Vout_3.3V,Vout_5V,Vout_12V, Iout_1A,Iout_2A,Iout_3A,Iout_5A,Iout_6A,Iout_10A, 低噪声,高PSRR
+低功耗(≤50µA), 低功耗唤醒, CAN-FD, 特定帧唤醒, VIO, 高耐压, LIN, 8Mbps,5Mbps,2Mbps,1Mbps, 轨到轨, 高速(≥50MHz), 中速(≥10MHz), 超低功耗(≤1µA), 精密(≤1mV), 车规AEC-Q100, 高压(≥30V), 工业级, 消费级, 千兆, 2.5G, 百兆, 100FX, 100Base-TX, T1-PHY, SGMII, RGMII, QSGMII, 交换机, 网卡, 以太网供电, 2口,4口,5口,8口, Pin-to-Pin兼容, 5kVrms隔离, 3kVrms隔离, 隔离电源, 隔离CAN, 隔离RS485, 集成隔离电源的隔离CAN, 集成隔离电源的隔离RS485, I2C, RS-485, RS-232, MLVDS, LDO, DCDC, ADC, DAC, 比较器, 电压基准, 串联型电压基准, 并联型电压基准, 运放, 放大器, 隔离放大器, 栅极驱动, 非隔离栅极驱动, 隔离栅极驱动, 数字隔离器, 复位芯片, IO扩展, 模拟开关, 负载开关, 马达驱动, 隔离, 电流传感器, 电流检测放大器, 电流功率检测器, 温度传感器, 压力传感器, 位置传感器, 线性位置传感器, 霍尔角度编码器, 磁阻角度编码器, 霍尔开关/锁存器, 磁阻开关/锁存器, 速度传感器, 降压, 升压, SBC, 电平转换, PMIC, DrMOS, LED驱动, MCU/DSP, 低边驱动, 氮化镓功率芯片, 低导通电阻, 理想二极管, TVS/ESD, EMI滤波器, BMS, 电子保险丝, 电源时序, 视频滤波, 音频功放, 音频总线, 匹配电阻, 逻辑门, 电池监控, 传感器接口, 仪表放大器, 差动放大器, 对数放大器, 线性充电, 高边驱动, 高速数据复用器, 电压基准放大器, 半双工, 全双工, 12bit,16bit,18bit,24bit, 1T1R,2T2R,3T5R,4T4R, 16:1,8:1,4:1,2:1,1:1, 1通道,2通道,4通道,8通道,16通道, 1A,2A,5A,7A,10A, 10Mbps,20Mbps,50Mbps,100Mbps,200Mbps, Vin_5V,Vin_12V,Vin_24V, Vout_3.3V,Vout_5V,Vout_12V, Iout_1A,Iout_2A,Iout_3A,Iout_5A,Iout_6A,Iout_10A, 低噪声,高PSRR, 以太网, PHY, IO扩展器, 隔离ADC, 隔离I2C, 隔离RS485, 高边开关, 电池充电, 固态继电器, 霍尔, 磁阻
 
 == 电源管理 ==
 - 理解VIN→VOUT→IOUT的关系。用户说"X转Y"或"X到Y"→X是Vin, Y是Vout
@@ -48,7 +49,8 @@ const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理
 - 非隔离栅极驱动→非隔离栅极驱动; 隔离栅极驱动→隔离栅极驱动
 - 马达驱动: 峰值电流、通道数、微步进
 - 温度传感器: 精度(°C)、接口(I2C/模拟)、分辨率
-- 位置传感器: 分辨率(bit)、接口、磁编码器/光编码器
+- 传感器按手册子表优先：线性位置传感器、霍尔角度编码器、磁阻角度编码器、霍尔开关/锁存器、磁阻开关/锁存器不要硬归并；用户明确说“磁阻角度编码器”时输出磁阻角度编码器，明确说“霍尔角度编码器”时输出霍尔角度编码器；泛“位置传感器”才输出位置传感器
+- 霍尔/磁阻是传感器技术路线：用户说“霍尔电流传感器”→电流传感器+霍尔；“磁阻电流传感器”→电流传感器+磁阻；不要把霍尔/磁阻扩到无证据的马达驱动
 - 电流传感器: 隔离/非隔离、量程、精度
 - 线性充电→线性充电; 电池充电→线性充电; 高边驱动/高边开关→高边驱动
 - EMI滤波器/共模滤波器→EMI滤波器
@@ -149,7 +151,7 @@ export async function POST(req: NextRequest) {
     let llmResult: any;
     if (!parsed.needsLLM) {
       // Parser confident: skip LLM entirely
-      llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
+      llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: parsed.vendor || vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
     } else {
       // Parser not confident: use LLM with parser context
       const llmQuery = parsed.residualQuery ? `${query}
@@ -165,7 +167,7 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         // LLM failed: fall back to parser output if available, else empty
         llmResult = parsed.needsLLM ? { features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [] }
-          : { features: parsed.features, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
+          : { features: parsed.features, vendor: parsed.vendor || vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
       } else {
         const data = await response.json();
         const llmContent = data.choices?.[0]?.message?.content || "";
@@ -194,12 +196,56 @@ export async function POST(req: NextRequest) {
     const result = llmResult;
     result.suggestions = [];
     // ── 透传 parser 派生的 must/nice 约束(以太网硬过滤+降级用) ──
-    // 仅当 parser 命中品类(parsed.must 非空)时附加; 不影响其他品类的老逻辑
+    // When LLM was used, merge parser's structured must tags with LLM-invented features
+    // that the parser doesn't know about (e.g., "LED驱动", "低边驱动").
     if (parsed.must && parsed.must.length > 0) {
-      result.must = parsed.must;
+      // Start with parser's must (has dimension/family/value metadata)
+      result.must = [...parsed.must];
+      // Compute max values to filter LLM cascade noise
+      const maxVin = Math.max(...parsed.must
+        .filter((f: string) => /^Vin_(\d+\.?\d*)V$/.test(f))
+        .map((f: string) => parseFloat(f.match(/^Vin_(\d+\.?\d*)V$/)![1])), 0);
+      const maxIout = Math.max(...parsed.must
+        .filter((f: string) => /^Iout_(\d+\.?\d*)A$/.test(f))
+        .map((f: string) => parseFloat(f.match(/^Iout_(\d+\.?\d*)A$/)![1])), 0);
+      const maxChan = Math.max(...parsed.must
+        .filter((f: string) => /^(\d+)通道$/.test(f))
+        .map((f: string) => parseInt(f.match(/^(\d+)通道$/)![1])), 0);
+      const maxPort = Math.max(...parsed.must
+        .filter((f: string) => /^(\d+)口$/.test(f))
+        .map((f: string) => parseInt(f.match(/^(\d+)口$/)![1])), 0);
+      const maxVout = Math.max(...parsed.must
+        .filter((f: string) => /^Vout_(\d+\.?\d*)V$/.test(f))
+        .map((f: string) => parseFloat(f.match(/^Vout_(\d+\.?\d*)V$/)![1])), 0);
+      // Add LLM features that parser didn't classify → default to spec dimension
+      const parserKnown = new Set([...result.must, ...(parsed.nice || [])]);
+      for (const f of result.features) {
+        if (!parserKnown.has(f) && !result.must.includes(f)) {
+          // Skip cascade Vin/Iout/通道/口 tags (parser/LLM hallucinates weaker thresholds)
+          const vinM = f.match(/^Vin_(\d+\.?\d*)V$/);
+          const ioutM = f.match(/^Iout_(\d+\.?\d*)A$/);
+          const chanM = f.match(/^(\d+)通道$/);
+          const portM = f.match(/^(\d+)口$/);
+          const voutM = f.match(/^Vout_(\d+\.?\d*)V$/);
+          if (vinM && parseFloat(vinM[1]) < maxVin) continue;
+          if (ioutM && parseFloat(ioutM[1]) < maxIout) continue;
+          if (chanM && parseInt(chanM[1]) < maxChan) continue;
+          if (portM && parseInt(portM[1]) < maxPort) continue;
+          if (voutM && parseFloat(voutM[1]) < maxVout) continue;
+          result.must.push(f);
+          if (parsed.mustMeta) {
+            parsed.mustMeta.push({ tag: f, dimension: 'spec' });
+          }
+        }
+      }
       result.nice = parsed.nice || [];
       result.mustMeta = parsed.mustMeta || [];
       result.category_hint = result.category_hint || parsed.category_hint;
+    } else {
+      // No parser must — use LLM features with minimal classification
+      result.must = result.features.filter((f: string) => typeof f === 'string');
+      result.nice = [];
+      result.mustMeta = result.must.map((f: string) => ({ tag: f, dimension: 'spec' }));
     }
     // ── 透传排序意图 sortKey(高/低 + 参数 → 数值排序) ──
     // 独立于 must: 排序意图对所有品类有效(高PSRR的LDO / 大电流的DCDC等), 不门控以太网.
@@ -265,13 +311,13 @@ export async function POST(req: NextRequest) {
       fixConf();
     }
 
-    // Post-process: strip non-standard Vin/Vout (only 5/12/24 for Vin, 3.3/5/12 for Vout)
+    // Post-process: strip noise Vin/Vout from LLM (keeping only reasonable values)
     {
       const bad = result.features.filter((f: string) => 
-        (/^Vin_\d+\.?\d*V$/.test(f) && !/^Vin_(5|12|24)V$/.test(f)) ||
-        (/^Vout_\d+\.?\d*V$/.test(f) && !/^Vout_(3\.3|5|12)V$/.test(f))
+        (/^Vin_\d+\.?\d*V$/.test(f) && parseFloat(f.match(/\d+\.?\d*/)![0]) > 100) ||
+        (/^Vout_\d+\.?\d*V$/.test(f) && parseFloat(f.match(/\d+\.?\d*/)![0]) > 60)
       );
-      if (bad.length) { result.features = result.features.filter((f: string) => !bad.includes(f)); fixConf(); }
+      if (bad.length) { result.features = result.features.filter((f: string) => !bad.includes(f)); }
     }
 
     // Post-process: strip non-standard Mbps (only 1/2/5/8/10/20/50/100/150/200 allowed)
@@ -320,6 +366,13 @@ export async function POST(req: NextRequest) {
       return m ? 'Iout_' + m[1] + 'A' : f;
     });
 
+    // Post-process: price-only intent should not hallucinate technical tags
+    if (/便宜|廉价|低价|省钱/.test(query)) {
+      result.features = [];
+      result.confidence = 'low';
+      result.explanation = '价格导向不是稳定参数约束，建议改用品类+关键参数搜索';
+    }
+
     // Post-process: 半双工/全双工 from query
     if (/半双工/.test(query) && !result.features.includes('半双工') && !/非隔离/.test(query)) {
       result.features = result.features.filter((f: string) => f !== '全双工');
@@ -339,6 +392,8 @@ export async function POST(req: NextRequest) {
       "电子保险丝": "电子保险丝", "efuse": "电子保险丝",
       "电源时序": "电源时序", "逻辑门": "逻辑门", "与门": "逻辑门",
       "BMS": "BMS", "电池保护": "BMS", "电池管理": "BMS", "电池均衡": "BMS",
+      "磁阻角度编码器": "磁阻角度编码器", "霍尔角度编码器": "霍尔角度编码器", "线性位置传感器": "线性位置传感器",
+      "磁阻开关": "磁阻开关/锁存器", "霍尔开关": "霍尔开关/锁存器",
     };
     for (const [keyword, tag] of Object.entries(forceCat)) {
       if (query.includes(keyword) && !result.features.includes(tag)) {
@@ -357,14 +412,13 @@ export async function POST(req: NextRequest) {
         f !== '隔离CAN' && f !== '隔离I2C' &&
         !f.startsWith('5kVrms') && !f.startsWith('3kVrms')
       );
-      // 2. Replace "非隔离栅极驱动" with real product tag "栅极驱动"
-      if (/栅极|驱动/.test(query)) {
-        result.features = result.features.filter((f: string) => f !== "非隔离栅极驱动");
+      // 2. 非隔离栅极驱动保持独立 canonical；不能折叠成父类“栅极驱动”，否则前端会把互斥子品类又混回去。
+      if (/栅极|驱动/.test(query) && !result.features.includes("非隔离栅极驱动")) {
         if (!result.features.includes("栅极驱动")) result.features.push("栅极驱动");
       }
       // 3. Universal fallback: ensure category tag wasn't lost by LLM
       //    「非隔离 X」→ X must be present even if LLM forgot
-      const CATEGORY_TAGS = ['RS-485','RS-232','CAN-FD','LIN','I2C','栅极驱动','非隔离栅极驱动',
+      const CATEGORY_TAGS = ['RS-485','RS-232','CAN-FD','LIN','I2C','隔离I2C','隔离CAN','隔离RS485','集成隔离电源的隔离CAN','集成隔离电源的隔离RS485','栅极驱动','非隔离栅极驱动',
         '隔离栅极驱动','电流传感器','运放','放大器','隔离放大器',
         '模拟开关','电平转换','马达驱动','DCDC','LDO',
         'ADC','DAC','比较器','电压基准','数字隔离器'];
@@ -409,13 +463,15 @@ export async function POST(req: NextRequest) {
       "低功耗(≤50µA)","低功耗唤醒","CAN-FD","特定帧唤醒","VIO","高耐压","LIN",
       "轨到轨","高速(≥50MHz)","中速(≥10MHz)","超低功耗(≤1µA)","精密(≤1mV)","车规AEC-Q100","高压(≥30V)",
       "工业级","消费级","千兆","2.5G","百兆","100FX","100Base-TX","T1-PHY","SGMII","RGMII","QSGMII","交换机","网卡",
-      "以太网","以太网供电","Pin-to-Pin兼容","5kVrms隔离","3kVrms隔离","隔离电源","I2C","RS-485","RS-232","MLVDS",
+      "以太网","以太网供电","Pin-to-Pin兼容","5kVrms隔离","3kVrms隔离","隔离电源","隔离CAN","隔离RS485","集成隔离电源的隔离CAN","集成隔离电源的隔离RS485","隔离I2C","I2C","RS-485","RS-232","MLVDS",
       "LDO","DCDC","ADC","DAC","比较器","电压基准","运放","放大器","隔离放大器","栅极驱动","非隔离栅极驱动",
       "隔离栅极驱动","数字隔离器","复位芯片","IO扩展","模拟开关","负载开关","马达驱动","隔离","电流传感器",
-      "温度传感器","压力传感器","位置传感器","降压","升压","SBC","电平转换","低导通电阻","理想二极管",
+      "温度传感器","压力传感器","位置传感器","速度传感器","降压","升压","SBC","电平转换","PMIC","DrMOS","LED驱动","MCU/DSP","低导通电阻","理想二极管",
+      "串联型电压基准","并联型电压基准","直流马达驱动","步进马达驱动",
       "TVS/ESD","EMI滤波器","BMS","电子保险丝","电源时序","视频滤波","音频功放","音频总线","匹配电阻",
       "逻辑门","电池监控","传感器接口","仪表放大器","差动放大器","对数放大器","线性充电","高边驱动",
-      "高速数据复用器","电压基准放大器","半双工","全双工","低噪声","高PSRR",
+      "低边驱动","氮化镓功率芯片","零漂运算放大器","高压运算放大器","低压运算放大器","隔离ADC",
+      "高速数据复用器","电压基准放大器","半双工","全双工","非管理型","低噪声","高PSRR","霍尔","磁阻","TMR","AMR","SIC",
     ]);
     const VALID_PATTERNS = [
       /^Vin_[\d.]+V$/, /^Vout_[\d.]+V$/, /^Iout_[\d.]+A$/,
@@ -512,25 +568,57 @@ export async function POST(req: NextRequest) {
       const dataPath = resolve(process.cwd(), "public/data/products_structured.json");
       const raw = readFileSync(dataPath, "utf-8");
       const products = JSON.parse(raw);
-      const all: { pn: string; ft: string; params: string }[] = [];
+      const effectiveVendor = result.vendor || vendor || null;
+      const all: { pn: string; ft: string; params: string; detailIntro: string; detailFeatures: string }[] = [];
       for (const [slug, v] of Object.entries(products) as any[]) {
-        if (vendor && slug !== vendor) continue;  // Filter by vendor if specified
-        for (const p of (v as any).products) all.push({ pn: p.part_number, ft: (p._features || "").toLowerCase(), params: (p._params || "") });
+        const vendorGroup = ['3peak-analog', '3peak-auto'].includes(String(slug)) ? '3peak' : String(slug);
+        if (effectiveVendor && vendorGroup !== effectiveVendor && String(slug) !== effectiveVendor) continue;
+        for (const p of (v as any).products) all.push({
+          pn: p.part_number,
+          ft: (p._features || "").toLowerCase(),
+          params: (p._params || ""),
+          detailIntro: (p._detail_intro || ""),
+          detailFeatures: (p._detail_features || ""),
+        });
       }
 
       const features: string[] = result.features || [];
-      if (features.length < 1) return NextResponse.json(result);
-      const exactMatches = all.filter(p => features.every(f => p.ft.includes(f.toLowerCase())));
+      const requestedTags: string[] = [...new Set([...features, ...(result.nice || [])])];
+      const mustMetaByTag = new Map(((result.mustMeta || []) as any[]).map((m) => [m.tag, m]));
+      const tokenHit = (ft: string, feature: string) => {
+        const tokens = ft.split(/\s+/);
+        if (tokens.includes(feature.toLowerCase())) return true;
+        if (feature.includes("kVrms")) return tokens.some(t => t.includes("kvrms"));
+        if (feature === "隔离") return tokens.some(t => t.includes("kvrms") || t === "隔离");
+        return false;
+      };
+      const semanticHit = (p: { ft: string; params?: string; detailIntro?: string; detailFeatures?: string }, feature: string) => {
+        const meta = mustMetaByTag.get(feature);
+        if (meta) {
+          return tagSatisfied({
+            _features: p.ft,
+            _params: p.params || "",
+            _detail_intro: p.detailIntro || "",
+            _detail_features: p.detailFeatures || "",
+          } as any, feature, meta as any);
+        }
+        // Suggestions are a soft UI aid: only trust explicit feature-token hits here.
+        // Do not recommend a "closest" PN merely because prose/params contain a loose word.
+        return tokenHit(p.ft, feature);
+      };
+      if (requestedTags.length < 1) return NextResponse.json(result);
+      const exactMatches = all.filter(p => requestedTags.every(f => semanticHit(p, f)));
+      const hasHardConstraints = Array.isArray(result.must) && result.must.length > 0;
       if (exactMatches.length > 0 && exactMatches.length <= 10) return NextResponse.json(result);
       
-      // If too many matches with vague query, add precision suggestion
+      // 全命中查询只允许“结果太多，建议加参数”，不允许落入“最接近/未完全匹配”话术。
       if (exactMatches.length > 30 && features.length <= 2) {
         const samplePn = exactMatches.slice(0, 3).map(p => p.pn).join("、");
         result.suggestions.push({ text: `匹配${exactMatches.length}款，建议添加具体参数缩小范围。当前结果含${samplePn}等。`, query, reason: "too_many" });
         return NextResponse.json(result);
       }
 
-      if (exactMatches.length > 0) return NextResponse.json(result);
+      if (exactMatches.length > 0 || hasHardConstraints) return NextResponse.json(result);
 
       // Score products — isolation priority when user asked for it
       const wantsIso = features.includes("隔离");
@@ -541,161 +629,140 @@ export async function POST(req: NextRequest) {
       ));
       const scored = all.map(p => {
         const tokens = p.ft.split(/\s+/);
-        let s = 0;
-        for (const f of features) {
-          if (tokens.includes(f.toLowerCase())) s++;
-          else if (f.includes("kVrms") && tokens.some(t => t.includes("kvrms"))) s++;
-          else if (f === "隔离" && tokens.some(t => t.includes("kvrms") || t === "隔离")) s++;
-        }
-        // Category relevance boost: if product has ANY category tag matching user's intent
+        const hitTags = features.filter((f) => semanticHit(p, f));
+        const s = hitTags.length;
+        // Category relevance is only a tie-breaker after a real requested-feature hit.
+        // It must never be enough by itself to create a "最接近/推荐" card.
         const catRelevance = tokens.some(t => categoryFeatures.has(t)) ? 0.5 : 0;
         const iso = tokens.some(t => t.includes("kvrms") || t === "隔离");
-        return { pn: p.pn, score: s + catRelevance, iso };
-      }).filter(p => p.score > 0).sort((a, b) => {
+        return { pn: p.pn, score: s + catRelevance, featureHits: s, hitTags, iso };
+      }).filter(p => p.featureHits > 0).sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         if (wantsIso) return (b.iso ? 1 : 0) - (a.iso ? 1 : 0);
         return 0;
       }).slice(0, 10);
 
+      const humanList = (items: string[]) => items.filter(Boolean).join("、");
+      const featureCounts = (targets: string[]) => targets.map(tag => ({
+        tag,
+        count: all.filter(p => semanticHit(p, tag)).length,
+      })).filter(x => x.count > 0).sort((a, b) => b.count - a.count);
+
       if (!scored.length) {
-        result.suggestions.push({ text: "未找到完全匹配的产品，请尝试放宽搜索条件", query, reason: "no_match" });
+        const missingCategory = features.find(f => !/^\d/.test(f) && !f.endsWith("A") && !f.endsWith("Mbps") && !f.endsWith("V") && !f.startsWith("Iout_") && !f.startsWith("Vin_") && !f.startsWith("Vout_"));
+        if (missingCategory === "压力传感器") {
+          const related = featureCounts(["位置传感器", "电流传感器", "温度传感器", "速度传感器"]).slice(0, 4);
+          const relatedText = related.map(x => `${x.tag}(${x.count}款)`).join("、");
+          result.suggestions.push({
+            text: relatedText
+              ? `目前没有压力传感器产品；现有传感器主要是${relatedText}。如果你其实在找压力信号调理，可再看传感器接口；如果就是要压力传感器，当前库里没有。`
+              : "目前没有压力传感器产品，当前库里也没有可替代的近邻品类样本。",
+            query,
+            reason: "no_match"
+          });
+        } else {
+          result.suggestions.push({ text: `目前没有「${humanList(features)}」相关产品。`, query, reason: "no_match" });
+        }
         return NextResponse.json(result);
       }
 
       const best = scored[0];
       const total = features.length;
 
+      const extractBestParams = (params: string, currentQuery: string): string[] => {
+        const hits: string[] = [];
+        const pushOnce = (text: string) => {
+          if (text && !hits.includes(text)) hits.push(text);
+        };
+        const paramLines = params.split(" | ");
+        for (const line of paramLines) {
+          const idx = line.indexOf(":");
+          if (idx < 0) continue;
+          const key = line.slice(0, idx).trim();
+          const val = line.slice(idx + 1).trim();
+          if (!key || !val || key.length > 40 || val.length > 40) continue;
+          const lowerKey = key.toLowerCase();
+          if ((/电流|[aA]|安/.test(currentQuery)) && (lowerKey.includes("current") || lowerKey.includes("peak") || lowerKey.includes("驱动"))) pushOnce(`${key}: ${val}`);
+          if ((currentQuery.includes("精度") || currentQuery.includes("误差")) && (lowerKey.includes("精度") || lowerKey.includes("accuracy") || lowerKey.includes("error") || lowerKey.includes("gain") || lowerKey.includes("offset") || lowerKey.includes("线性")) && !lowerKey.includes("temperature") && !lowerKey.includes("temp range")) pushOnce(`${key}: ${val}`);
+          if ((currentQuery.includes("通道") || currentQuery.includes("路")) && (lowerKey.includes("channel") || lowerKey.includes("通道") || lowerKey.includes("ch"))) pushOnce(`${key}: ${val}`);
+          if ((/速率|速度|[Mm]bps|[Gg]bps|[Kk]bps|高速/.test(currentQuery) || currentQuery.includes("速率")) && (lowerKey.includes("data rate") || lowerKey.includes("speed") || lowerKey.includes("带宽") || lowerKey.includes("速率"))) pushOnce(`${key}: ${val}`);
+          if ((currentQuery.includes("隔离") || currentQuery.includes("kV")) && (lowerKey.includes("isolation") || lowerKey.includes("耐压") || lowerKey.includes("vrms"))) pushOnce(`${key}: ${val}`);
+          if (hits.length >= 2) return hits.slice(0, 2);
+        }
+        const allKeys = [
+          "output voltage", "vout", "输出电压",
+          "output current", "iout", "max output",
+          "vin", "input voltage", "输入电压",
+          "data rate", "mbps", "speed", "速率",
+          "channel", "通道",
+          "isolation", "vrms", "耐压",
+          "frequency", "freq", "psrr", "noise", "噪声",
+          "current", "电流",
+        ];
+        for (const pref of allKeys) {
+          for (const line of paramLines) {
+            const idx = line.indexOf(":");
+            if (idx < 0) continue;
+            const key = line.slice(0, idx).trim();
+            const val = line.slice(idx + 1).trim();
+            if (!key || !val || key.length > 40 || val.length > 40) continue;
+            if (key.toLowerCase().includes(pref.toLowerCase())) pushOnce(`${key}: ${val}`);
+            if (hits.length >= 2) return hits.slice(0, 2);
+          }
+        }
+        return hits.slice(0, 2);
+      };
+
       // Rate blocker
-      const rateMissing = features.find(f => f.endsWith("Mbps") && !all.some(p => features.filter(x => x !== f).every(x => p.ft.includes(x.toLowerCase()))));
+      const rateMissing = features.find(f => {
+        if (!f.endsWith("Mbps")) return false;
+        const withoutRate = features.filter(x => x !== f);
+        const nearRateHits = all.filter(p => withoutRate.every(x => semanticHit(p, x)));
+        return nearRateHits.length > 0;
+      });
       let msg = "";
       if (rateMissing) {
-        const rf = features.filter(f => f !== rateMissing && !f.includes("kVrms"));
-        let candidates = all.filter(p => rf.every(x => p.ft.includes(x.toLowerCase())));
-        // Prioritize isolated when user asked for it
+        const rf = features.filter(f => f !== rateMissing);
+        let candidates = all.filter(p => rf.every(x => semanticHit(p, x)));
         if (wantsIso) {
           const isoCandidates = candidates.filter(p => p.ft.split(/\s+/).some(t => t.includes("kvrms") || t === "隔离"));
           if (isoCandidates.length > 0) candidates = isoCandidates;
         }
         const rates = new Set<string>();
-        for (const c of candidates) for (const t of c.ft.split(/\s+/)) if (t.endsWith("mbps")) rates.add(t);
-        const topRates = Array.from(rates).sort((a, b) => parseInt(b) - parseInt(a)).slice(0, 3);
-        const topPn = candidates.slice(0, 4).map(p => p.pn).join("、");
-        if (topRates.length) msg = `目前没有${rateMissing}的，最高支持${topRates.join("、")}，如${topPn}。`;
-        else if (candidates.length) msg = `目前没有${rateMissing}的，同类产品有${topPn}等${candidates.length}款。`;
+        for (const c of candidates) {
+          for (const t of c.ft.split(/\s+/)) {
+            if (t.endsWith("mbps")) rates.add(t.replace(/mbps$/i, "Mbps"));
+          }
+        }
+        const topRates = Array.from(rates).sort((a, b) => parseFloat(b) - parseFloat(a)).slice(0, 1);
+        const bestRate = topRates[0];
+        const topPnList = bestRate
+          ? candidates.filter(p => p.ft.split(/\s+/).includes(bestRate.toLowerCase())).slice(0, 4).map(p => p.pn)
+          : candidates.slice(0, 4).map(p => p.pn);
+        const matched = rf.filter(f => candidates.some(p => semanticHit(p, f)));
+        if (topRates.length) {
+          msg = `目前没有${rateMissing}的产品，最高支持${topRates.join("、")}（${topPnList.join("、")}）。它们已满足${humanList(matched)}，缺少的是${rateMissing}`;
+        } else if (candidates.length) {
+          msg = `目前没有${rateMissing}的产品，最接近的是${topPnList.join("、")}。它们已满足${humanList(matched)}，缺少的是${rateMissing}`;
+        }
       }
 
       if (!msg) {
-        // Build param-rich suggestion
         const bestFull = all.find(p => p.pn.toLowerCase() === best.pn.toLowerCase());
-        let paramHint = "";
-        if (bestFull && bestFull.params) {
-          // Extract the most relevant param based on query context
-          const paramLines = bestFull.params.split(" | ");
-          for (const line of paramLines) {
-            const kv = line.split(": ");
-            if (kv.length === 2) {
-              const key = kv[0].toLowerCase();
-              // Current/gate driver → show peak current
-              if ((/电流/.test(query) || /[aA]/.test(query) || /安/.test(query)) && 
-                  (key.includes("current") || key.includes("peak") || key.includes("驱动"))) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-              // Temperature sensor precision / amplifier precision — skip Temperature Range
-              if ((query.includes("精度") || query.includes("误差")) &&
-                  (key.includes("精度") || key.includes("accuracy") || key.includes("error") || key.includes("gain") || key.includes("offset") || key.includes("线性")) &&
-                  !key.includes("temperature") && !key.includes("temp range")) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-              // Channel count
-              if ((query.includes("通道") || query.includes("路")) &&
-                  (key.includes("channel") || key.includes("通道") || key.includes("ch"))) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-              // Speed/rate for interface products
-              if ((/速率|速度|[Mm]bps|[Gg]bps|[Kk]bps|高速/.test(query) || query.includes("速率")) &&
-                  (key.includes("data rate") || key.includes("speed") || key.includes("带宽") || key.includes("速率"))) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-              // Isolation voltage
-              if ((query.includes("隔离") || query.includes("kV")) &&
-                  (key.includes("isolation") || key.includes("耐压") || key.includes("vrms"))) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-              // For 高速/rate queries, also try matching simplified rate keywords
-              if (/高速/.test(query) && (key.includes("data rate") || key.includes("mbps") || key.includes("速率"))) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-            }
-          }
-        }
-        // Fallback: if noise requested but no noise param, show accuracy/VOUT
-        if (!paramHint && (query.includes("噪声") || query.includes("noise") || query.includes("PSRR")) && bestFull?.params) {
-          const pLines = bestFull.params.split(" | ");
-          for (const line of pLines) {
-            const kv = line.split(": ");
-            if (kv.length === 2) {
-              const k = kv[0].toLowerCase();
-              if (k.includes("accuracy") || k.includes("vout") || k.includes("iout") || k.includes("输出")) {
-                paramHint = `，${kv[0]}: ${kv[1]}`;
-                break;
-              }
-            }
-          }
-        }
-        // Final fallback: show the most relevant params (up to 2)
-        if (!paramHint && bestFull?.params) {
-          const pLines = bestFull.params.split(" | ");
-          const allKeys = [
-            "output voltage", "vout", "输出电压",
-            "output current", "iout", "max output",
-            "vin", "input voltage", "输入电压",
-            "data rate", "mbps", "speed", "速率",
-            "channel", "通道",
-            "isolation", "vrms", "耐压",
-            "frequency", "freq", "psrr", "noise", "噪声",
-            "current", "电流",
-            "power", "功耗",
-            "package", "封装",
-          ];
-          const hits: string[] = [];
-          for (const pref of allKeys) {
-            for (const line of pLines) {
-              const idx = line.indexOf(":");  // handle both ":" and ": "
-              if (idx < 0) continue;
-              const key = line.slice(0, idx).trim();
-              const val = line.slice(idx + 1).trim();
-              if (val.length > 40 || key.length > 40) continue;
-              if (key.toLowerCase().includes(pref.toLowerCase())) {
-                const display = `${key}: ${val}`;
-                if (!hits.includes(display)) {
-                  hits.push(display);
-                  if (hits.length >= 2) break;
-                }
-              }
-            }
-            if (hits.length >= 2) break;
-          }
-          if (hits.length > 0) {
-            paramHint = `，${hits.join("，")}`;
-          }
-        }
-        msg = `最接近「${best.pn}」（${best.score}/${total}条件${paramHint}）`;
-        console.log("[SUGGEST] msg:", msg);
+        const matched = best.hitTags;
+        const missing = features.filter(f => !matched.includes(f));
+        const bestParams = bestFull?.params ? extractBestParams(bestFull.params, query) : [];
+        const paramHint = bestParams.length ? `；${bestParams.join('，')}` : "";
+        msg = `最接近「${best.pn}」（匹配${humanList(matched) || `${best.score}/${total}条件`}，缺少${humanList(missing) || '无'}${paramHint}）`;
       }
-      if (scored.length > 1) msg += `，其次「${scored[1].pn}」`;
+      if (scored.length > 1 && !rateMissing) msg += `，其次「${scored[1].pn}」`;
       msg += "。是否查看？";
       result.suggestions.push({ text: msg, query, reason: "best_alternative" });
 
       // Relax one blocker
       for (const f of features.slice(0, 3)) {
         const others = features.filter(x => x !== f);
-        const relaxed = all.filter(p => others.every(x => p.ft.includes(x.toLowerCase())));
+        const relaxed = all.filter(p => others.every(x => semanticHit(p, x)));
         if (relaxed.length > 0 && relaxed.length <= 10) {
           result.suggestions.push({ text: `去掉「${f}」可匹配：${relaxed.map(p => p.pn).join("、")}。`, query, reason: "relax_blocker" });
           break;

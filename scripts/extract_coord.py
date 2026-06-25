@@ -520,8 +520,9 @@ def extract_yutai(pdf_path):
                 # 温度也无法解析 → 等级留空, 不默认
         # 去裸section名(已在_section中)
         feats.discard(sec)
-        # ── 端口数: 优先从"端口"列, 否则"简介"列。正确处理 N*xGE / NGE / N口 格式 ──
-        port_field = _field(p["_params"], "端口") or _field(p["_params"], "简介")
+        # ── 端口数: 交换机优先综合"端口"+"简介"取最大，避免裕太 24G+4GC/2*SGMII 这类被端口列里的8GE误压低 ──
+        port_field = _field(p["_params"], "端口") or ""
+        intro_field = _field(p["_params"], "简介") or ""
         def _port_count(text):
             # "N口"字面优先
             m = re.search(r'(\d+)口', text)
@@ -531,10 +532,13 @@ def extract_yutai(pdf_path):
             if m: return int(m.group(1))
             m = re.search(r'(\d+)\s*\*\s*[gf]e', text)
             if m: return int(m.group(1))
+            # 裕太交换机简介常写成 "24G+4GC/2*SGMII"、"8GE+2*RGMII"：前导 NGE / NG / NGC 代表主端口数
+            m = re.search(r'(?<![\d.])(\d+)\s*g(?:e|c)?(?:\b|\+)', text, re.I)
+            lead = int(m.group(1)) if m else 0
             # "NGE/NFE"(N紧跟, 非小数) = N口; 取最大(防多列同值)
-            cands = [int(x) for x in re.findall(r'(?<![\d.])(\d+)\s*[gf]e', text)]
-            return max(cands, default=0)
-        port_count = _port_count(port_field)
+            cands = [int(x) for x in re.findall(r'(?<![\d.])(\d+)\s*[gf]e', text, re.I)]
+            return max([lead, *cands], default=0)
+        port_count = max(_port_count(port_field), _port_count(intro_field))
         if port_count > 0:
             feats.add(f'{port_count}口交换机' if ('交换' in sec and port_count > 1) else f'{port_count}口')
         # 接口类型
@@ -596,147 +600,440 @@ def extract_yutai(pdf_path):
     return all_products, seccols
 
 def extract_novosense(pdf_path):
-    """纳芯微提取: y对齐法, 只提取含'选型表'的页面"""
+    """纳芯微提取: 用 page.find_tables() 抽选型表，并把单产品介绍页并回同一PN。"""
     doc = pymupdf.open(pdf_path)
     all_products = {}
     section_columns = defaultdict(list)
-    
-    PN_PAT = re.compile(r'^[A-Z]')
-    NOISE_PN = {'产品型号', '产品名称', '型号', 'Part Number'}
-    
-    for pg_idx in range(len(doc)):
-        pg = doc[pg_idx]
-        text = pg.get_text()
-        if '选型表' not in text:
-            continue
-        
-        section_name = ''
-        for line in text.strip().split('\n')[:5]:
+
+    pn_re = re.compile(r'^(?:NS|NCA|NSI|NSP|NSD|NSM|NST|NSE|MT|NSL|NSR|NSC)[A-Za-z0-9\-]+$')
+    header_candidates = {'产品型号', '产品名称', '型号', 'Part Number'}
+    fallback_headers = {
+        '速度传感器选型表': ['产品型号', '工作电压(V)', '输出类型', '工作温度 (℃)', 'Jitter 特性', '封装'],
+    }
+
+    def clean(s):
+        s = '' if s is None else str(s)
+        s = s.replace('\n', ' ')
+        s = re.sub(r'\s+', ' ', s).strip()
+        return s
+
+    def clean_pn(s):
+        s = clean(s)
+        s = s.replace(' ', '')
+        s = s.rstrip('-')
+        return s
+
+    def first_selection_title(text):
+        for line in text.splitlines()[:8]:
+            line = clean(line)
             if '选型表' in line:
-                section_name = line.strip()
-                break
-        if not section_name:
-            continue
-        
-        spans = _spans(pg)
-        if not spans:
-            continue
-        
-        # 找"产品型号"锚点
-        pn_header = next((s for s in spans if s['t'] in ('产品型号', '产品名称', '型号')), None)
-        if not pn_header:
-            continue
-        
-        # PN列表(y去重)
-        pn_data = [s for s in spans 
-                   if s['y'] > pn_header['y'] + 10
-                   and abs(s['x0'] - pn_header['x0']) < 15
-                   and PN_PAT.match(s['t'])
-                   and s['t'] not in NOISE_PN]
-        if len(pn_data) < 2:
-            continue
-        
-        seen_y = set()
-        pns = []
-        for s in sorted(pn_data, key=lambda s: s['y']):
-            yb = round(s['y'] / 5) * 5
-            if yb not in seen_y:
-                seen_y.add(yb)
-                pns.append((s['y'], s['t']))
-        
-        pn_ys = {round(y/5)*5 for y, _ in pns}
-        fdy = min(pn_ys)
-        
-        # Header spans: right of PN col, near top of page
-        hdr_spans = [s for s in spans 
-                     if s['x0'] > pn_header['x0'] + 5 
-                     and s['y'] < fdy + 10
-                     and s['t'] not in NOISE_PN
-                     and not PN_PAT.match(s['t'])]
-        
-        if not hdr_spans:
-            continue
-        
-        # cx聚类表头(8px容差)
-        hdr_spans.sort(key=lambda s: s['cx'])
-        col_groups = []
-        for s in hdr_spans:
-            placed = False
-            for g in col_groups:
-                if abs(g['cx'] - s['cx']) < 8:
-                    g['spans'].append(s)
-                    g['cx'] = sum(x['cx'] for x in g['spans']) / len(g['spans'])
-                    g['x0'] = min(g['x0'], s['x0'])
-                    g['x1'] = max(g['x1'], s['x1'])
-                    placed = True
+                return line
+        return ''
+
+    def infer_grade_from_row(params_map, pn):
+        joined = ' '.join(v.lower() for v in params_map.values())
+        if '-q1' in pn.lower() or 'yes' in joined and 'aec-q100' in ' '.join(k.lower() for k in params_map.keys()):
+            return '车规AEC-Q100'
+        if '汽车' in joined or 'q100' in joined or 'aec' in joined:
+            return '车规AEC-Q100'
+        if '消费' in joined:
+            return '消费级'
+        return '工业级'
+
+    def parse_table_page(pg_idx, page, section_name):
+        found = 0
+        for table in page.find_tables().tables:
+            data = table.extract()
+            if not data:
+                continue
+            header = None
+            header_idx = -1
+            for ri, row in enumerate(data[:6]):
+                row_norm = [clean(c) for c in row]
+                if any(c in header_candidates for c in row_norm):
+                    header = row_norm
+                    header_idx = ri
                     break
-            if not placed:
-                col_groups.append({'cx': s['cx'], 'x0': s['x0'], 'x1': s['x1'], 'spans': [s]})
-        
-        # y对齐检测 + 取值
-        for g in col_groups:
-            # 收集该列x范围内的所有数据span
-            all_col = [s for s in spans 
-                       if s['x0'] >= g['x0'] - 5 and s['x1'] <= g['x1'] + 5]
-            
-            # 数据区: y >= fdy-3
-            data = [s for s in all_col if s['y'] >= fdy - 3]
-            data_ys = {round(s['y']/5)*5 for s in data}
-            
-            # y对齐度
-            aligned = sum(1 for py in pn_ys if py in data_ys or (py+5) in data_ys or (py-5) in data_ys)
-            if aligned < len(pn_ys) * 0.4:
+            if header is None:
+                guessed = fallback_headers.get(section_name)
+                if guessed and data and all(clean_pn(r[0]) and pn_re.match(clean_pn(r[0])) for r in data if r and len(r) == len(guessed)):
+                    header = guessed
+                    header_idx = -1
+                else:
+                    continue
+
+            pn_col = next((i for i, h in enumerate(header) if h in header_candidates), None)
+            if pn_col is None:
                 continue
-            
-            # 表头名: 数据区域之前的所有span, 按y排序
-            first_data_y = min(s['y'] for s in data) if data else fdy
-            hdr = [s for s in all_col if s['y'] < first_data_y - 2]
-            
-            hdr_parts = []
-            seen_text = set()
-            for s in sorted(hdr, key=lambda x: x['y']):
-                if s['t'] not in seen_text:
-                    hdr_parts.append(s['t'])
-                    seen_text.add(s['t'])
-            col_name = ' '.join(hdr_parts)
-            if not col_name.strip():
-                continue
-            
-            # 取值(最近y匹配)
-            col_vals = {}
-            for s in data:
-                yb = round(s['y'] / 5) * 5
-                if yb not in col_vals:
-                    col_vals[yb] = s['t']
-            
-            for pn_y, pn in pns:
-                pn_yb = round(pn_y / 5) * 5
-                best_y = None
-                best_dist = 999
-                for vy in col_vals:
-                    d = abs(vy - pn_yb)
-                    if d < best_dist:
-                        best_dist = d
-                        best_y = vy
-                if best_y and best_dist < 12:
-                    val = col_vals[best_y]
-                    if pn not in all_products:
-                        all_products[pn] = {
-                            'part_number': pn, '_section': section_name,
-                            '_sections': [section_name],
-                            '_params': f'{col_name}: {val}', '_raw': val,
-                            '_features': f'工业级 {section_name}',
-                        }
-                    else:
-                        all_products[pn]['_params'] += f' | {col_name}: {val}'
-                        all_products[pn]['_raw'] += f' | {val}'
-    
-    for pn, p in all_products.items():
-        sec = p['_section']
-        cols = [k.split(':')[0].strip() for k in p['_params'].split(' | ')]
-        if cols not in section_columns[sec]:
-            section_columns[sec].append(cols)
-    
+
+            canon_header = []
+            for i, h in enumerate(header):
+                h = clean(h)
+                if not h:
+                    h = f'列{i+1}'
+                canon_header.append(h)
+            if canon_header not in section_columns[section_name]:
+                section_columns[section_name].append(canon_header)
+
+            for row in data[header_idx + 1:]:
+                if not row or pn_col >= len(row):
+                    continue
+                pn = clean_pn(row[pn_col])
+                if not pn_re.match(pn):
+                    continue
+                params_map = {}
+                raw_vals = []
+                for i, key in enumerate(canon_header):
+                    if i == pn_col or i >= len(row):
+                        continue
+                    val = clean(row[i])
+                    if not val:
+                        continue
+                    params_map[key] = val
+                    raw_vals.append(val)
+                if not params_map:
+                    continue
+                found += 1
+                params_str = ' | '.join(f'{k}: {v}' for k, v in params_map.items())
+                if pn not in all_products:
+                    all_products[pn] = {
+                        'part_number': pn,
+                        '_section': section_name,
+                        '_sections': [section_name],
+                        '_params': params_str,
+                        '_raw': ' | '.join(raw_vals),
+                        '_features': f"{infer_grade_from_row(params_map, pn)} {section_name}",
+                    }
+                else:
+                    rec = all_products[pn]
+                    if section_name not in rec.get('_sections', []):
+                        rec.setdefault('_sections', []).append(section_name)
+                    # merge params by key, prefer longer / more informative value
+                    existing = {}
+                    for part in rec.get('_params', '').split(' | '):
+                        if ': ' in part:
+                            k, v = part.split(': ', 1)
+                            existing[k.strip()] = v.strip()
+                    for k, v in params_map.items():
+                        if k not in existing or len(v) > len(existing[k]):
+                            existing[k] = v
+                    rec['_params'] = ' | '.join(f'{k}: {v}' for k, v in existing.items())
+                    rec['_raw'] = ' | '.join([v for _, v in existing.items()])
+        return found
+
+    def _filter_apps_noise(lines):
+        """Remove diagram labels and noise from apps/perf sections."""
+        # Diagram labels: short ASCII labels with electrical terms or single letters/numbers
+        DIAGRAM_NOISE = re.compile(
+            r'^(?:[A-Z]+[\d]*[+\-]?|[-+]\s*|OUT\d*|IN\d*[+\-]?|GND|VCC|VDD|VSS|VOUT|'
+            r'VIN|BIAS|FILT|POR|OSC|OTP|OWI|LUT|ESD|EMI|RFI|NCH|PCH|'
+            r'Spinning|drive|dooset|cancellation|cicuit|Sensor|Temp|'
+            r'Voltage|Regulator|Interpolation|Stage|Class|Control|'
+            r'current\s*limit|Slew|Boost|Output|Input|Filter|'
+            r'HALL|SIN|COS|VDD|VLDO|SON|UVW|SCLK|SDIO|CS|DSP|SPI|DAC|'
+            r'PWM|AMP|BG|IREF|Regulator|Phase|Drv|Plates|TC\-R|cicuit|'
+            r'Bias|current|Power|Clamp)$'
+        )
+        return [l for l in lines if not DIAGRAM_NOISE.match(l.strip())]
+
+    def split_detail_sections(text):
+        """Split detail page text into intro / perf / apps by content heuristics.
+
+        Novosense PDFs have section headers (产品介绍/产品性能/应用场景) as sidebar
+        labels that precede the actual content. We can't use them as section boundaries
+        because the real content order is: title → intro → specs → apps.
+        """
+        raw_lines = [clean(x) for x in text.splitlines()]
+        # ── Strip section headers, page numbers, diagram labels ──
+        SKIP_EXACT = {'产品介绍', '产品性能', '应用场景', '功能框图', '封装引脚',
+                      '封装形式', '安全认证'}
+        lines = [x for x in raw_lines if x and x not in SKIP_EXACT and not re.fullmatch(r'\d+', x)]
+        if not lines:
+            return {'intro': '', 'perf': '', 'apps': ''}
+
+        # ── Find product title boundary ──
+        #   Line starting with Novosense PN pattern + colon/title → intro boundary
+        PN_TITLE_RE = re.compile(r'^' + NOVO_PN_PREFIX + r'[A-Za-z0-9\-/]+[：:]')
+        title_idx = None
+        for i, line in enumerate(lines):
+            if PN_TITLE_RE.match(line):
+                title_idx = i
+                break
+
+        # ── Classify by position relative to title ──
+        #   title line → intro
+        #   lines after title, before first spec-like line → intro
+        #   spec-like lines → perf
+        #   remaining (usually at end) → apps
+        SPEC_LINE_RE = re.compile(
+            r'(?:电压|电流|带宽|速率|功耗|噪声|增益|精度|漂移|温度|封装|电源|阻抗|'
+            r'EMI|RFI|EMC|ESD|AEC|RoHS|滤波|检测|输出|输入|线性度|灵敏度|'
+            r'MHz|kHz|µA|mA|nV|µV|mV|V/|dB|ppm|bit|通道|范围|响应|'
+            r'\d+\s*(?:V|A|Ω|Hz|W|°C|bit|dB)\b)'
+        )
+        APPS_KEYWORDS_RE = re.compile(
+            r'(?:汽车|工业|消费|新能源|电源传输|UPS|电机|逆变器|伺服|PLC|'
+            r'传感器信号|ASIC|电流检测|光伏|储能|充电|基站|通信|医疗)'
+        )
+
+        buckets = {'intro': [], 'perf': [], 'apps': []}
+        if title_idx is not None:
+            # Title line goes to intro
+            buckets['intro'].append(lines[title_idx])
+            # If title is short, next line might be title continuation (e.g. wrapped title)
+            if title_idx + 1 < len(lines) and len(lines[title_idx]) < 30:
+                next_line = lines[title_idx + 1]
+                # If next line doesn't look like standalone content, merge into title
+                if not re.search(r'[。！？\.!\?]$', lines[title_idx]) and len(next_line) < 40:
+                    buckets['intro'].append(next_line)
+                    title_idx += 1  # skip this line in the loop below
+            # If title is far from top (>5 lines), content before title might be intro
+            if title_idx > 5:
+                for j in range(0, title_idx):
+                    line = lines[j]
+                    if SPEC_LINE_RE.search(line) and len(line) < 60:
+                        buckets['perf'].append(line)
+                    elif len(line) > 50:
+                        buckets['intro'].append(line)
+                    elif not APPS_KEYWORDS_RE.search(line):
+                        buckets['intro'].append(line)
+            # Lines after title: intro until we hit real spec lines
+            #   Real spec = short line (<60 chars) with spec keywords that starts a new thought
+            #   Long prose lines or line-wrapped continuations stay in intro
+            i = title_idx + 1
+            while i < len(lines):
+                line = lines[i]
+                is_spec = SPEC_LINE_RE.search(line) and len(line) < 60
+                is_apps_kw = APPS_KEYWORDS_RE.search(line) and len(line) < 30
+                # Prose continuation: previous line didn't end with sentence-ending punctuation
+                #   But NOT if current line has a strong spec pattern (colon:number, unit, etc.)
+                prev_line = lines[i-1] if i > 0 else ""
+                is_continuation = (prev_line and not re.search(r'[。！？\.!\?]$', prev_line)
+                                   and len(line) > 0)
+                STRONG_SPEC = re.compile(r'[：:]\s*[±\d]|MHz|kHz|µA|mA|nV|µV|mV\b|V/|ppm\b')
+                if is_continuation and not STRONG_SPEC.search(line):
+                    is_spec = False  # Don't break on line-wrapped prose
+                if is_spec or is_apps_kw:
+                    break
+                buckets['intro'].append(line)
+                i += 1
+            # Remaining: classify — default to features, only put into apps if
+            #   the line is short AND looks like an application keyword
+            for j in range(i, len(lines)):
+                line = lines[j]
+                # Diagram noise already filtered later, but try to catch here too
+                if len(line) < 4:
+                    continue  # skip orphan single chars
+                # App keyword must be SHORT and match app keywords explicitly
+                is_app = (APPS_KEYWORDS_RE.search(line) and len(line) < 20
+                          and not SPEC_LINE_RE.search(line))
+                if is_app:
+                    buckets['apps'].append(line)
+                else:
+                    buckets['perf'].append(line)
+        else:
+            # Fallback: no PN title found, classify by content
+            for line in lines:
+                is_app = (APPS_KEYWORDS_RE.search(line) and len(line) < 20
+                          and not SPEC_LINE_RE.search(line))
+                if is_app:
+                    buckets['apps'].append(line)
+                elif len(line) > 50 or SPEC_LINE_RE.search(line):
+                    buckets['perf'].append(line)
+                else:
+                    buckets['intro'].append(line)
+
+        _fix_intro_perf_boundary(buckets)
+        # Filter diagram noise from perf too (since default is now features)
+        buckets['perf'] = _filter_apps_noise(buckets['perf'])
+        # Post-processing: if intro ends with short orphan line followed by specs in perf,
+        # move that orphan to perf (it's a spec section header like "客户可编程")
+        if buckets['intro'] and buckets['perf']:
+            last_intro = buckets['intro'][-1]
+            if len(last_intro) < 15 and not SPEC_LINE_RE.search(last_intro):
+                # Short line at intro end, likely a spec section header
+                buckets['intro'].pop()
+                buckets['perf'].insert(0, last_intro)
+        return {
+            'intro': ' '.join(buckets['intro']).strip(),
+            'perf': ' | '.join(buckets['perf']).strip(),
+            'apps': ' | '.join(_filter_apps_noise(buckets['apps'])).strip(),
+        }
+
+    def _fix_intro_perf_boundary(buckets):
+        """If perf starts with product introduction prose, move it to intro."""
+        if not buckets['perf']:
+            return
+        perf_lines = buckets['perf']
+        # Check if first perf lines look like intro: start with PN + (是/为/系列/产品)
+        #   OR are continuation prose (no strong spec pattern)
+        INTRO_OPENING = re.compile(r'^[A-Z]{2,4}\d+[A-Za-z0-9\-]*[\s（(].*(?:是|为|系列|产品|功能相同)')
+        PROSE_CONTINUATION = re.compile(r'^(?:[2I]\s*C|此外|同时|而且|并且|另外|该系列|该器件|该芯片|'
+                                        r'这些|其[^\d]|小的|极|率|需|可以|不|适配|兼容|得益于)')
+        move_count = 0
+        for line in perf_lines:
+            if INTRO_OPENING.match(line) or (len(line) > 60 and '。' in line) or PROSE_CONTINUATION.match(line):
+                buckets['intro'].append(line)
+                move_count += 1
+            else:
+                break
+        if move_count:
+            buckets['perf'] = perf_lines[move_count:]
+
+    # Expanded Novosense PN prefixes (includes NSOP, NSOPA, etc.)
+    NOVO_PN_PREFIX = (
+        r'(?:NS[OI]?[PA]?|NCA|NSI|NSP|NSD|NSM|NST|NSE|MT|NSL|NSR|NSC|NSA|'
+        r'NLC|NIR|NPD|NPM|LM|NSE|NCAB|NSDA)'
+    )
+    # PN regex: prefix + alphanumeric + optional suffix. Allows lowercase for family names (e.g. NSOPA905x).
+    NOVO_PN_RE = re.compile(r'\b(' + NOVO_PN_PREFIX + r'[A-Za-z0-9\-]+)', re.ASCII)
+
+    def _expand_family_pn(pn: str, candidates: dict) -> list:
+        """If pn looks like a family (e.g. 'NSOPA905x', 'NSM201xP', 'MT72xx'), return matching PNs."""
+        pn_upper = pn.upper()
+        has_wildcard = 'X' in pn_upper
+        if has_wildcard:
+            # Replace consecutive X's: X → [A-Z0-9], XX → [A-Z0-9]{2}, XXX → [A-Z0-9]{3}
+            escaped = re.escape(pn_upper)
+            # Process from longest to shortest to avoid partial replacement
+            for n in [4, 3, 2, 1]:
+                escaped = escaped.replace('X' * n, '[A-Z0-9]{' + str(n) + '}')
+            # Use .* suffix so "NSM101x" matches "NSM1011-A-Q0"
+            pattern = '^' + escaped + '.*$'
+            family_re = re.compile(pattern)
+            return [k for k in candidates if family_re.match(k.upper())]
+        if pn in candidates:
+            return [pn]
+        # Try matching uppercase
+        if pn_upper in candidates:
+            return [pn_upper]
+        # Try matching without trailing suffix (e.g. NSOPA9051-Q0 → NSOPA9051)
+        base = re.sub(r'[\-].*$', '', pn_upper)
+        matches = [k for k in candidates if k.upper() == base]
+        if matches:
+            return matches
+        # Try prefix match: detail page base PN → products with suffixes
+        #   e.g. "NSM2031" → "NSM2031-Q0", "NSI6601" → "NSI6601B-DSPR"
+        prefix_matches = [k for k in candidates if k.upper().startswith(pn_upper) and k.upper() != pn_upper]
+        if prefix_matches:
+            return prefix_matches
+        return []
+
+    def merge_detail_page(page_text):
+        if '产品介绍' not in page_text:
+            return
+        # Find the title line and extract ALL PNs from it
+        #   Many detail pages list variants before the family title:
+        #     "NSM1011：单极" / "NSM1012：全极" → then real title "NSM101x：..."
+        #   Prefer the last title with 'x' wildcard, or the last title overall.
+        TITLE_RE = re.compile(r'^' + NOVO_PN_PREFIX + r'[A-Za-z0-9\-/]+[：:]')
+        title_line = None
+        for line in page_text.splitlines():
+            line = line.strip()
+            if TITLE_RE.match(line):
+                title_line = line
+                # Prefer wildcard family title — but keep scanning for better match
+        # Note: title_line keeps the LAST matching line (or last wildcard one)
+        # Re-scan preferring wildcard
+        for line in page_text.splitlines():
+            line = line.strip()
+            if TITLE_RE.match(line) and ('x' in line.lower() or 'X' in line):
+                title_line = line  # wildcard family title wins
+        if title_line:
+            all_pns = [m.group(1) for m in NOVO_PN_RE.finditer(title_line)]
+            # Also handle short-form PNs in title: "NS800RT1135/1137/1155"
+            #   Split by "/" and expand short forms (1137 → NS800RT1137)
+            END_PN_RE2 = re.compile(r'(' + NOVO_PN_PREFIX + r'[A-Za-z0-9\-]+(?:\s*/\s*(?:\d+[A-Za-z0-9\-]*|[A-Z]+\d+[A-Za-z0-9\-]*))*)')
+            end_m = END_PN_RE2.search(title_line)
+            if end_m:
+                parts = re.split(r'\s*/\s*', end_m.group(1))
+                for part in parts:
+                    part = part.strip()
+                    if re.match(r'^' + NOVO_PN_PREFIX, part):
+                        if part not in all_pns:
+                            all_pns.append(part)
+                    elif all_pns:
+                        # Short form: "1137" → prepend prefix from first PN
+                        #   "NS800RT1135" → drop trailing digits → "NS800RT" + "1137" = "NS800RT1137"
+                        pfx = re.sub(r'\d+$', '', all_pns[0])
+                        if pfx:
+                            full = pfx + part
+                            if full not in all_pns:
+                                all_pns.append(full)
+        else:
+            # Fallback: title might span lines or PN is at end ("汽车级...控制器 NSL31664/31665")
+            pn_text = page_text.replace('\n', ' ')
+            m = NOVO_PN_RE.search(pn_text)
+            all_pns = [m.group(1)] if m else []
+            # Also scan individual lines for end-of-line PNs (title pattern: "...desc NSLxxxx/yyyy")
+            END_PN_RE = re.compile(r'(' + NOVO_PN_PREFIX + r'[A-Za-z0-9\-]+(?:\s*/\s*(?:\d+[A-Za-z0-9\-]*|[A-Z]+\d+[A-Za-z0-9\-]*))*)')
+            for line in page_text.splitlines():
+                line = line.strip()
+                if len(line) < 15:
+                    continue
+                end_m = END_PN_RE.search(line)
+                if end_m:
+                    pn_group = end_m.group(1)
+                    # Split by "/" to get individual PNs
+                    parts = re.split(r'\s*/\s*', pn_group)
+                    for part in parts:
+                        part = part.strip()
+                        if re.match(r'^' + NOVO_PN_PREFIX, part):
+                            if part not in all_pns:
+                                all_pns.append(part)
+                        elif all_pns:
+                            # Short form: "31665" → prepend prefix from first PN (drop trailing digits)
+                            pfx = re.sub(r'\d+$', '', all_pns[0])
+                            if pfx:
+                                full = pfx + part
+                                if full not in all_pns:
+                                    all_pns.append(full)
+        if not all_pns:
+            return
+        # Collect all target products from ALL PNs in the title
+        targets = set()
+        for pn in all_pns:
+            for t in _expand_family_pn(pn, all_products):
+                targets.add(t)
+        if not targets:
+            return
+        detail = split_detail_sections(page_text)
+        for target_pn in targets:
+            rec = all_products[target_pn]
+            if detail['intro']:
+                rec['_detail_intro'] = detail['intro']
+            if detail['perf']:
+                rec['_detail_features'] = detail['perf']
+            if detail['apps']:
+                rec['_detail_apps'] = detail['apps']
+
+    last_section_name = None
+    for pg_idx in range(len(doc)):
+        page = doc[pg_idx]
+        text = page.get_text('text')
+        section_name = first_selection_title(text)
+        if section_name:
+            parse_table_page(pg_idx, page, section_name)
+            last_section_name = section_name
+        elif last_section_name:
+            # Continuation page: no title, but may have a table continuing the previous section.
+            # Only parse if this page has a table that looks like a product data table.
+            tables = page.find_tables().tables
+            if tables:
+                for table in tables:
+                    data = table.extract()
+                    if data and len(data) >= 2:
+                        # Check if first row looks like a header (same column count as last section)
+                        header = [clean(c) for c in (data[0] or [])]
+                        if any(c in header_candidates for c in header):
+                            parse_table_page(pg_idx, page, last_section_name)
+                            break
+
+    for pg_idx in range(len(doc)):
+        page = doc[pg_idx]
+        text = page.get_text('text')
+        merge_detail_page(text)
+
     seccols = {sec: cols_list[0] for sec, cols_list in section_columns.items()}
     return all_products, seccols
 

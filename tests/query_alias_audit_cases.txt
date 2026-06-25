@@ -1,0 +1,34 @@
+# query alias audit cases
+# 格式：key=value | key=value
+# 可编辑字段：
+#   query=用户常见叫法
+#   expect_must=期望canonical tag（逗号分隔）
+#   expect_hint=期望category_hint
+#   forbid=不应出现的误解标签（逗号分隔）
+#   required_pn=代表性料号（逗号分隔，可空）
+#
+query=隔离运放 | expect_must=隔离放大器 | expect_hint=隔离放大器 | forbid=运放 | required_pn=TPA8000
+query=隔离调制器 | expect_must=隔离放大器 | expect_hint=隔离放大器 | forbid=ADC,运放 | required_pn=TPA8000
+query=高边开关 | expect_must=高边驱动 | expect_hint=驱动 | required_pn=TPS42S40Q
+query=理想二极管控制器 | expect_must=理想二极管 | expect_hint=电源保护 | required_pn=TPS65R01Q-S6TR-S
+query=隔离电源模块 | expect_must=隔离电源 | expect_hint=隔离电源 | required_pn=NSIP93086C-DSWR
+query=电平shift | expect_must=电平转换 | expect_hint=电平转换 | required_pn=TPT24857
+query=复位监控芯片 | expect_must=复位芯片 | expect_hint=复位 | required_pn=TPV706
+query=音频线路驱动 | expect_must=音频功放 | expect_hint=音频 | required_pn=TPF605A
+query=低边驱动 | expect_must=低边驱动 | expect_hint=驱动 | required_pn=NSD5604E-DHTSTR
+query=零漂运放 | expect_must=零漂运算放大器 | expect_hint=放大器 | required_pn=TPA5561Q-S5TR-S
+query=隔离ADC | expect_must=隔离ADC | expect_hint=数据转换 | required_pn=NSI1306M25
+query=高压运放 | expect_must=高压运算放大器 | expect_hint=放大器 | required_pn=LM2904A-SO1R-S
+query=低压运放 | expect_must=低压运算放大器 | expect_hint=放大器 | required_pn=TPA6581Q-S5TR-S
+query=仪表运放 | expect_must=仪表放大器 | expect_hint=放大器
+query=系统基础芯片 | expect_must=SBC | expect_hint=接口 | required_pn=TPT11695Q
+query=电源管理芯片 | expect_must=PMIC | expect_hint=电源 | required_pn=TPU25401Q-FS5R-S
+query=DrMOS | expect_must=DrMOS | expect_hint=电源 | required_pn=TPM1525
+query=PoE | expect_must=以太网供电 | expect_hint=以太网 | required_pn=TPE15017
+query=放大器 | expect_must=放大器 | expect_hint=放大器 | required_pn=TPA1286
+query=差动放大器 | expect_must=差动放大器 | expect_hint=放大器 | required_pn=TPA9151
+query=对数放大器 | expect_must=对数放大器 | expect_hint=放大器 | required_pn=TPA8304
+query=LED驱动 | expect_must=LED驱动 | expect_hint=驱动 | required_pn=NSL21610
+query=MCU | expect_must=MCU/DSP | expect_hint=MCU/DSP | required_pn=NSUC1700
+query=氮化镓功率芯片 | expect_must=氮化镓功率芯片 | expect_hint=电源 | required_pn=NSG65N15K-DQAFR
+query=or-ing | expect_must=理想二极管 | expect_hint=电源保护 | required_pn=TPS65R01Q-S6TR-S

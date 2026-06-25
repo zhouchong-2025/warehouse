@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "python3 ../scripts/generate_data.py",
+    "prebuild": "python3 ../scripts/generate_data.py && python3 ../scripts/compile_semantic_registry.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

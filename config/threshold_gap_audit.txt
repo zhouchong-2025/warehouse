@@ -1,0 +1,30 @@
+# 跨品类阈值错题排查矩阵
+# ============================================
+# 针对每个有数值参数的品类, 用阈值查询验证约束层的数值比较是否生效
+# 格式: category=... | query=... | param_family=... | threshold=... | direction=high|low
+
+# ── Iout (输出电流) ──
+category=LDO | query=LDO 1A | param_family=Iout | threshold=1 | direction=high
+category=DCDC | query=DCDC 2A | param_family=Iout | threshold=2 | direction=high
+category=栅极驱动 | query=栅极驱动 5A | param_family=Iout | threshold=5 | direction=high
+category=马达驱动 | query=马达驱动 2A | param_family=Iout | threshold=2 | direction=high
+
+# ── Mbps (数据速率) ──
+category=RS-485 | query=RS-485 20Mbps | param_family=Mbps | threshold=20 | direction=high
+category=CAN-FD | query=CAN-FD 5Mbps | param_family=Mbps | threshold=5 | direction=high
+category=数字隔离器 | query=数字隔离器 50Mbps | param_family=Mbps | threshold=50 | direction=high
+
+# ── 通道数 ──
+category=运放 | query=运放 2通道 | param_family=通道 | threshold=2 | direction=high
+category=比较器 | query=比较器 2通道 | param_family=通道 | threshold=2 | direction=high
+
+# ── bit (精度) ──
+category=ADC | query=ADC 12bit | param_family=bit | threshold=12 | direction=high
+category=DAC | query=DAC 12bit | param_family=bit | threshold=12 | direction=high
+
+# ── 端口数 ──
+category=交换机 | query=交换机 5口 | param_family=端口 | threshold=5 | direction=high
+
+# ── Vin (输入电压范围) ──
+category=LDO | query=LDO Vin_5V | param_family=Vin | threshold=5 | direction=low
+category=DCDC | query=DCDC Vin_12V | param_family=Vin | threshold=12 | direction=low

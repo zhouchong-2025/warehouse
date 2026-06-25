@@ -11,16 +11,29 @@ import re
 # 每条规则: (param_key_pattern, extract_fn, tag_template)
 # extract_fn(value) → list of tag strings
 
+
+def fmt_num(v):
+    return str(int(v)) if float(v).is_integer() else str(round(float(v), 3)).rstrip('0').rstrip('.')
+
+
+def uniq_keep_order(vals):
+    out = []
+    seen = set()
+    for v in vals:
+        key = round(float(v), 6)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(float(v))
+    return out
+
 def extract_channels(v):
-    """Number of Channels: N or X/Y → [N通道, ...] cumulative"""
+    """Number of Channels: N or X/Y or 1CH → [N通道, ...] cumulative"""
     try:
-        v = str(v).strip()
-        # Handle "4/2" format → max(4,2) = 4
-        if '/' in v:
-            parts = v.split('/')
-            n = max(int(float(p.strip())) for p in parts if p.strip().replace('.','').isdigit())
-        else:
-            n = int(float(v.split()[0]))
+        nums = [int(float(x)) for x in re.findall(r'[\d.]+', str(v))]
+        if not nums:
+            return []
+        n = max(nums)
         return [f'{c}通道' for c in [1,2,4,8,16,32] if c <= n]
     except:
         return []
@@ -68,62 +81,57 @@ def extract_speed(v, param_key=''):
     except:
         return []
 
-def extract_vin(v):
-    """VIN/Supply: N or N~M → [Vin_XV] cumulative"""
+def extract_vin(v, v2=None):
+    """VIN/Supply → actual endpoint tags only (no ladder expansion)."""
     try:
-        v = str(v).strip()
-        m = re.match(r'([\d.]+)\s*[~\-\u2013\u2014]\s*([\d.]+)', v)
-        if m:
-            lo, hi = float(m.group(1)), float(m.group(2))
+        vals = []
+        if v2 is not None:
+            vals = [float(x) for x in re.findall(r'[\d.]+', f'{v} {v2}')]
+            if len(vals) >= 2:
+                vals = [min(vals[0], vals[1]), max(vals[0], vals[1])]
         else:
-            m = re.match(r'([\d.]+)', v)
-            if m:
-                lo = hi = float(m.group(1))
-            else:
+            v = str(v).strip()
+            if not v or 'max' in v.lower() or 'ver' in v.lower():
                 return []
-        # Handle "max (Ver+0.05, 2.1)" formulas
-        if 'max' in v.lower() or 'ver' in v.lower(): return []
-        thresholds = [0.8, 1.2, 1.8, 2.5, 3.3, 5, 12, 24, 36, 48]
-        tags = []
-        for pt in thresholds:
-            if lo <= pt <= hi:
-                t = f'Vin_{int(pt)}V' if pt == int(pt) else f'Vin_{pt}V'
-                tags.append(t)
-        return tags
+            nums = [float(x) for x in re.findall(r'[\d.]+', v)]
+            if not nums:
+                return []
+            if len(nums) >= 2 and any(sep in v for sep in ['~', '-', '–', '—', '/']):
+                vals = [min(nums), max(nums)]
+            else:
+                vals = [nums[0]]
+        vals = uniq_keep_order(vals)
+        return [f'Vin_{fmt_num(x)}V' for x in vals if x > 0]
     except:
         return []
 
 def extract_vout(v):
-    """Output Voltage: N or Fixed(a,b,c) → [Vout_XV]"""
+    """Output Voltage → actual fixed values or range endpoints only (no ladder expansion)."""
     try:
         v = str(v).strip()
-        # Fixed(1.25, 2.048, 3.3) → parse all numbers
+        vals = []
         m = re.match(r'Fixed\s*\(([\d.,\s]+)\)', v, re.I)
         if m:
-            nums = [float(x) for x in re.findall(r'[\d.]+', m.group(1))]
-        else:
-            m = re.match(r'([\d.]+)\s*[~\-\u2013\u2014]\s*([\d.]+)', v)
-            if m:
-                nums = [float(m.group(1)), float(m.group(2))]
-            else:
-                m = re.match(r'([\d.]+)', v)
-                if m:
-                    nums = [float(m.group(1))]
-                else:
-                    return []
-        lo, hi = min(nums), max(nums)
-        thresholds = [0.6, 0.8, 1.0, 1.2, 1.8, 2.5, 3.3, 5, 12, 24, 36, 48]
-        tags = []
-        for pt in thresholds:
-            if lo <= pt <= hi:
-                t = f'Vout_{int(pt)}V' if pt == int(pt) else f'Vout_{pt}V'
-                tags.append(t)
-        return tags
+            vals.extend(float(x) for x in re.findall(r'[\d.]+', m.group(1)))
+        # 中文固定输出 / 多固定档
+        if '固定输出' in v:
+            vals.extend(float(x) for x in re.findall(r'[\d.]+', v))
+        m = re.match(r'Adjustable\s*\(([\d.]+)\s*(?:to|~|\-|–|—)\s*([\d.]+)\)', v, re.I)
+        if m:
+            vals.extend([float(m.group(1)), float(m.group(2))])
+        elif re.search(r'[\d.]+\s*[~\-–—]\s*[\d.]+', v):
+            nums = [float(x) for x in re.findall(r'[\d.]+', v)]
+            if len(nums) >= 2:
+                vals.extend([min(nums), max(nums)])
+        elif not vals:
+            vals.extend(float(x) for x in re.findall(r'[\d.]+', v))
+        vals = [x for x in uniq_keep_order(vals) if x > 0]
+        return [f'Vout_{fmt_num(x)}V' for x in vals]
     except:
         return []
 
 def extract_iout(v, param_key=''):
-    """Max Output Current: N (A/mA) → [Iout_XA] cumulative"""
+    """Max Output Current → exact real-value tag only (A-normalized, no ladder expansion)."""
     try:
         v = str(v).strip()
         m = re.match(r'([\d.]+)', v)
@@ -131,12 +139,14 @@ def extract_iout(v, param_key=''):
         val = float(m.group(1))
         # Detect unit from param key or value context
         klow = param_key.lower()
-        if any(x in klow for x in ['(ma)', 'ma)','(ma']):
+        vlow = v.lower()
+        if any(x in klow for x in ['(ma)', 'ma)', '(ma']) or 'ma' in vlow:
             val = val / 1000
-        elif any(x in klow for x in ['μa','(μa','ua']):
+        elif any(x in klow for x in ['μa','(μa','ua']) or 'μa' in vlow or 'ua' in vlow:
             val = val / 1000000
-        thresholds = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20]
-        return [f'Iout_{int(t)}A' if t == int(t) else f'Iout_{t}A' for t in thresholds if t <= val]
+        if val <= 0:
+            return []
+        return [f'Iout_{fmt_num(val)}A']
     except:
         return []
 
@@ -144,8 +154,33 @@ def extract_iout(v, param_key=''):
 def extract_bits(v):
     """Resolution: N → [Nbit]"""
     try:
-        n = int(float(str(v).split()[0]))
+        m = re.search(r'(\d+)\s*(?:bit|位)?', str(v), re.I)
+        if not m:
+            return []
+        n = int(m.group(1))
         return [f'{n}bit']
+    except:
+        return []
+
+
+def extract_isolation(v, param_key=''):
+    """Isolation rating: 3/5 kVrms or 3000/5000 Vrms → [隔离,3kVrms隔离,5kVrms隔离]"""
+    try:
+        m = re.search(r'([\d.]+)', str(v))
+        if not m:
+            return []
+        val = float(m.group(1))
+        klow = str(param_key).lower()
+        if 'kvrms' in klow or 'kvrms' in str(v).lower():
+            kv = val
+        else:
+            kv = val / 1000 if val > 50 else val
+        tags = ['隔离']
+        if kv >= 5:
+            tags.append('5kVrms隔离')
+        elif kv >= 3:
+            tags.append('3kVrms隔离')
+        return tags
     except:
         return []
 
@@ -221,8 +256,16 @@ TAG_RULES = {
     'DAC': {'number of channels': extract_channels},
     '电平转换': {'number of channels': extract_channels},
     '数字隔离器': {'forward/reverse channels': extract_channels, 'number of channels': extract_channels, 'max data rate': extract_speed},
-    'CAN-FD': {'number of channels': extract_channels, 'data rate': extract_speed},
-    'LIN': {'number of channels': extract_channels},
+    'CAN-FD': {
+        'number of channels': extract_channels,
+        'data rate': extract_speed,
+        '最大工作速率': extract_speed,
+        '最大码流': extract_speed,
+    },
+    'LIN': {
+        'number of channels': extract_channels,
+        '最大码流': extract_speed,
+    },
     'SBC': {'number of channels': extract_channels},
     '视频滤波': {'number of channels': extract_channels},
     '音频功放': {'number of channels': extract_channels},
@@ -233,16 +276,27 @@ TAG_RULES = {
         'maximum input voltage': None,  # paired with min
         'paired:(minimum input voltage,maximum input voltage)': extract_vin,
         'paired:(minimum operating voltage,maximum operating voltage)': extract_vin,
+        '最小输入 电压': extract_vin,
+        '最大输入 电压': None,
+        'paired:(最小输入 电压,最大输入 电压)': extract_vin,
         'output voltage': extract_vout,
+        '输出电压': extract_vout,
         'output (v)': extract_vout,
         'max output current': extract_iout,
+        '输出电流': extract_iout,
     },
     'LDO': {
         'minimum input voltage': extract_vin,
         'maximum input voltage': None,
         'paired:(minimum input voltage,maximum input voltage)': extract_vin,
+        '最小输入 电压': extract_vin,
+        '最大输入 电压': None,
+        'paired:(最小输入 电压,最大输入 电压)': extract_vin,
         'output voltage': extract_vout,
+        '输出电压': extract_vout,
         'max output current': extract_iout,
+        '输出 电流': extract_iout,
+        '输出电流': extract_iout,
     },
     '电压基准': {
         'vin (min)': extract_vin,
@@ -288,6 +342,12 @@ TAG_RULES = {
         'resolution': extract_bits,
         'number of channels': extract_channels,
         'vdd (v)': extract_vin,
+        '输入通道': extract_channels,
+        '通道数': extract_channels,
+        '最高分辨率': extract_bits,
+        '特征 高精度': extract_bits,
+        'avdd': extract_vin,
+        '供电电压': extract_vin,
     },
     'DAC': {
         'resolution': extract_bits,
@@ -299,6 +359,13 @@ TAG_RULES = {
         'forward/reverse channels': extract_channels,
         'number of channels': extract_channels,
         'max data rate': extract_speed,
+        '最大码流': extract_speed,
+        'kvrms': extract_isolation,
+    },
+    '隔离CAN': {
+        '最大码流': extract_speed,
+        'data rate': extract_speed,
+        'kvrms': extract_isolation,
     },
 
     # ── MLVDS: channels + speed ──
@@ -328,7 +395,17 @@ TAG_RULES = {
     '隔离栅极驱动': {
         'number of channels': extract_channels,
         'max output current': extract_iout,
-        'isolation rating (vrms)': extract_vin,
+        'isolation rating (vrms)': extract_isolation,
+        '最大输出电流': extract_iout,
+        'kvrms': extract_isolation,
+    },
+    '电流传感器': {
+        '工作电压': extract_vin,
+        '供电电压': extract_vin,
+        '介电强度': extract_isolation,
+    },
+    '温度传感器': {
+        '供电电压': extract_vin,
     },
     # ── 运放/比较器/放大器的 Supply Voltage → Vin ──
     '运放': {
@@ -412,10 +489,14 @@ def generate_tags(category_tag, params_str):
                 # For Iout/Speed, pass param_key to detect units
                 if any(t in param_key for t in ['output current', 'iout']):
                     result = extract_iout(param_val, param_key)
-                elif any(t in param_key for t in ['data rate', 'speed', 'throughput', 'rate']):
+                elif any(t in param_key for t in ['data rate', 'speed', 'throughput', 'rate']) or any(t in param_key for t in ['码流', '速率']):
                     result = extract_speed(param_val, param_key)
                 else:
                     result = extract_fn(param_val)
+                    # Novosense-style merged key: "特征 高精度24 位ADC": value itself may not carry the bit width.
+                    # If extracting bits from value got nothing, retry on the param key text.
+                    if extract_fn is extract_bits and not result:
+                        result = extract_bits(param_key)
                 tags.extend(result)
                 break
     

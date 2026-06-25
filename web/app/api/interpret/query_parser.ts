@@ -65,6 +65,10 @@ interface CategoryRule {
   tag: string;
   priority: number;
   category_hint: string;
+  /** 'subordinate': this tag can be a feature of another category.
+   *  When a subordinate matches but a primary also matches, the primary wins
+   *  and the subordinate tag becomes a modifier (nice/must). */
+  role?: 'subordinate';
 }
 
 interface ModifierRule {
@@ -86,14 +90,17 @@ interface ParamRule {
 // ═══════════════════════════════════════════════════════════
 
 const CATEGORY_RULES: CategoryRule[] = [
-  // Interface (compound patterns first)
-  { pattern: /隔离.*485|485.*隔离|隔离.*rs-?485|rs-?485.*隔离/i, tag: 'RS-485', priority: 110, category_hint: '隔离接口' },
-  { pattern: /隔离.*232|232.*隔离|隔离.*rs-?232|rs-?232.*隔离/i, tag: 'RS-232', priority: 110, category_hint: '隔离接口' },
-  { pattern: /隔离.*can|can.*隔离/i, tag: 'CAN-FD', priority: 110, category_hint: '隔离接口' },
-  { pattern: /隔离.*i2c|i2c.*隔离|隔离.*i²c/i, tag: 'I2C', priority: 110, category_hint: '隔离接口' },
+  // Interface (compound patterns first — isolation compounds)
+  { pattern: /集成隔离电源.*can|can.*集成隔离电源/i, tag: '集成隔离电源的隔离CAN', priority: 112, category_hint: '隔离接口' },
+  { pattern: /集成隔离电源.*485|集成隔离电源.*rs-?485|485.*集成隔离电源|rs-?485.*集成隔离电源/i, tag: '集成隔离电源的隔离RS485', priority: 112, category_hint: '隔离接口' },
+  { pattern: /隔离.*485|485.*隔离|隔离.*rs-?485|rs-?485.*隔离|isolat.*485|485.*isolat|isolat.*rs-?485/i, tag: '隔离RS485', priority: 110, category_hint: '隔离接口' },
+  { pattern: /隔离.*232|232.*隔离|隔离.*rs-?232|rs-?232.*隔离|isolat.*232|232.*isolat|isolat.*rs-?232/i, tag: '隔离RS-232', priority: 110, category_hint: '隔离接口' },
+  { pattern: /隔离.*can|can.*隔离|isolat.*can|can.*isolat/i, tag: '隔离CAN', priority: 110, category_hint: '隔离接口' },
+  { pattern: /隔离.*i2c|i2c.*隔离|隔离.*i²c|isolat.*i2c|i2c.*isolat/i, tag: '隔离I2C', priority: 110, category_hint: '隔离接口' },
+  { pattern: /隔离.*adc|adc.*隔离/i, tag: '隔离ADC', priority: 110, category_hint: '数据转换' },
   { pattern: /隔离栅极驱动|隔离.*栅极.*驱动|栅极.*隔离.*驱动/i, tag: '隔离栅极驱动', priority: 109, category_hint: '驱动' },
   { pattern: /非隔离栅极驱动|非隔离.*栅极.*驱动/i, tag: '非隔离栅极驱动', priority: 111, category_hint: '驱动' },
-  { pattern: /隔离放大器|隔离.*放大/i, tag: '隔离放大器', priority: 108, category_hint: '隔离放大器' },
+  { pattern: /隔离放大器|隔离.*放大|隔离.*运放|运放.*隔离|隔离.*调制/i, tag: '隔离放大器', priority: 108, category_hint: '隔离放大器' },
   { pattern: /隔离电源/i, tag: '隔离电源', priority: 108, category_hint: '隔离电源' },
   { pattern: /隔离.*电流传感|电流传感.*隔离/i, tag: '电流传感器', priority: 108, category_hint: '传感器' },
 
@@ -106,19 +113,24 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /mlvds/i, tag: 'MLVDS', priority: 85, category_hint: '接口' },
   { pattern: /i2c|i²c/i, tag: 'I2C', priority: 85, category_hint: '接口' },
   { pattern: /\bsbc\b/i, tag: 'SBC', priority: 85, category_hint: '接口' },
+  { pattern: /系统基础芯片/i, tag: 'SBC', priority: 87, category_hint: '接口' },
 
   // Isolation
   { pattern: /数字隔离器|数字隔离/i, tag: '数字隔离器', priority: 85, category_hint: '隔离' },
+  { pattern: /隔离/i, tag: '隔离', priority: 75, category_hint: '隔离' },
   { pattern: /栅极驱动|栅极.*驱动|驱动.*栅极/i, tag: '栅极驱动', priority: 80, category_hint: '驱动' },
 
   // Power
   { pattern: /\bldo\b|低压差|线性稳压/i, tag: 'LDO', priority: 85, category_hint: '电源' },
-  { pattern: /\bdcdc\b|dc[ -]?dc|降压.*变换|升压.*变换|buck|boost/i, tag: 'DCDC', priority: 85, category_hint: '电源' },
+  { pattern: /\bdcdc\b|dc[ -]?dc|降压(?:器|.*变换)|升压(?:器|.*变换)|buck|boost/i, tag: 'DCDC', priority: 85, category_hint: '电源' },
   { pattern: /降压|buck/i, tag: '降压', priority: 80, category_hint: '电源' },
   { pattern: /升压|boost/i, tag: '升压', priority: 80, category_hint: '电源' },
+  { pattern: /电源芯片/i, tag: '电源', priority: 83, category_hint: '电源' },
+  { pattern: /低边驱动|低边开关|low[ -]?side\s*driv/i, tag: '低边驱动', priority: 85, category_hint: '驱动' },
   { pattern: /电子保险丝|efuse|e[ -]?fuse/i, tag: '电子保险丝', priority: 85, category_hint: '电源保护' },
   { pattern: /理想二极管|oring|or[ -]?ing|理想.*二极/i, tag: '理想二极管', priority: 85, category_hint: '电源保护' },
-  { pattern: /高边驱动|高边开关|high[ -]?side/i, tag: '高边驱动', priority: 85, category_hint: '驱动' },
+  { pattern: /高边开关|high[ -]?side[ -]?switch/i, tag: '高边开关', priority: 88, category_hint: '驱动' },
+  { pattern: /高边驱动|high[ -]?side[ -]?driv/i, tag: '高边驱动', priority: 87, category_hint: '驱动' },
   { pattern: /负载开关|load[ -]?switch/i, tag: '负载开关', priority: 85, category_hint: '开关' },
   { pattern: /电源时序|电源.*时序|sequenc/i, tag: '电源时序', priority: 85, category_hint: '电源管理' },
   { pattern: /线性充电|电池充电|charger/i, tag: '线性充电', priority: 85, category_hint: '电池管理' },
@@ -126,16 +138,35 @@ const CATEGORY_RULES: CategoryRule[] = [
 
   // Signal chain
   { pattern: /仪表放大|仪表.*运放|in[ -]?amp/i, tag: '仪表放大器', priority: 90, category_hint: '放大器' },
+  { pattern: /零漂.*运放|零漂.*放大|零漂移.*运放/i, tag: '零漂运算放大器', priority: 92, category_hint: '放大器' },
+  { pattern: /高压.*运放|高压.*放大/i, tag: '高压运算放大器', priority: 92, category_hint: '放大器' },
+  { pattern: /低压.*运放|低压.*放大/i, tag: '低压运算放大器', priority: 92, category_hint: '放大器' },
+  { pattern: /差动放大/i, tag: '差动放大器', priority: 92, category_hint: '放大器' },
+  { pattern: /对数放大/i, tag: '对数放大器', priority: 92, category_hint: '放大器' },
   { pattern: /运放|运算放大|op[ -]?amp|operational/i, tag: '运放', priority: 80, category_hint: '放大器' },
+  { pattern: /放大器/i, tag: '放大器', priority: 78, category_hint: '放大器' },
   { pattern: /比较器|comparator/i, tag: '比较器', priority: 85, category_hint: '比较器' },
   { pattern: /\badc\b|模数转换/i, tag: 'ADC', priority: 85, category_hint: '数据转换' },
   { pattern: /\bdac\b|数模转换/i, tag: 'DAC', priority: 85, category_hint: '数据转换' },
-  { pattern: /电压基准|基准电压|vref|reference/i, tag: '电压基准', priority: 85, category_hint: '电压基准' },
-  { pattern: /电流传感|current[ -]?sens|current[ -]?shunt/i, tag: '电流传感器', priority: 85, category_hint: '传感器' },
-  { pattern: /温度传感|temp[ -]?sens/i, tag: '温度传感器', priority: 85, category_hint: '传感器' },
+  { pattern: /并联型电压基准|shunt\s+voltage\s+reference/i, tag: '并联型电压基准', priority: 90, category_hint: '电压基准' },
+  { pattern: /串联型电压基准|series\s+voltage\s+reference/i, tag: '串联型电压基准', priority: 90, category_hint: '电压基准' },
+  // subordinate: 当query同时命中放大器品类时，电压基准让位给放大器
+  // priority 必须高于所有 primary 品类规则，确保先于 primary 被扫描、进入 pending 状态。
+  { pattern: /电压基准|基准电压|vref|reference/i, tag: '电压基准', priority: 115, category_hint: '电压基准', role: 'subordinate' },
+  // Sensor prio=87 beats generic I²C/SPI protocol rules (85), preventing I2C from hijacking
+  // the category_hint when the user is clearly searching for a sensor (2026-06-24).
+  { pattern: /电流传感|current[ -]?sens|current[ -]?shunt/i, tag: '电流传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /温度传感|temp[ -]?sens/i, tag: '温度传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /位置传感|position[ -]?sens/i, tag: '位置传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /线性位置传感|linear[ -]?position/i, tag: '线性位置传感器', priority: 88, category_hint: '传感器' },
+  { pattern: /速度传感|speed[ -]?sens/i, tag: '速度传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /霍尔.*角度.*编码器|角度.*霍尔.*编码器|hall.*angle.*encoder/i, tag: '霍尔角度编码器', priority: 89, category_hint: '传感器' },
+  { pattern: /磁阻.*角度.*编码器|角度.*磁阻.*编码器|tmr.*angle|magnetoresistive.*encoder/i, tag: '磁阻角度编码器', priority: 89, category_hint: '传感器' },
+  { pattern: /霍尔.*(?:开关|锁存器)|hall.*(?:switch|latch)/i, tag: '霍尔开关/锁存器', priority: 88, category_hint: '传感器' },
+  { pattern: /磁阻.*(?:开关|锁存器)|tmr.*(?:switch|latch)|amr.*(?:switch|latch)/i, tag: '磁阻开关/锁存器', priority: 88, category_hint: '传感器' },
 
   // Switch / Mux
-  { pattern: /模拟开关|analog[ -]?switch|analog[ -]?mux/i, tag: '模拟开关', priority: 85, category_hint: '开关' },
+  { pattern: /模拟开关|analog[ -]?switch|analog[ -]?mux|切.*开关|开关.*切/i, tag: '模拟开关', priority: 85, category_hint: '开关' },
   { pattern: /高速.*复用|高速.*解复用|高速数据复用/i, tag: '高速数据复用器', priority: 85, category_hint: '开关' },
 
   // Motor / Level shift
@@ -146,16 +177,21 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /复位芯片|reset[ -]?ic|看门狗|watchdog/i, tag: '复位芯片', priority: 85, category_hint: '复位' },
   { pattern: /\bbms\b|电池保护|battery[ -]?protect/i, tag: 'BMS', priority: 85, category_hint: '电池管理' },
   { pattern: /逻辑门|与门|或门|非门|and[ -]?gate|or[ -]?gate|logic[ -]?gate/i, tag: '逻辑门', priority: 85, category_hint: '逻辑' },
+  { pattern: /\bmcu\b|\bdsp\b|微控制器|单片机|cortex[ -]?m|arm[ -]?cortex/i, tag: 'MCU/DSP', priority: 85, category_hint: 'MCU/DSP' },
   { pattern: /匹配电阻|电阻网络|resistor[ -]?network/i, tag: '匹配电阻', priority: 85, category_hint: '电阻' },
   { pattern: /视频滤波|video[ -]?filter/i, tag: '视频滤波', priority: 85, category_hint: '视频' },
   { pattern: /传感器接口|sensor[ -]?interface/i, tag: '传感器接口', priority: 85, category_hint: '传感器' },
+  { pattern: /mems.*麦克|pdm.*麦克|硅麦/i, tag: '传感器接口', priority: 87, category_hint: '传感器' },
+  { pattern: /mems.*压力|压力.*mems|压力传感器/i, tag: '压力传感器', priority: 87, category_hint: '传感器' },
   { pattern: /音频总线|audio[ -]?bus/i, tag: '音频总线', priority: 85, category_hint: '音频' },
   { pattern: /emi.*滤波|共模.*滤波|emi[ -]?filter/i, tag: 'EMI滤波器', priority: 85, category_hint: '滤波器' },
   { pattern: /io.*扩展|io.*expander|gpio.*扩展/i, tag: 'IO扩展器', priority: 85, category_hint: 'IO' },
-  { pattern: /2\\.5g/i, tag: '2.5G', priority: 76, category_hint: '以太网' },
+  { pattern: /2\.5g/i, tag: '2.5G', priority: 76, category_hint: '以太网' },
   { pattern: /千兆|ge[ -]?phy|1000base/i, tag: '千兆', priority: 75, category_hint: '以太网' },
   { pattern: /百兆|fe[ -]?phy|100base|100fx/i, tag: '百兆', priority: 74, category_hint: '以太网' },
   // 以太网子品类(优先于泛以太网): 交换机/网卡是独立子品类, 产品_features有对应标签
+  { pattern: /固态继电器|solid[ -]?state[ -]?relay|ssr\b/i, tag: '固态继电器', priority: 86, category_hint: '固态继电器' },
+  { pattern: /poe|以太网供电|power[ -]?over[ -]?ethernet/i, tag: '以太网供电', priority: 75, category_hint: '以太网' },
   { pattern: /交换机|交换芯片|交换|switch/i, tag: '交换机', priority: 73, category_hint: '以太网' },
   { pattern: /网卡|网络适配器|nic\b/i, tag: '网卡', priority: 72, category_hint: '以太网' },
   { pattern: /t1[ -]?phy|sgmii|rgmii|qsgmii|以太网|phy.*接口/i, tag: '以太网', priority: 70, category_hint: '以太网' },
@@ -170,7 +206,20 @@ const MODIFIER_RULES: ModifierRule[] = [
     stripPattern: /隔离|kVrms|5kVrms|3kVrms|隔离栅极驱动|隔离电源|隔离放大器|隔离I2C|隔离CAN|隔离RS485/,
     excludeTags: ['隔离', '5kVrms隔离', '3kVrms隔离', '隔离栅极驱动', '隔离电源', '隔离放大器', '隔离I2C', '隔离CAN', '隔离RS485'] },
   { pattern: /车规|车载|车用|aec[ -]?q100|汽车级|汽车规格/i, action: 'add-tag', tag: '车规AEC-Q100' },
+  { pattern: /局部网络唤醒|局部联网|selective[ -]?wake|partial[ -]?networking/i, action: 'add-tag', tag: '局部网络唤醒' },
+  { pattern: /唤醒|wake[ -]?up/i, action: 'add-tag', tag: '唤醒' },
+  { pattern: /待机|standby/i, action: 'add-tag', tag: '待机模式' },
+  { pattern: /pgood|power[ -]?good|pg\\b|电源好/i, action: 'add-tag', tag: 'PGOOD' },
+  { pattern: /使能|enable(\\s*pin)?|en\\b/i, action: 'add-tag', tag: '使能' },
+  // ── FAE-level: descriptive features that imply capability ──
+  { pattern: /可调输出|adjustable[ -]?output|输出电压.*可调/i, action: 'add-tag', tag: '可调输出' },
+  { pattern: /软启动|soft[ -]?start/i, action: 'add-tag', tag: '软启动' },
+  { pattern: /同步整流|synchronous[ -]?rectif/i, action: 'add-tag', tag: '同步整流' },
+  { pattern: /扩频|spread[ -]?spectrum|展频/i, action: 'add-tag', tag: '扩频' },
+  { pattern: /外部.*(?:同步|时钟)|external[ -]?(?:sync|clock)|ext[ -]?clk/i, action: 'add-tag', tag: '外部同步' },
+  { pattern: /推挽输出|push[ -]?pull|开漏输出|open[ -]?drain/i, action: 'add-tag', tag: '推挽/开漏' },
   { pattern: /工业级|工业/i, action: 'add-tag', tag: '工业级' },
+  { pattern: /消费级|消费类/i, action: 'add-tag', tag: '消费级' },
   { pattern: /半双工/i, action: 'add-tag', tag: '半双工' },
   { pattern: /全双工/i, action: 'add-tag', tag: '全双工' },
   { pattern: /精密|高精度|低失调|低漂移|(?:offset.*?(\d+\.?\d*\s*[uμmμMm]?\s*v)|(\d+\.?\d*\s*[uμmμMm]?\s*v).*?offset)/i, action: 'add-tag', tag: '精密(≤1mV)' },
@@ -181,6 +230,14 @@ const MODIFIER_RULES: ModifierRule[] = [
   { pattern: /特定帧唤醒|partial[ -]?networking/i, action: 'add-tag', tag: '特定帧唤醒' },
   { pattern: /高速|高速率/i, action: 'add-tag', tag: '高速(≥50MHz)' },
   { pattern: /pin[ -]?to[ -]?pin|兼容/i, action: 'add-tag', tag: 'Pin-to-Pin兼容' },
+  // SIC CAN
+  { pattern: /\bsic\b/i, action: 'add-tag', tag: 'SIC' },
+  // Vos ≤1mV explicit
+  { pattern: /1\s*mv|1\s*毫伏|≤\s*1\s*mv|<\s*1\s*mv|小于\s*1\s*mv|以下.*offset|offset.*小于|offset.*以下|offset.*≤.*1/i, action: 'add-tag', tag: 'Vos_<=1mV' },
+  // 非管理型 switch
+  { pattern: /非管理型|非管理|unmanaged/i, action: 'add-tag', tag: '非管理型' },
+  // 霍尔 sensor
+  { pattern: /霍尔|hall/i, action: 'add-tag', tag: '霍尔' },
   // 网络接口类型
   // 介质接口(线路侧): tx=100Base-TX双绞线铜口, fx=光纤, t1=单对线车载. 区别于MAC侧RGMII/SGMII(FAE铁律)
   { pattern: /\btx\b|100base-?tx|双绞线|铜口/i, action: 'add-tag', tag: '100Base-TX' },
@@ -223,7 +280,7 @@ const SORT_RULES: SortRule[] = [
   { pattern: /高\s*带宽|高\s*gbw|带宽高|高\s*增益带宽/i, categories: ['运放'],
     intent: { param: 'GBW', paramKeys: ['gbw', 'gbp'], direction: 'high', require: true, label: '按带宽 GBW 从高到低' } },
   // Vos 失调电压: 越低越好 ("低失调/低Vos/高精度")
-  { pattern: /低\s*失调|失调低|低\s*vos|高精度|精密/i, categories: ['运放', '比较器'],
+  { pattern: /低\s*失调|失调低|低\s*vos|高精度|精密|offset|vos|失调(?:电压)?.*?(?:≤|<=|<|小于|低于|以下|以内|不大于|不超过)?\s*\d+\.?\d*\s*(?:m\s*v|μ\s*v|u\s*v)/i, categories: ['运放', '比较器'],
     intent: { param: 'Vos', paramKeys: ['vos'], direction: 'low', require: true, label: '按失调电压 Vos 从低到高' } },
   // 传播延迟: 越低越好 (比较器/栅极驱动 "低延迟/高速比较器")
   { pattern: /低\s*延迟|延迟低|低\s*delay|快速响应|高速/i, categories: ['比较器', '栅极驱动', '隔离栅极驱动'],
@@ -297,6 +354,13 @@ const PARAM_RULES: ParamRule[] = [
     extract: (m) => [`${fmtNum(parseFloat(m[1]) / 1000)}Mbps`] },
   { pattern: /(\d+)\s*(M|兆|m)\s*bps/i,
     extract: (m) => [`${fmtNum(parseInt(m[1]))}Mbps`] },
+  // ── 口语化速率: "50 兆"/"50M" ≈ 50Mbps (no explicit 'bps') ──
+  // Must come AFTER the bps rules to avoid double-match. Negative-lookahead
+  // prevents matching "50mA"/"50mV"/"50MHz" etc.
+  { pattern: /(\d+)\s*兆(?!欧|克|瓦|安|伏|赫)/i,
+    extract: (m) => [`${fmtNum(parseInt(m[1]))}Mbps`] },
+  { pattern: /(\d+)\s*M\b(?!\s*(?:bps|Hz|V|A|Ω|W|F|ohm|[a-z]))/i,
+    extract: (m) => [`${fmtNum(parseFloat(m[1]))}Mbps`] },
   { pattern: /(\d+)\s*T\s*(\d+)\s*R/i,
     extract: (m) => [`${m[1]}T${m[2]}R`] },
   { pattern: /(\d+)\s*发\s*(\d+)\s*收/,
@@ -305,6 +369,7 @@ const PARAM_RULES: ParamRule[] = [
     extract: (m) => { const a = parseFloat(m[1]); return a >= 0.5 && a <= 100 ? cumulativeThresholds(a, [12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0.5], 'A').map(t => `Iout_${t}`) : []; } },
   { pattern: /(\d+)\s*mA\b/i,
     extract: (m) => { const ma = parseInt(m[1]); return ma <= 10000 && ma >= 50 ? cumulativeThresholds(ma/1000, [12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0.5], 'A').map(t => `Iout_${t}`) : []; } },
+  // Voltage: produces Vin_ tags; engine post-processing converts to Vout_ for LDO/output context
   { pattern: /(\d+\.?\d*)\s*V\b(?!\w)/i,
     extract: (m) => { const v = parseFloat(m[1]); if (v >= 0.5 && v <= 60) { const ts = [48, 36, 24, 12, 5, 3.3, 2.5, 1.8, 1.2, 1, 0.8, 0.6]; return ts.filter(t => v >= t).map(t => `Vin_${Number.isInteger(t)?t:t}V`); } return []; } },
   { pattern: /(\d+)\s*通道/,
@@ -394,12 +459,33 @@ export function parseQuery(query: string): ParseResult {
   //   当 query 含 sbc 时进入复合模式, 允许 SBC 与总线品类标签共存(都进 must).
   const sorted = [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority);
   let ethMatched = false;
+  let subordinateTag: string | null = null;
+  let subordinateHint: string | null = null;
   const isSbcQuery = /\bsbc\b/i.test(query);
   // SBC 复合模式下可与 SBC 共存的总线维度标签(集成在 SBC 内的总线收发器)
   const SBC_BUS_TAGS = new Set(['CAN-FD', 'LIN', 'RS-485', 'RS-232']);
   let sbcMatched = false;
   for (const rule of sorted) {
     if (rule.pattern.test(query)) {
+      // 非隔离 guard: skip isolation compound tags when query explicitly says 非隔离
+      if (/非隔离|不隔离|无隔离/i.test(query) && rule.tag.startsWith('隔离')) continue;
+
+      // subordinate: 此类标签可能只是另一品类的特征。记住但不 break，
+      // 继续扫描看有无 primary 品类也命中。只有 primary 也命中时才让位。
+      if (rule.role === 'subordinate') {
+        if (!subordinateTag) {
+          subordinateTag = rule.tag;
+          subordinateHint = rule.category_hint;
+        }
+        continue;
+      }
+
+      // primary match — if subordinate was pending, add it alongside
+      if (subordinateTag && !features.includes(subordinateTag)) {
+        features.push(subordinateTag);
+        sources.set(subordinateTag, 'modifier');
+      }
+
       if (!features.includes(rule.tag)) {
         features.push(rule.tag);
         sources.set(rule.tag, 'category');
@@ -419,6 +505,75 @@ export function parseQuery(query: string): ParseResult {
       }
       if (sbcMatched && (rule.tag === 'SBC' || SBC_BUS_TAGS.has(rule.tag))) continue;
       break;
+    }
+  }
+
+  // no primary matched — fallback to subordinate as standalone
+  if (!categoryMatched && subordinateTag) {
+    features.push(subordinateTag);
+    sources.set(subordinateTag, 'category');
+    categoryHint = subordinateHint!;
+    categoryMatched = true;
+  }
+
+  // ── Post-category: DCDC + 降压/升压 共存 (same as "降压器"/"升压器" → DCDC + sub-type) ──
+  // "降压器" → DCDC rule fires (priority 85), but we also need 降压 tag.
+  // Conversely, bare "降压" → standalone 降压 rule fires (priority 80), but we also need DCDC parent.
+  if ((features.includes('DCDC') || features.includes('降压') || features.includes('升压'))) {
+    if (!features.includes('DCDC')) {
+      features.push('DCDC');
+      sources.set('DCDC', 'category');
+    }
+    if (/降压|buck/i.test(query) && !features.includes('降压')) {
+      features.push('降压');
+      sources.set('降压', 'category');
+    }
+    if (/升压|boost/i.test(query) && !features.includes('升压')) {
+      features.push('升压');
+      sources.set('升压', 'category');
+    }
+  }
+
+  // ── Post-category: I2C + IO扩展器 共存 ──
+  if (features.includes('I2C') && /io.*扩展|io.*expander|gpio.*扩展/i.test(query) && !features.includes('IO扩展器')) {
+    features.push('IO扩展器');
+    sources.set('IO扩展器', 'category');
+  }
+
+  // ── Compound tag decomposition: 隔离RS485 → RS-485 + 隔离 ──
+  // Products carry individual tokens (隔离, RS-485), not compound category tags.
+  const COMPOUND_DECOMPOSE: Record<string, string[]> = {
+    '隔离RS485': ['RS-485', '隔离'],
+    '隔离CAN': ['CAN-FD', '隔离'],
+    '隔离I2C': ['I2C', '隔离'],
+    '集成隔离电源的隔离CAN': ['隔离电源', 'CAN-FD', '隔离'],
+    '集成隔离电源的隔离RS485': ['隔离电源', 'RS-485', '隔离'],
+  };
+  for (const [compound, parts] of Object.entries(COMPOUND_DECOMPOSE)) {
+    if (features.includes(compound)) {
+      for (const part of parts) {
+        if (!features.includes(part)) {
+          features.push(part);
+          sources.set(part, 'category');
+        }
+      }
+    }
+  }
+
+  // ── Post-category: 八切一 Chinese switch notation (before Chinese numeral normalization) ──
+  //   "八切一开关" → extract "8:1" param; Chinese numeral normalization converts 八→8, 一→1 first.
+  //   Must run on original query before normalization destroys the pattern.
+  const chSwitchMatch = query.match(/([一二三四五六七八九十]+)切([一二三四五六七八九十]+)/);
+  if (chSwitchMatch) {
+    const cnMap: Record<string, number> = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10 };
+    const a = cnMap[chSwitchMatch[1]] || 0;
+    const b = cnMap[chSwitchMatch[2]] || 0;
+    if (a > 0 && b > 0) {
+      const tag = `${a}:${b}`;
+      if (!features.includes(tag)) {
+        features.push(tag);
+        sources.set(tag, 'param');
+      }
     }
   }
 
@@ -485,6 +640,49 @@ export function parseQuery(query: string): ParseResult {
     }
   }
 
+  // ── Post-param: Vin/Vout direction correction for "X转Y" / "X输入Y输出" patterns ──
+  let stepResolved = false;
+  const stepMatch = normalizedQuery.match(/(\d+\.?\d*)\s*V\s*(?:转|到|→|至|输入[^输]*输出)\s*(\d+\.?\d*)\s*V/i);
+  if (stepMatch) {
+    stepResolved = true;
+    const outV = parseFloat(stepMatch[2]);
+    const voutTag = `Vout_${Number.isInteger(outV) ? outV : outV}V`;
+    if (!features.includes(voutTag)) {
+      features.push(voutTag);
+      sources.set(voutTag, 'param');
+    }
+  }
+  // Also handle "输出 X V" and "X V输出" in DCDC/non-LDO context
+  const outVoltMatch = normalizedQuery.match(/输出\s*(\d+\.?\d*)\s*V/i);
+  const revOutMatch = normalizedQuery.match(/(\d+\.?\d*)\s*V\s*输出/i);
+  const outVoltValue = (outVoltMatch || revOutMatch) ? parseFloat((outVoltMatch || revOutMatch)![1]) : null;
+  if (outVoltValue !== null && !stepResolved) {
+    const voutTag = `Vout_${Number.isInteger(outVoltValue) ? outVoltValue : outVoltValue}V`;
+    if (!features.includes(voutTag)) {
+      features.push(voutTag);
+      sources.set(voutTag, 'param');
+    }
+    // Strip all Vin tags ≤ outV (cascade from threshold expansion of output voltage)
+    for (let i = features.length - 1; i >= 0; i--) {
+      const m = features[i].match(/^Vin_(\d+\.?\d*)V$/);
+      if (m && parseFloat(m[1]) <= outVoltValue) features.splice(i, 1);
+    }
+  }
+
+  // ── Post-param: Vin → Vout conversion for LDO/output voltage context ──
+  const isDcdcContext = features.includes('DCDC') || features.includes('降压') || features.includes('升压');
+  if (!stepResolved && !isDcdcContext && /ldo|低压差|线性稳压|输出\s*电压|output\s*voltage|\d+V\s*输出|输出\s*\d+V/i.test(query)) {
+    for (let i = features.length - 1; i >= 0; i--) {
+      const f = features[i];
+      if (f.startsWith('Vin_')) {
+        const newTag = f.replace(/^Vin_/, 'Vout_');
+        features.splice(i, 1);
+        features.push(newTag);
+        sources.set(newTag, 'param');
+      }
+    }
+  }
+
   // ── Universal safety guard: strip param tags that conflict with query ──
   // e.g., "1mv" should not produce "1Mbps" — the 'v' suffix means volts, not bps
   const queryLower = query.toLowerCase();
@@ -497,7 +695,6 @@ export function parseQuery(query: string): ParseResult {
       // If followed by unit chars that are NOT 'bps' → not speed
       if (afterM && !/^b/i.test(afterM) && /^[a-z]+$/.test(afterM)) {
         // Remove all Mbps tags
-        const before = features.length;
         for (let i = features.length - 1; i >= 0; i--) {
           if (features[i].endsWith('Mbps')) {
             features.splice(i, 1);
@@ -515,6 +712,19 @@ export function parseQuery(query: string): ParseResult {
   let explanation = [catTags, modTags, paramTags].filter(Boolean).join('，');
   if (!explanation) explanation = '未匹配到具体品类';
 
+  // ── Redundant tag suppression
+  if (features.includes('Vos_<=1mV') && features.includes('精密(≤1mV)')) {
+    const idx = features.indexOf('精密(≤1mV)');
+    features.splice(idx, 1);
+    sources.delete('精密(≤1mV)');
+  }
+  // 局部网络唤醒 包含 唤醒 语义 → 抑制独立唤醒标签
+  if (features.includes('局部网络唤醒') && features.includes('唤醒')) {
+    const idx = features.indexOf('唤醒');
+    features.splice(idx, 1);
+    sources.delete('唤醒');
+  }
+
   // ── 派生 must/nice 约束(用于以太网硬过滤+降级排序) ──
   // must = 品类(category) + 规格(param) + 物理层介质(TX/T1/FX 虽是modifier但物理层错=产品错)
   // nice = 其余 modifier(车规/工业级/低功耗/速率修饰等), 满足更好
@@ -524,12 +734,17 @@ export function parseQuery(query: string): ParseResult {
   //   产品侧标签仍保留累积列表(表示其覆盖能力), 查询侧 must 只需验证最高门槛.
   const PHY_MEDIA = new Set(['100Base-TX', '100FX', 'T1-PHY']);
 
+  // Tags that should be elevated to must (grade/spec level modifiers)
+  const GRADE_TAGS = new Set(['车规AEC-Q100', '工业级', '消费级']);
+  const MUST_MODIFIER_TAGS = new Set(['全双工', '半双工', '轨到轨', 'Vos_<=1mV', '霍尔', '非管理型', '唤醒', '局部网络唤醒', '待机模式', 'PGOOD', '使能', '可调输出', '软启动', '同步整流', '扩频', '外部同步', '推挽/开漏']);
+
   // 识别参数族 + 提取数值, 用于"同族取最强"
   const paramFamily = (tag: string): { family: string; value: number } | null => {
     let m;
     if ((m = tag.match(/^(\d+)通道$/))) return { family: '通道', value: +m[1] };
     if ((m = tag.match(/^(\d+)bit$/))) return { family: 'bit', value: +m[1] };
     if ((m = tag.match(/^Vin_(\d+\.?\d*)V$/))) return { family: 'Vin', value: +m[1] };
+    if ((m = tag.match(/^Vout_(\d+\.?\d*)V$/))) return { family: 'Vout', value: +m[1] };
     if ((m = tag.match(/^Iout_(\d+\.?\d*)A$/))) return { family: 'Iout', value: +m[1] };
     if ((m = tag.match(/^(\d+\.?\d*)Mbps$/))) return { family: 'Mbps', value: +m[1] };
     return null;
@@ -576,7 +791,28 @@ export function parseQuery(query: string): ParseResult {
       continue;
     }
     const src = sources.get(f);
-    if (PHY_MEDIA.has(f)) {
+    if (GRADE_TAGS.has(f)) {
+      must.push(f);
+      mustMeta.push({ tag: f, dimension: 'grade' });
+    } else if (f === '电压基准' && src === 'modifier') {
+      // subordinate 标签在 compound 模式(src=modifier) → spec 维度, 允许 params_numeric 证据
+      must.push(f);
+      mustMeta.push({ tag: f, dimension: 'spec' });
+    } else if (MUST_MODIFIER_TAGS.has(f)) {
+      must.push(f);
+      // Vos_<=1mV encodes a numeric spec constraint.  Attach family/value so
+      // the constraint layer uses numeric comparison (vosMaxMvOf ≤ value)
+      // instead of a literal token match that never succeeds.
+      const vosMatch = f.match(/^Vos_<=(\d+\.?\d*)(m?)V?$/i);
+      if (vosMatch) {
+        const vosVal = parseFloat(vosMatch[1]);
+        // Vos tags are always in mV; if the tag says V, convert to mV.
+        const vosMv = vosMatch[2] ? vosVal : vosVal;
+        mustMeta.push({ tag: f, dimension: 'spec', family: 'Vos', value: vosMv });
+      } else {
+        mustMeta.push({ tag: f, dimension: 'spec' });
+      }
+    } else if (PHY_MEDIA.has(f)) {
       must.push(f);
       mustMeta.push({ tag: f, dimension: 'media' });
     } else if (src === 'category') {
@@ -612,13 +848,19 @@ export function parseQuery(query: string): ParseResult {
     residual = residual.replace(pat, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  // Cleaned residual: strip noise particles to detect real unconsumed content
+  const NOISE_RE = /\b(的|了|吗|个|是|有|我|你|帮|推荐|推荐一|需要|请问|找|一下|款|颗|个|能|可以|有没有|想要|什么|帮忙|求|可否|是否|怎么|如何|哪|几|给|用|做|要|搞|弄|弄个)\b/gi;
+  const residualClean = residual.replace(NOISE_RE, '').replace(/\s+/g, ' ').trim();
+  // 15+ chars of meaningful residual → parser didn't understand enough → escalate to LLM
+  const residualTooLong = residualClean.length > 15;
+
   return {
     features,
     exclude_tags,
     category_hint: categoryHint,
     explanation,
-    confidence: categoryMatched ? 'high' : 'low',
-    needsLLM: !categoryMatched,
+    confidence: categoryMatched && !residualTooLong ? 'high' : 'low',
+    needsLLM: !categoryMatched || residualTooLong,
     residualQuery: residual,
     must,
     nice,

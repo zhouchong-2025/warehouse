@@ -3,7 +3,20 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-type Product = Record<string, string>;
+type Product = Record<string, unknown> & { part_number?: string };
+
+function toDisplayValue(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => toDisplayValue(item))
+      .filter((item): item is string => Boolean(item));
+    return items.length ? items.join(" | ") : null;
+  }
+  return null;
+}
 
 function CompareContent() {
   const searchParams = useSearchParams();
@@ -27,7 +40,8 @@ function CompareContent() {
     const parts: { part: string; vendorName: string; product: Product }[] = [];
     for (const [, v] of Object.entries(data)) {
       for (const p of v.products) {
-        parts.push({ part: p.part_number, vendorName: v.name, product: p });
+        if (!p.part_number) continue;
+        parts.push({ part: p.part_number!, vendorName: v.name, product: p });
       }
     }
     return parts;
@@ -58,7 +72,7 @@ function CompareContent() {
     const paramSet = new Set<string>();
     for (const { product } of selectedProducts) {
       for (const key of Object.keys(product)) {
-        if (key !== "part_number" && key !== "vendor" && product[key]) {
+        if (key !== "part_number" && key !== "vendor" && toDisplayValue(product[key])) {
           paramSet.add(key);
         }
       }
@@ -67,7 +81,7 @@ function CompareContent() {
     const counts: Record<string, number> = {};
     for (const { product } of selectedProducts) {
       for (const key of paramSet) {
-        if (product[key]) counts[key] = (counts[key] || 0) + 1;
+        if (toDisplayValue(product[key])) counts[key] = (counts[key] || 0) + 1;
       }
     }
     return [...paramSet].sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
@@ -171,16 +185,19 @@ function CompareContent() {
                       <td className="font-medium text-[#8b949e] text-xs">
                         {param.replace(/_/g, " ")}
                       </td>
-                      {selectedProducts.map(({ part, product }) => (
-                        <td
-                          key={part}
-                          className={`text-sm ${
-                            product[param] ? "text-[#e6edf3]" : "text-[#30363d]"
-                          }`}
-                        >
-                          {product[param] || "—"}
-                        </td>
-                      ))}
+                      {selectedProducts.map(({ part, product }) => {
+                        const displayValue = toDisplayValue(product[param]);
+                        return (
+                          <td
+                            key={part}
+                            className={`text-sm ${
+                              displayValue ? "text-[#e6edf3]" : "text-[#30363d]"
+                            }`}
+                          >
+                            {displayValue || "—"}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

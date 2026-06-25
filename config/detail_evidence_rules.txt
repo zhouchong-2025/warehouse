@@ -1,0 +1,27 @@
+# Detail Evidence Rules — 详情页/参数证据 → canonical tag 映射
+# 格式: tag=... | dimension=... | include=... | fields=... | auto=true|false | regex=...
+#
+# tag:       canonical tag to add (must be in VALID_TAGS whitelist)
+# dimension: technology / feature / grade / spec
+# include:   category tags this rule applies to (comma-separated, product must have at least one)
+# fields:    evidence fields to search (comma-separated: _params,_detail_intro,_detail_features,_detail_apps)
+# auto:      true=auto-fix, false=needs manual review
+# regex:     Python regex to match evidence text (search is case-insensitive)
+
+# ── Technology / 技术路线 ──
+tag=霍尔 | dimension=technology | include=电流传感器,位置传感器 | fields=_params,_detail_intro,_detail_features | auto=true | regex=线性霍尔|霍尔效应|平面霍尔|霍尔传感器IC|霍尔传感器芯片|hall\s*effect|linear\s*hall|hall\s*plate|灵敏度.*Gs|灵敏度.*高斯
+tag=磁阻 | dimension=technology | include=电流传感器,位置传感器,角度编码器 | fields=_params,_detail_intro,_detail_features | auto=true | regex=TMR|AMR|磁阻|magnetoresistive|anisotropic\s*magneto
+
+# ── Feature / 功能特性 ──
+tag=SIC | dimension=feature | include=CAN-FD,CAN,RS-485,SBC | fields=_params,_detail_intro,_detail_features | auto=true | regex=signal\s*improvement\s*capability|\bSIC\b|信号改善
+tag=特定帧唤醒 | dimension=feature | include=CAN-FD,CAN,SBC | fields=_params,_detail_intro,_detail_features | auto=true | regex=partial\s*network|特定帧唤醒|selective\s*wake
+tag=轨到轨 | dimension=feature | include=运放,比较器 | fields=_params,_detail_intro,_detail_features | auto=true | regex=轨到轨(?!角度)|rail[\s\-]*to[\s\-]*rail|\\bRRIO\\b|\\bRRI\\b
+
+# ── Power / 功耗等级 ──
+#   排除"低功耗唤醒"（那是CAN功能，不是功耗等级）
+#   "低功耗运算放大器"整体命中 → 来自section名
+tag=低功耗(≤50µA) | dimension=feature | include=运放,比较器,LDO | fields=_features,_params,_section | auto=true | regex=低功耗(?!唤醒)|低功耗运算放大器|[Ll]ow[-\s]*[Pp]ower
+
+# ── Grade / 等级 ──
+#   params 里写"应用等级: 车规"但 features 缺车规标签的
+tag=车规AEC-Q100 | dimension=grade | fields=_params | auto=true | regex=应用等级[:\s]*车规

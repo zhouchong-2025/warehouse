@@ -1,0 +1,25 @@
+# 小样本 parser matrix
+# 格式: key=value | key=value
+# 先覆盖已推广主链路，再逐步扩到传感器/电压基准/马达驱动
+
+category=电压基准 | query=电压基准 | expect_features=电压基准 | expect_must=电压基准 | expect_hint=电压基准 | needs_llm=false
+category=电压基准 | query=低噪声 电压基准 | expect_features=电压基准,低噪声 | expect_must=电压基准 | expect_nice=低噪声 | expect_hint=电压基准 | needs_llm=false
+category=电压基准 | query=串联型电压基准 | expect_features=串联型电压基准 | expect_must=串联型电压基准 | expect_hint=电压基准 | needs_llm=false
+category=电压基准 | query=并联型电压基准 | expect_features=并联型电压基准 | expect_must=并联型电压基准 | expect_hint=电压基准 | needs_llm=false
+category=电压基准 | query=series voltage reference | expect_features=串联型电压基准 | expect_must=串联型电压基准 | expect_hint=电压基准 | needs_llm=false
+category=电压基准 | query=shunt voltage reference | expect_features=并联型电压基准 | expect_must=并联型电压基准 | expect_hint=电压基准 | needs_llm=false
+category=传感器 | query=温度传感器 | expect_features=温度传感器 | expect_must=温度传感器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=车规温度传感器 | expect_features=温度传感器,车规AEC-Q100 | expect_must=温度传感器 | expect_nice=车规AEC-Q100 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=电流传感器 5kVrms | expect_features=电流传感器,5kVrms隔离 | expect_must=电流传感器,5kVrms隔离 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=位置传感器 | expect_features=位置传感器 | expect_must=位置传感器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=磁阻角度编码器 | expect_features=磁阻角度编码器 | expect_must=磁阻角度编码器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=霍尔角度编码器 | expect_features=霍尔角度编码器 | expect_must=霍尔角度编码器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=线性位置传感器 | expect_features=线性位置传感器 | expect_must=线性位置传感器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=霍尔开关 | expect_features=霍尔开关/锁存器 | expect_must=霍尔开关/锁存器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=磁阻开关 | expect_features=磁阻开关/锁存器 | expect_must=磁阻开关/锁存器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=速度传感器 | expect_features=速度传感器 | expect_must=速度传感器 | expect_hint=传感器 | needs_llm=false
+category=传感器 | query=压力传感器 | expect_features=压力传感器 | expect_must=压力传感器 | expect_hint=传感器 | needs_llm=false
+category=驱动 | query=隔离栅极驱动 | expect_features=隔离栅极驱动 | expect_must=隔离栅极驱动 | expect_hint=驱动 | needs_llm=false
+category=驱动 | query=直流马达驱动 1A | expect_features=直流马达驱动,Iout_1A | expect_must=直流马达驱动,Iout_1A | expect_hint=驱动 | needs_llm=false
+category=驱动 | query=步进马达驱动 | expect_features=步进马达驱动 | expect_must=步进马达驱动 | expect_hint=驱动 | needs_llm=false
+category=隔离 | query=数字隔离器 | expect_features=数字隔离器 | expect_must=数字隔离器 | expect_hint=隔离 | needs_llm=false

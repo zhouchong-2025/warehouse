@@ -1,0 +1,100 @@
+纳芯微全品类审计报告
+
+数据文件: /Users/zhouchong/Projects/warehouse/web/public/data/products_structured.json
+规则文件: /Users/zhouchong/Projects/warehouse/scripts/autofix.py
+产品总数: 612
+
+一、重点品类数量（按当前 _features / _section 审计）
+- 隔离栅极驱动: 64 | sample: NSI6801B-DSPR、NSI6801C-DSPR、NSI6601B-DSPR、NSI6601C-DSPR、NSI6601B-DSWVR、NSI6601C-DSWVR、NSI6601MB-DSPR、NSI6601MC-DSPR
+- 非隔离栅极驱动: 29 | sample: NSDRV401、NSD1026V-DSPR、NSD1026V-DHMSR、NSD1026V-DDAER、NSD1026VF-DSPR、NSD1026V-Q1SPR、NSD1026V-Q1HSPR、NSD1026V-Q1HMSR
+- 低边驱动: 17 | sample: NSD5604E-DHTSTR、NSD5604-DHTSPR、NSD5604NE-DHTSTR、NSD5604N-DHTSPR、NSD5604N-Q1HTSPR、NSD12416-Q1SPR、NSD12416A-Q1SPR、NSE11409-QSPR
+- 马达驱动: 29 | sample: NSD7310-DHSPR、NSD7310A-DHSPR、NSD7312-DHSPR、NSD7312A-DHSPR、NSD7310-Q1DHSPR、NSD7312-Q1HSPR、NSD7312A-Q1HSPR、NSD7314-DHTSPR
+- 传感器接口: 19 | sample: NSA2860X-QQNR、NSA2862X-DQNR、NSC2860X-DQNR、NSA2200、NSA2300、NSA2302、NSA9260、NSA9260X
+- 隔离CAN: 7 | sample: NSI1050C-DDBR、NSI1050C-SWR、NSI1042-DSWVR、NSI1042-DSWR、NSI1042C-DSWVR、NSI1042C-DSWR、NSI1052-DSWR
+- 隔离RS485: 2 | sample: NSI84085-DSWR、NSI84085-DSSR
+- 隔离放大器: 8 | sample: NSI1300D05、NSI1300D25、NSI1200、NSI1400、NSI1200C、NSI1311、NSI1312D、NSI1312S
+- 隔离ADC: 7 | sample: NSI1306M25、NSI1306M05、NSI1305M25、NSI1303E0x、NSI1303E2x、NSI1303M0x、NSI1303M2x
+- 数字隔离器: 31 | sample: NSI8200-DSPR、NSI8200-DSWR、NSI8200-DSWWAR、NSI8210Nx、NSI8210Dx、NSI8220Nx、NSI8220Wx、NSI8221Nx
+- MCU/DSP: 22 | sample: NSUC1700、NS800RT5075、NS800RT5039、NS800RT5049、NS800RT5037、NS800RT3025、NS800RT7374S、NS800RT7374D
+- 复位芯片: 11 | sample: NSR7808G01、NSR7808G09、NSR7808G12、NSR7808G125、NSR7808G15、NSR7808G18、NSR7808G19、NSR7808G25
+
+二、section canonical 数量 Top 25
+- 隔离栅极驱动: 64
+- 模拟开关: 58
+- 栅极驱动: 49
+- 运放: 48
+- 位置传感器: 42
+- 数字隔离器: 31
+- 马达驱动: 29
+- 非隔离栅极驱动: 28
+- 电流传感器: 27
+- 温度传感器: 27
+- 电压基准: 24
+- MCU/DSP: 22
+- 传感器接口: 19
+- 压力传感器: 17
+- 低边驱动: 17
+- CAN-FD: 14
+- LDO: 13
+- 复位芯片: 11
+- 高边开关: 11
+- 升压: 10
+- 速度传感器: 8
+- 隔离放大器: 8
+- ADC: 7
+- 隔离电源: 7
+- 隔离ADC: 7
+
+三、原始 _section Top 30
+- 隔离栅极驱动: 64
+- 隔离半桥栅极驱动选型表: 41
+- 数字隔离器选型表: 28
+- 磁阻开关/ 锁存器选型表: 25
+- 串联电压基准选型表: 24
+- 集成式电流传感器选型表: 22
+- 霍尔开关/ 锁存器选型表: 22
+- 温度传感器选型表: 22
+- 低压通用运算放大器选型表: 22
+- 线性位置传感器选型表: 21
+- 实时控制MCU/DSP 选型表: 21
+- 高压通用运算放大器选型表: 20
+- 直流有刷电机驱动选型表: 18
+- MEMS 压力传感器选型表: 17
+- 低边驱动/ 开关选型表: 17
+- 非隔离半桥栅极驱动选型表: 16
+- LDO 线性稳压器选型表: 13
+- 非隔离低边栅极驱动选型表: 12
+- DC-DC 开关变换器选型表: 11
+- 电压监控复位IC 选型表: 11
+- 智能高边开关选型表: 11
+- 霍尔角度编码器选型表: 10
+- Boost 控制器选型表: 10
+- 压力传感器信号调理芯片选型表: 9
+- 速度传感器选型表: 8
+- 线性LED 驱动选型表: 8
+- 模数转换器ADC 选型表: 7
+- 隔离CAN 收发器选型表: 7
+- CAN 收发器选型表: 7
+- 隔离ADC 选型表: 7
+
+四、当前重点护栏审计
+- _sections[0] canonical 与 _section canonical 冲突: 0
+- 隔离子品类互斥冲突: 0
+- 驱动子品类互斥冲突: 0
+- 传感器接口误挂终端传感器: 0
+
+五、未映射 section（Top 30）
+- 无
+
+六、本轮系统修复摘要
+- 修正纳芯微隔离子品类前缀误判：NSI104/NSI105 不再打到隔离放大器，改以 section 为准。
+- 新增“隔离RS-485 收发器选型表 -> 隔离RS485”映射，消除 RS-485 vs 数字隔离器串类。
+- 补齐带空格的 section 映射：实时控制MCU/DSP 选型表、电压监控复位IC 选型表，纳芯微 section 现已 100% canonical 覆盖。
+- 禁止 NSD 系列再用 PN 前缀猜隔离栅极驱动，统一回信原始 _sections / section。
+- 增加 _sections[0] 优先回正护栏，防止后续 feature 反推把 _section 改坏。
+- 增加隔离子品类互斥、驱动子品类互斥、传感器接口 vs 终端传感器互斥。
+- 顺手修复 ASN 音频总线误带 CAN-FD 的跨 vendor 脏链。
+
+七、结论
+- 纳芯微本轮重点品类未发现剩余系统性串类。
+- 当前纳芯微 section 已全部映射到 canonical tag。

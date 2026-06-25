@@ -1,0 +1,103 @@
+# 客户/销售真实需求测试矩阵
+# ============================================
+# 覆盖维度: 自然语言 / 技术参数 / vendor / technology / grade / 边界 / 回归保护
+# 格式: query=... | expect_must=... | expect_hint=... | expect_vendor=... | must_have=... | must_not=... | top_contains=... | min_results=... | reference_only=true|false | note=...
+#
+# query:           客户/销售实际可能输入的查询
+# expect_must:     parser must 列表必须包含的标签(逗号分隔)
+# expect_hint:     期望的 category_hint
+# expect_vendor:   期望的 vendor (仅 API 模式验证, direct 模式不做硬要求)
+# must_have:       结果中必须出现的 PN (逗号分隔)
+# must_not:        结果中禁止出现的 PN (逗号分隔)
+# top_contains:    top1 结果 PN 前缀
+# min_results:     最少期望结果数
+# reference_only:  true=期望全为参考料(无全命中)
+# note:            测试目的说明
+
+# ═══════════════════════════════════════════════════════════
+#  A. 自然语言查询 (客户口语化输入)
+# ═══════════════════════════════════════════════════════════
+
+query=有霍尔开关吗 | expect_must=霍尔开关/锁存器 | expect_hint=传感器 | min_results=1 | note=自然语言疑问句,吗字去掉后应命中
+query=有没有车规的CAN收发器 | expect_must=CAN-FD | expect_hint=接口 | must_have=TPT1042Q | top_contains=TPT10 | min_results=3 | note=自然语言+车规+CAN,应命中车规CAN-FD
+query=帮我找一个5V输出1A的LDO | expect_must=LDO,Vout_5V,Iout_1A | expect_hint=电源 | top_contains=TPL | min_results=1 | note=自然语言+精确参数
+query=想要隔离的485芯片 | expect_must=RS-485 | expect_hint=隔离接口 | min_results=1 | note=自然语言+隔离接口
+query=推荐一款低噪声运放 | expect_must=运放 | expect_hint=放大器 | min_results=3 | note=自然语言+修饰词,低噪声应在nice
+query=能推荐几个纳芯微的电流传感器吗 | expect_must=电流传感器 | expect_hint=传感器 | must_have=NSM2032,NSM2034 | top_contains=NSM | min_results=3 | note=自然语言+vendor+品类
+
+# ═══════════════════════════════════════════════════════════
+#  B. 技术参数查询 (工程师精确搜索)
+# ═══════════════════════════════════════════════════════════
+
+query=隔离 RS-485 20Mbps | expect_must=RS-485 | expect_hint=隔离接口 | min_results=1 | note=隔离接口+速率
+query=LDO 5V 1A 低噪声 | expect_must=LDO | expect_hint=电源 | min_results=1 | note=LDO+电压+电流+修饰(Vout_5V需API/LLM提取)
+query=DCDC 12V转5V 2A | expect_must=DCDC,Vin_12V,Vout_5V | expect_hint=电源 | min_results=1 | note=DCDC+Vin+Vout
+query=车规 CAN-FD 低功耗唤醒 | expect_must=CAN-FD | expect_hint=接口 | min_results=3 | note=CAN复合查询
+query=运放 4通道 低噪声 轨到轨 | expect_must=运放 | expect_hint=放大器 | min_results=3 | note=运放复合参数
+query=数字隔离器 4通道 100Mbps | expect_must=数字隔离器 | expect_hint=隔离 | min_results=1 | note=隔离器+通道+速率
+query=温度传感器 I2C 车规 | expect_must=温度传感器 | expect_hint=传感器 | min_results=1 | note=传感器+接口+等级
+query=ADC 16bit 8通道 | expect_must=ADC | expect_hint=数据转换 | min_results=1 | note=ADC+精度+通道
+query=模拟开关 8:1 | expect_must=模拟开关,8:1 | expect_hint=开关 | min_results=1 | note=开关+配置
+query=电压基准 2.5V 精密 | expect_must=电压基准 | expect_hint=电压基准 | min_results=1 | note=基准+电压+精度
+
+# ═══════════════════════════════════════════════════════════
+#  C. Technology 维度查询 (技术路线/结构)
+# ═══════════════════════════════════════════════════════════
+
+query=霍尔电流传感器 | expect_must=电流传感器,霍尔 | expect_hint=传感器 | must_have=NSM2032,NSM2034,NSM2031-Q0 | min_results=3 | note=霍尔技术+电流传感器
+query=纳芯微 霍尔 电流传感器 | expect_must=电流传感器,霍尔 | expect_hint=传感器 | must_have=NSM2032,NSM2034 | top_contains=NSM | min_results=3 | note=vendor+tech+品类
+query=磁阻角度编码器 | expect_must=磁阻角度编码器 | expect_hint=传感器 | min_results=3 | note=复合品类,不能退化
+query=霍尔角度编码器 | expect_must=霍尔角度编码器 | expect_hint=传感器 | min_results=3 | note=复合品类,不能退化
+query=SIC CAN FD | expect_must=CAN-FD | expect_hint=接口 | min_results=1 | note=SIC+CAN
+query=特定帧唤醒 CAN | expect_must=CAN-FD | expect_hint=接口 | min_results=1 | note=特定帧唤醒+CAN
+
+# ═══════════════════════════════════════════════════════════
+#  D. Vendor 限定查询
+# ═══════════════════════════════════════════════════════════
+
+query=纳芯微 隔离栅极驱动 | expect_must=隔离栅极驱动 | expect_hint=驱动 | top_contains=NSI | min_results=3 | note=vendor+品类
+query=3peak 运放 精密 | expect_must=运放 | expect_hint=放大器 | min_results=3 | note=vendor+品类+修饰
+query=思瑞浦 CAN收发器 | expect_must=CAN-FD | expect_hint=接口 | top_contains=TP | min_results=3 | note=中文vendor名+品类
+
+# ═══════════════════════════════════════════════════════════
+#  E. 边界/负面案例 (不应该误推荐)
+# ═══════════════════════════════════════════════════════════
+
+query=3peak 霍尔 电流传感器 | expect_must=电流传感器,霍尔 | expect_hint=传感器 | reference_only=true | note=3peak无霍尔证据电流传感器,应全为参考料
+query=非隔离 RS-485 | note=非隔离应去隔离标签保留RS-485, hint精确度非关键
+query=霍尔 马达驱动 | expect_must=马达驱动,霍尔 | expect_hint=驱动 | reference_only=true | note=不应把无霍尔证据的普通马达驱动包装成推荐
+query=磁阻开关 | expect_must=磁阻开关/锁存器 | expect_hint=传感器 | min_results=3 | note=磁阻开关=独立品类,不是磁阻+开关
+
+# ═══════════════════════════════════════════════════════════
+#  F. 回归保护 (之前修过的bug不能再犯)
+# ═══════════════════════════════════════════════════════════
+
+query=线性霍尔电流传感器 | expect_must=电流传感器,霍尔 | expect_hint=传感器 | must_have=NSM2032,NSM2034,NSM2031-Q0,MT9519 | min_results=4 | note=回归:MT9519+NSM2031不能被漏掉
+query=霍尔角度编码器 | expect_must=霍尔角度编码器 | expect_hint=传感器 | must_not=位置传感器 | note=回归:不能退化成位置传感器
+query=磁阻角度编码器 | expect_must=磁阻角度编码器 | expect_hint=传感器 | must_not=位置传感器 | note=回归:不能退化成位置传感器
+query=隔离485 50Mbps | expect_must=RS-485 | expect_hint=隔离接口 | note=回归:50Mbps隔离485零结果应正确建议20Mbps
+query=低压差 LDO | expect_must=LDO | expect_hint=电源 | min_results=3 | note=回归:低压差→LDO不丢
+
+# ═══════════════════════════════════════════════════════════
+#  G. 中英混合 / 简写查询
+# ═══════════════════════════════════════════════════════════
+
+query=isolated CAN FD automotive | expect_must=CAN-FD | expect_hint=隔离接口 | min_results=1 | note=英文混合查询
+query=RS485 transceiver 10Mbps | expect_must=RS-485 | expect_hint=接口 | min_results=1 | note=英文+参数
+query=high PSRR LDO low noise | expect_must=LDO | expect_hint=电源 | min_results=1 | note=英文修饰词
+
+# ═══════════════════════════════════════════════════════════
+#  H. 口语化阈值查询 (速率大于/电流不小于/通道大于 — 中文自然语言)
+# ═══════════════════════════════════════════════════════════
+
+query=数字隔离器 速率大于 50 兆 | expect_must=数字隔离器,50Mbps | expect_hint=隔离 | note=口语化速率: 兆=Mbps
+query=数字隔离器 速率大于50M | expect_must=数字隔离器,50Mbps | expect_hint=隔离 | note=口语化速率: M bps
+query=RS-485 速率不小于 20 兆 | expect_must=RS-485,20Mbps | expect_hint=接口 | note=口语化: 不小于=≥
+query=CAN FD 码流大于 5M | expect_must=CAN-FD,5Mbps | expect_hint=接口 | note=口语化: 码流=速率
+query=LDO 电流大于 1A | expect_must=LDO,Iout_1A | expect_hint=电源 | min_results=5 | note=口语化: 电流大于X
+query=DCDC 电流不小于 3A | expect_must=DCDC,Iout_3A | expect_hint=电源 | min_results=1 | note=口语化: 不小于Iout
+query=栅极驱动 驱动电流大于 5A | expect_must=栅极驱动,Iout_5A | expect_hint=驱动 | min_results=1 | note=口语化: 驱动电流
+query=运放 通道大于 2 | expect_must=运放 | expect_hint=放大器 | min_results=3 | note=口语化: 通道数(走downgradable)
+query=比较器 通道不小于 2 | expect_must=比较器 | expect_hint=比较器 | min_results=1 | note=口语化: 通道数
+query=ADC 精度大于 12bit | expect_must=ADC | expect_hint=数据转换 | min_results=1 | note=口语化: 精度bit
+query=交换机 端口大于 5 口 | expect_must=交换机 | expect_hint=以太网 | note=口语化: 端口数

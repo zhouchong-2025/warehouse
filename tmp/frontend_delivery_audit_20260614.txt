@@ -1,0 +1,265 @@
+Warehouse 前端/交付层问题清单（给 Codex 执行）
+日期: 2026-06-14
+范围: 只做问题清单+证据+建议修法；本轮不修纳芯微主推逻辑
+
+一、已跑测试
+1) python3 scripts/validate.py --search
+- 结果: 全通过（17/17）
+
+2) python3 scripts/test_constraint_layer.py
+- 结果: 62/62 通过
+
+3) cd web && npm run build
+- 结果: 通过
+
+4) python3 scripts/cross_category_audit.py
+- 结果: 主链路可用，但存在多条排序/错品类/解释边界问题
+
+5) python3 scripts/test_fae_interpret.py
+- 结果: 4/18 通过
+- 结论: interpret 语义层与预期 canonical tags 漂移严重
+
+6) python3 scripts/audit_contradictions.py
+- 结果: 有明显数据矛盾（非隔离/隔离、Q1/车规）
+
+7) python3 scripts/toc_audit.py
+- 结果: 31 issues（EMPTY_CATEGORY 11 + WRONG_SECTION 20）
+
+
+二、建议 Codex 优先处理的交付层问题（最小改动优先）
+
+P0-1. 首页与 /products 页数据源不一致
+现象:
+- 首页 web/app/page.tsx 读取 /data/products_structured.json
+- /products/page.tsx 读取 /data/products.json
+- scripts/generate_data.py 生成的是 products.json
+
+证据:
+- web/app/page.tsx: fetch("/data/products_structured.json")
+- web/app/products/page.tsx: fetch("/data/products.json")
+- scripts/generate_data.py: output_path = OUTPUT / "products.json"
+
+数量差异:
+- products_structured.json: 1759
+  - 3peak-analog 894
+  - 3peak-auto 260
+  - novosense 537
+  - yutai 68
+- products.json: 2483
+  - 3peak-analog 825
+  - 3peak-auto 380
+  - novosense 1161
+  - yutai 117
+
+脏数据证据:
+- products.json 中存在假型号/泛词条目: RS232, RS485
+
+风险:
+- 首页搜到的结果与 /products 页面结果口径不同
+- /products 页面会展示低质量粗抽取结果
+- 用户会感知为“首页有，列表页没有”或“列表页有脏型号”
+
+建议修法:
+A. /products 页面改为读取 products_structured.json，与首页统一单一真源
+B. 如果 /products 需要轻量索引，单独从 structured 数据派生，不再使用 generate_data.py 的粗抽取 products.json
+C. 若短期不删 products.json，至少将其明确标记为 legacy，不允许用户页继续消费
+
+验收:
+- 同一型号在首页与 /products?q=型号 的结果数一致
+- /products 页面不再出现 RS232 / RS485 这类假型号
+
+
+P0-2. 首页卡片 category badge 取法错误，参数会被当成品类
+现象:
+- 当前逻辑: 从 _features 去掉 grade 后，直接取最后一个 token 作为 categoryTag
+- 导致大量产品卡片 badge 显示成 1通道 / Vin_36V / Vin_4.5V 一类参数标签
+
+证据代码:
+- web/app/page.tsx 约 506-514 行:
+  const categoryTag = feat.split(" ").filter(...).pop() || "";
+
+审计结果:
+- suspicious_badge_count = 551
+
+样例:
+- LM2902A -> badge 可能为 1通道
+- LM321A -> badge 可能为 Vin_36V
+- TP1241 -> badge 可能为 Vin_4.5V
+
+风险:
+- 首屏信息误导
+- 用户看不到真实品类，只看到参数碎片
+- 后续“主推表高亮”若基于当前 badge 视觉体系，会进一步混乱
+
+建议修法:
+A. category badge 不要再用“最后一个 token”猜
+B. 改成白名单品类优先匹配，例如只从 canonical category tags 中选：
+   运放, 比较器, DCDC, LDO, SBC, CAN-FD, LIN, RS-485, RS-232, 数字隔离器,
+   栅极驱动, 隔离栅极驱动, 非隔离栅极驱动, 马达驱动, 模拟开关, 电平转换, IO扩展,
+   电流传感器, 温度传感器, 位置传感器, 电压基准, DAC, ADC, 隔离电源, 交换机, 网卡, 以太网供电 等
+C. 若命中多个品类，按优先级取最具体的真实品类，而不是 capability tag
+D. 若仍取不到，才 fallback 到 _section
+
+验收:
+- 随机抽 50 个卡片，badge 不应出现 Vin_/Vout_/Iout_/1通道/2口/100Mbps/SGMII 这类参数或媒介标签
+
+
+P0-3. Suggestions 仅展示文本，不可点击采用
+现象:
+- suggestion 卡片只显示 s.text，没有交互
+- 用户不能一键采用建议 query 重跑
+
+证据代码:
+- web/app/page.tsx 481-489 行（有结果时建议横幅）
+- web/app/page.tsx 570-577 行（零结果建议卡）
+- 都只是渲染文本，没有 onClick 使用 s.query
+
+风险:
+- 建议存在但不可操作
+- 前端复测效率低
+- 未来“主推表推荐型号高亮”无法自然接入建议流转
+
+建议修法:
+A. suggestion 卡增加“查看/采用此建议”按钮
+B. 点击后执行:
+   - setSearch(s.query)
+   - setSearchTrigger(c => c + 1)
+C. 若 suggestion.reason 是 too_many / no_match / best_alternative，可显示不同按钮文案
+D. 若后续接主推表，可在 suggestion 采用后，把高亮逻辑一起触发
+
+验收:
+- 零结果与有结果两种 suggestion 卡都可以一键重搜
+- 用户无需手工复制建议文案
+
+
+P1-1. vendor 筛选逻辑未体现 3peak 聚合语义
+现象:
+- 当前首页筛选逻辑是纯 slug 精确匹配
+- 没看到 3peak-analog + 3peak-auto 的聚合处理
+
+证据代码:
+- web/app/page.tsx 156-157 行:
+  if (activeVendor && vendor !== activeVendor) continue;
+
+风险:
+- 用户选择某 vendor 时，3peak 两套 catalog 可能被拆开
+- 后续做“主推表高亮”时，vendor 限定会有隐藏结果问题
+
+建议修法:
+A. 恢复/增加 vendorMap 聚合层
+B. UI 可展示“3peak”总入口，内部同时匹配 3peak-analog + 3peak-auto
+C. 若仍保留两个子入口，也要保证语义查询或推荐逻辑可选择“聚合 3peak”模式
+
+验收:
+- 以“3peak 隔离驱动/3peak CAN”类查询测试，不会因为 vendor filter 把另一半 catalog 藏掉
+
+
+P1-2. /products 页面本身过于简陋，不适合作为正式交付入口
+现象:
+- /products 只按 part_number contains 过滤
+- 不展示结构化参数
+- 数据源还是 legacy products.json
+
+风险:
+- 用户从首页跳过去后，感知质量下降
+- 像一个调试页，不像正式页面
+
+建议修法:
+A. 若保留 /products，就切 structured 数据并至少展示 vendor + 核心参数
+B. 若无明确用途，建议降级为内部调试页，不暴露给用户主流程
+
+
+三、建议 Codex 暂不修，但需要单列跟踪的数据问题
+
+D-1. 非隔离/隔离标签冲突
+审计结果:
+- 非隔离→隔离: 6
+- 无隔离关键词却带隔离标签: 71
+
+代表样例:
+- NSD1026V 系列 raw 明示“非隔离低边栅极驱动”，features 却带“隔离栅极驱动”
+- NSD1624 系列 raw 明示“非隔离半桥栅极驱动”，features 却带“隔离栅极驱动”
+- 2 个直流有刷电机驱动被挂成“隔离栅极驱动”
+
+说明:
+- 用户已说纳芯微先不用修复，本轮只记录，不动
+- 但后面做“主推表高亮”前必须清掉，否则会高亮错品类
+
+
+D-2. Q1 未挂车规AEC-Q100
+审计结果:
+- q1_missing_vehicle_grade_count = 69
+
+代表样例:
+- NSM2011-Q1
+- NSM2012-Q1
+- NST175-Q1
+- NCA1043B-Q1
+- NCA1462-Q1
+
+风险:
+- 车规查询漏召回
+- 车规 badge/推荐解释错误
+
+
+D-3. TOC 全局结构未完全收口
+审计结果:
+- 31 issues
+  - EMPTY_CATEGORY 11
+  - WRONG_SECTION 20
+
+说明:
+- 主链路虽可用，但全库结构仍未彻底闭环
+- 不建议现在把“全部完成”作为对外口径
+
+
+四、建议 Codex 同步整理的前端复测用例
+
+A. 语义/建议层
+1. 车规CAN FD，支持特定帧唤醒
+2. SBC系统基础芯片车规
+3. 2.5g switch
+4. 车载百兆phy，tx接口
+5. 8口千兆交换机，非管理型
+6. 车规高速运放，低功耗
+7. 微功耗运放
+8. 便宜运放
+
+B. 错品类泄漏
+9. 温度传感器车规
+10. 高压隔离运放
+11. 5kV隔离CAN收发器
+
+C. 电源交付质量
+12. 输入5v，输出12v，输电电流1a
+13. 24v输入5v输出降压2a
+14. 车规12v输入3.3v输出dcdc
+
+D. 隔离/非隔离边界
+15. 非隔离栅极驱动
+16. 隔离栅极驱动
+17. 纳芯微 非隔离栅极驱动
+18. 纳芯微 隔离栅极驱动
+
+E. 交付一致性
+19. 首页搜型号，再到 /products?q=型号 对比结果数
+20. 检查卡片 badge 是否错误显示 Vin_36V / 1通道 等
+21. 检查 suggestion 是否可点击采用
+22. 检查 vendor 切换时 3peak 结果是否被切半
+
+
+五、执行顺序建议（给 Codex）
+1. 先修 P0-1 数据源统一
+2. 再修 P0-2 category badge 白名单化
+3. 再修 P0-3 suggestion 可点击采用
+4. 最后评估 P1-1 vendor 聚合
+
+原因:
+- 这 3 个改完，前端“交付观感”会先明显变好
+- 且不涉及你后面要接入的纳芯微主推表高亮逻辑，冲突最小
+
+
+六、当前结论
+- 主搜索/约束层回归是绿的
+- 但前端交付层还存在“数据源不一致、badge 错展示、suggestion 不可交互”三大明确问题
+- 建议 Codex 先修这三项，再接主推表高亮

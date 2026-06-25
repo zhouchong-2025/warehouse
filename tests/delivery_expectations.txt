@@ -1,0 +1,22 @@
+# Delivery Expectations — 前端交付排序 E2E 测试
+# 格式: query=... | pool=... | must_have=... | must_not=... | top_contains=... | zero_or_reference_only=... | explain_must=...
+#
+# query: 用户查询
+# pool: 限定 vendor (novosense / 3peak / all)
+# must_have: 结果中必须包含的 PN (逗号分隔)
+# must_not: 结果中不能包含的 PN (逗号分隔)
+# top_contains: top 结果 PN 必须包含的前缀 (逗号分隔)
+# zero_or_reference_only: true=期望零结果或仅参考料
+# explain_must: 期望 must 列表包含的标签 (逗号分隔)
+
+# ── 霍尔电流传感器 (数据已有霍尔标签) ──
+query=霍尔电流传感器 | pool=all | must_have=NSM2032,NSM2034 | explain_must=电流传感器,霍尔
+
+# ── 纳芯微 霍尔 电流传感器 ──
+query=纳芯微 霍尔 电流传感器 | pool=novosense | must_have=NSM2032,NSM2034 | explain_must=电流传感器,霍尔
+
+# ── 3peak 霍尔 电流传感器 (3peak 当前无霍尔证据电流传感器) ──
+query=3peak 霍尔 电流传感器 | pool=3peak | zero_or_reference_only=true | explain_missing=霍尔
+
+# ── 磁阻电流传感器 (全库搜索) ──
+query=磁阻电流传感器 | pool=all | explain_must=电流传感器,磁阻

@@ -13,13 +13,18 @@ PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "web", "app", "api",
 CATEGORY_TAGS = [
     '运放','放大器','比较器','LDO','DCDC','升压','降压','CAN-FD','LIN',
     'RS-485','RS-232','I2C','栅极驱动','隔离栅极驱动','马达驱动','模拟开关',
-    '负载开关','IO扩展','数字隔离器','隔离放大器','隔离电源','温度传感器',
-    '压力传感器','位置传感器','电流传感器','电压基准','ADC','DAC',
+    '负载开关','IO扩展','IO扩展器','数字隔离器','隔离放大器','隔离电源','隔离ADC','隔离I2C','隔离RS485','集成隔离电源的隔离CAN','集成隔离电源的隔离RS485','温度传感器',
+    '压力传感器','位置传感器','电流传感器','电流检测放大器','电流功率检测器',
+    '电压基准','ADC','DAC',
     '复位芯片','以太网','交换机','网卡','T1-PHY','SGMII','RGMII','QSGMII',
+    'PHY',
     '逻辑','电平转换','SBC','100FX','MLVDS','以太网供电',
     'TVS/ESD','EMI滤波器','电池充电','音频功放','音频总线','匹配电阻','传感器接口',
-    '高边驱动','电池监控','电子保险丝','理想二极管','电源时序','BMS','逻辑门',
-    '视频滤波',
+    '高边驱动','高边开关','低边驱动','电池监控','电子保险丝','理想二极管','电源时序','BMS','逻辑门',
+    '视频滤波','隔离CAN','LED驱动','MCU/DSP','速度传感器','线性位置传感器',
+    '霍尔角度编码器', '磁阻角度编码器', '霍尔开关/锁存器', '磁阻开关/锁存器',
+    '固态继电器',
+    'PMIC', 'DrMOS', '氮化镓功率芯片',
 ]
 
 # ── Check 1: Category tags ──
@@ -35,9 +40,31 @@ def check_tags(data):
         if len(no_tag) > 10: issues.append("  ... +{}".format(len(no_tag)-10))
     return len(no_tag) == 0, issues, no_tag
 
+# ── Check 1.5: Exclusive category pollution ──
+EXCLUSIVE_CATEGORY_GROUPS = [
+    ('运放', '比较器'),
+]
+
+def check_exclusive_categories(data):
+    issues, polluted = [], []
+    for slug, vd in data.items():
+        for p in vd['products']:
+            feats = set((p.get('_features', '') or '').split())
+            for group in EXCLUSIVE_CATEGORY_GROUPS:
+                hit = [tag for tag in group if tag in feats]
+                if len(hit) > 1:
+                    polluted.append((p['part_number'], vd['name'], '/'.join(hit), p.get('_section', '')))
+    if polluted:
+        issues.append("{} 产品存在互斥品类双标".format(len(polluted)))
+        for pn, vn, tags, sec in polluted[:10]:
+            issues.append("  {} [{}] {} section={}".format(pn, vn, tags, sec))
+        if len(polluted) > 10:
+            issues.append("  ... +{}".format(len(polluted)-10))
+    return len(polluted) == 0, issues, polluted
+
 # ── Check 2: Schema value types ──
 def is_numeric_or_range(s):
-    s = s.strip()
+    s = s.strip().replace('\\u2212', '-').replace('−', '-').replace('–', '-').replace('—', '-')
     if not s or s in ('/','NA','N/A','-','External FET','Isolated Output'): return True
     if s in ('>VIN','VIN~45','VIN~80'): return True
     if re.match(r'^[\d.]+\s*[~\-]\s*[\d.]+', s): return True
@@ -159,7 +186,8 @@ def check_section_coverage(data):
         '隔离栅极驱动': '隔离栅极驱动', '非隔离栅极驱动': '栅极驱动',
         '升压变换器': '升压', '宽压降压变换器': '降压', '中压降压变换器': '降压', '低压降压变换器': '降压',
         '负载开关': '负载开关', '高边开关': '负载开关',
-        '比较器': '比较器', '电流信号检测放大器': '电流传感器',
+        '比较器': '比较器', '电流信号检测放大器': '电流检测放大器',
+        '数字式电流/功率检测器': '电流功率检测器',
         '串联型电压基准': '电压基准', '并联型电压基准': '电压基准',
     }
     
@@ -173,6 +201,9 @@ def check_section_coverage(data):
         if not tag: continue
         for pn in pns:
             if pn in db_pns and tag not in db_pns[pn]:
+                # SBC products: CAN-FD/LIN/RS-485 are integrated sub-features, not category
+                if 'SBC' in db_pns[pn] and tag in ('CAN-FD','LIN','RS-485','RS-232'):
+                    continue
                 missing.append((pn, section, tag))
     
     if missing:
@@ -269,7 +300,7 @@ def main():
     results = {}
     all_oks = []
     
-    for name, fn in [('TAGS', check_tags), ('SCHEMA', check_schema), ('PARAMN', check_paramn), 
+    for name, fn in [('TAGS', check_tags), ('EXCLUSIVE', check_exclusive_categories), ('SCHEMA', check_schema), ('PARAMN', check_paramn), 
                       ('SECTION', check_section_coverage), ('LLM', check_prompt)]:
         ok, issues, detail = fn(data)
         results[name.lower()] = {'ok': ok, 'issues': issues, 'count': len(detail)}

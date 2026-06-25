@@ -1,0 +1,22 @@
+# query 输入理解矩阵 — 测试 parser 对用户 query 的语义理解
+# 格式: query=... | expect_vendor=... | expect_must=... | expect_nice=... | expect_hint=... | forbid_must=...
+# expect_vendor: 期望的 vendor (novosense/3peak), null=不限, 仅 API 模式有效
+# expect_must: 必须出现在 must 列表中的标签(逗号分隔)
+# expect_nice: 应该出现在 nice 列表中的标签(逗号分隔)
+# expect_hint: 期望的 category_hint
+# forbid_must: 绝不能出现在 must 列表中的标签(逗号分隔)
+
+# ── 霍尔电流传感器 ──
+query=霍尔电流传感器 | expect_must=电流传感器,霍尔 | expect_hint=传感器
+query=纳芯微 霍尔 电流传感器 | expect_vendor=novosense | expect_must=电流传感器,霍尔 | expect_hint=传感器
+query=3peak 霍尔 电流传感器 | expect_vendor=3peak | expect_must=电流传感器,霍尔 | expect_hint=传感器
+
+# ── 磁阻电流传感器 ──
+query=磁阻电流传感器 | expect_must=电流传感器,磁阻 | expect_hint=传感器
+
+# ── 角度编码器(保持品类完整性, 不退化) ──
+query=霍尔角度编码器 | expect_must=霍尔角度编码器 | expect_hint=传感器 | forbid_must=位置传感器
+query=磁阻角度编码器 | expect_must=磁阻角度编码器 | expect_hint=传感器 | forbid_must=位置传感器
+
+# ── 技术路线 + 已有品类(回归保护: 不让泛泛位置传感器混入专有品类) ──
+query=霍尔 位置传感器 | expect_must=位置传感器,霍尔 | expect_hint=传感器

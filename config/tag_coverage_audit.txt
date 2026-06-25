@@ -1,0 +1,31 @@
+# Tag Coverage Audit Rules — 宽泛关键词全局扫描
+# 格式: tag=... | include=... | dimension=... | keywords=...
+#
+# ★ keywords= 必须在行末(可能含 | 字符), 其他字段必须在 keywords= 之前
+#
+# 与 detail_evidence_rules.txt 的区别:
+#   detail_evidence_rules: 精确 regex, auto-fix 用 (零假阳性)
+#   tag_coverage_audit:    宽泛关键词, 发现覆盖盲区用 (允许假阳性, 人工判断)
+#
+# tag:       canonical tag to check
+# include:   only check products with these category tags (comma-sep, optional)
+# dimension: technology / feature / grade / spec
+# keywords:  broad regex to find candidate products (case-insensitive, placed LAST)
+
+# ── 霍尔 (Hall) ──
+tag=霍尔 | include=电流传感器,位置传感器 | dimension=technology | keywords=霍尔|hall\s*effect|hall\s*plate|hall\s*sens|线性霍尔|平面霍尔|高斯|Gs\/|mV\/Gs|磁通密度|magnetic\s*flux
+
+# ── 磁阻 (Magnetoresistive) ──
+tag=磁阻 | include=电流传感器,位置传感器,角度编码器 | dimension=technology | keywords=TMR|AMR|GMR|磁阻|magnetoresistive|xMR|惠斯通|wheatstone.*bridge|各向异性
+
+# ── SIC (Signal Improvement Capability) — CAN 专用 ──
+tag=SIC | include=CAN-FD,CAN,RS-485,SBC | dimension=feature | keywords=SIC|signal\s*improvement|信号改善|增强.*CAN|CAN.*增强
+
+# ── 特定帧唤醒 (Partial Networking) — CAN 专用 ──
+tag=特定帧唤醒 | include=CAN-FD,CAN,SBC,LIN | dimension=feature | keywords=partial\s*network|selective\s*wake|特定帧唤醒|wake[-\s]*up.*frame|睡眠.*唤醒
+
+# ── 隔离 (Isolation) ──
+tag=隔离 | include=隔离栅极驱动,数字隔离器,隔离放大器,隔离CAN,隔离ADC,隔离电源 | dimension=feature | keywords=隔离电压|isolation\s*voltage|kVrms|kVDC|耐压|withstand\s*voltage|绝缘
+
+# ── 低功耗 (Low Power) ──  
+tag=低功耗(≤50µA) | include=运放,比较器,LDO,电压基准 | dimension=feature | keywords=低功耗(?!唤醒)|low[-\s]*power|静态电流.*[0-9.]+\s*[uμ]nA|I[qQ].*[0-9.]+\s*[uμ]nA|(?<!低功耗)低功耗运算放大器
