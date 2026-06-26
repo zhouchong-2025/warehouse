@@ -1,5 +1,5 @@
 == 可用标签（自动同步自 tag_schema.json） ==
-100Mbps, 10Mbps, 10bit, 12bit, 14bit, 150Mbps, 16bit, 16通道, 18bit, 1:1, 1Mbps, 1T0R, 1T1R, 1通道, 200Mbps, 20Mbps, 20bit, 24bit, 2:1, 2Mbps, 2T1R, 2T2R, 2通道, 32通道, 3T5R, 3kVrms隔离, 4:1, 4T0R, 4通道, 50Mbps, 5Mbps, 5kVrms隔离, 8:1, 8bit, 8通道, ADC, BMS, CAN-FD, DAC, DCDC, EMI滤波器, I2C, IO扩展器, Iout_0.5A, Iout_10A, Iout_12A, Iout_1A, Iout_2A, Iout_3A, Iout_4A, Iout_5A, Iout_6A, Iout_7A, Iout_8A, LDO, LIN, MLVDS, Pin-to-Pin兼容, RS-232, RS-485, SBC, Vin_1.2V, Vin_1.8V, Vin_12V, Vin_2.5V, Vin_24V, Vin_3.3V, Vin_36V, Vin_48V, Vin_5V, Vout_0.6V, Vout_0.8V, Vout_1.2V, Vout_1.8V, Vout_2.5V, Vout_3.3V, Vout_5V, 仪表放大器, 传感器接口, 低功耗唤醒, 低噪声, 全双工, 匹配电阻, 千兆, 升压, 半双工, 复位芯片, 工业级, 数字隔离器, 栅极驱动, 模拟开关, 比较器, 温度传感器, 特定帧唤醒, 理想二极管, 电压基准, 电子保险丝, 电平转换, 电池监控, 电流传感器, 电源时序, 精密(≤1mV), 线性充电, 视频滤波, 负载开关, 车规AEC-Q100, 轨到轨, 运放, 逻辑门, 降压, 隔离, 隔离CAN, 隔离I2C, 隔离RS485, 隔离放大器, 隔离栅极驱动, 隔离电源, 非隔离栅极驱动, 音频总线, 马达驱动, 高PSRR, 高边驱动, 高速(≥50MHz), 高速数据复用器
+100Mbps, 10Mbps, 10bit, 12bit, 14bit, 150Mbps, 16bit, 16通道, 18bit, 1:1, 1Mbps, 1T0R, 1T1R, 1通道, 200Mbps, 20Mbps, 20bit, 24bit, 2:1, 2Mbps, 2T1R, 2T2R, 2通道, 32通道, 3T5R, 3kVrms隔离, 4:1, 4T0R, 4通道, 50Mbps, 5Mbps, 5kVrms隔离, 8:1, 8bit, 8通道, ADC, BMS, CAN-FD, DAC, DCDC, EMI滤波器, I2C, IO扩展器, Iout_0.5A, Iout_10A, Iout_12A, Iout_1A, Iout_2A, Iout_3A, Iout_4A, Iout_5A, Iout_6A, Iout_7A, Iout_8A, LDO, LED驱动, LIN, MLVDS, Pin-to-Pin兼容, RS-232, RS-485, SBC, SiC, Vin_1.2V, Vin_1.8V, Vin_12V, Vin_2.5V, Vin_24V, Vin_3.3V, Vin_36V, Vin_48V, Vin_5V, Vout_0.6V, Vout_0.8V, Vout_1.2V, Vout_1.8V, Vout_2.5V, Vout_3.3V, Vout_5V, 仪表放大器, 传感器接口, 低功耗唤醒, 低噪声, 低漂移, 全双工, 匹配电阻, 千兆, 升压, 半双工, 复位芯片, 工业级, 数字隔离器, 栅极驱动, 模拟开关, 比较器, 温度传感器, 特定帧唤醒, 理想二极管, 电压基准, 电子保险丝, 电平转换, 电池监控, 电流传感器, 电源时序, 精密(≤1mV), 线性充电, 视频滤波, 负载开关, 车规AEC-Q100, 轨到轨, 运放, 迟滞, 逻辑门, 过流保护, 降压, 隔离, 隔离CAN, 隔离I2C, 隔离RS485, 隔离放大器, 隔离栅极驱动, 隔离电源, 非隔离栅极驱动, 音频总线, 马达驱动, 高PSRR, 高边驱动, 高速(≥50MHz), 高速数据复用器
 
 == 领域规则 ==
 - CAN→CAN-FD; LIN→LIN; RS-232/485→对应标签; SBC→SBC
@@ -11,6 +11,7 @@
 - 电流传感器: 隔离/非隔离、量程、精度
 - 运放: Vos/GBW/通道数/轨到轨/低噪声
 - LDO/DCDC: 输入电压/输出电压/输出电流
+- 仅输出可量化的规格标签(电压/电流/精度/速率/通道/等级等); 主观质量需求(不坏/耐用/稳定/干扰小/EMC好)不单独输出标签, 在explanation中说明即可
 - ADC/DAC: 分辨率/通道数/采样率/接口
 - 数字隔离器: 通道数(F/R)、数据速率(Mbps)、隔离电压(kVrms)
 - 以太网: 百兆/千兆/2.5G + 接口类型 + 端口数
@@ -55,3 +56,21 @@ A: {"features":["RS-485"],"vendor":null,"category_hint":"接口","explanation":"
 
 Q: 非隔离 CAN 车规
 A: {"features":["CAN-FD","车规AEC-Q100"],"vendor":null,"category_hint":"接口","explanation":"非隔离CAN FD车规收发器","confidence":"high"}
+
+Q: 电机过流保护 比较器 电流检测 毫伏级 反应快
+A: {"features":["比较器","电流传感器","过流保护","精密(≤1mV)","高速(≥50MHz)"],"vendor":null,"category_hint":"信号链","explanation":"过流保护用比较器+电流传感器方案，毫伏级精度，快速响应","confidence":"high"}
+
+Q: 车载屏幕背光 12V 6颗 LED 150mA 调光 开路保护
+A: {"features":["LED驱动","车规AEC-Q100","Vin_12V","6通道","Iout_0.5A"],"vendor":null,"category_hint":"电源","explanation":"车载LED背光驱动，12V输入驱动6颗LED，支持调光和开路保护","confidence":"high"}
+
+Q: 低漂移运放 PT100 失调温漂小 工业温度
+A: {"features":["运放","低漂移","精密(≤1mV)","工业级"],"vendor":null,"category_hint":"放大器","explanation":"工业级低漂移运放，用于PT100测温，低失调低温漂","confidence":"high"}
+
+Q: 光伏逆变器 SiC 隔离驱动器 +18V -3V Miller Clamp DESAT
+A: {"features":["隔离栅极驱动","SiC","隔离","高压(≥30V)"],"vendor":null,"category_hint":"驱动","explanation":"SiC隔离栅极驱动器，支持正负压驱动和DESAT保护","confidence":"high"}
+
+Q: 运放 单电源 3.3V 共模到地 轨到轨 温度传感器放大
+A: {"features":["运放","轨到轨","Vin_3.3V","温度传感器"],"vendor":null,"category_hint":"放大器","explanation":"单电源运放用于温度传感器信号放大，输入共模到地，输出轨到轨","confidence":"high"}
+
+Q: 比较器 响应快 迟滞 0-3.3V 输出 MCU
+A: {"features":["比较器","高速(≥50MHz)","迟滞","Vin_3.3V"],"vendor":null,"category_hint":"比较器","explanation":"高速比较器带迟滞，3.3V供电输出直连MCU","confidence":"high"}

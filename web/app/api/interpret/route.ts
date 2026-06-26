@@ -234,7 +234,22 @@ export async function POST(req: NextRequest) {
           if (voutM && parseFloat(voutM[1]) < maxVout) continue;
           result.must.push(f);
           if (parsed.mustMeta) {
-            parsed.mustMeta.push({ tag: f, dimension: 'spec' });
+            // Compute family/value for param tags so constraint layer uses _params_numeric
+            const vFM = f.match(/^Vout_(\d+\.?\d*)V$/);
+            const iFM = f.match(/^Iout_(\d+\.?\d*)A$/);
+            const vinFM = f.match(/^Vin_(\d+\.?\d*)V$/);
+            if (vFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vout', value: parseFloat(vFM[1]) });
+            else if (iFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Iout', value: parseFloat(iFM[1]) });
+            else if (vinFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vin', value: parseFloat(vinFM[1]) });
+            else parsed.mustMeta.push({ tag: f, dimension: 'spec' });
+          }
+          // Soft modifiers from LLM → push to nice instead of polluting must
+          const SOFT_MODIFIERS = new Set(['低噪声', '低功耗(≤50µA)', '高PSRR', '低功耗唤醒']);
+          if (SOFT_MODIFIERS.has(f)) {
+            result.must.pop();
+            if (parsed.mustMeta) parsed.mustMeta.pop();
+            if (!result.nice) result.nice = [];
+            result.nice.push(f);
           }
         }
       }
@@ -318,6 +333,19 @@ export async function POST(req: NextRequest) {
         (/^Vout_\d+\.?\d*V$/.test(f) && parseFloat(f.match(/\d+\.?\d*/)![0]) > 60)
       );
       if (bad.length) { result.features = result.features.filter((f: string) => !bad.includes(f)); }
+    }
+
+    // Post-process: strip redundant 高压/高耐压 when Vin ≤ 30V already specified
+    {
+      const maxVin = Math.max(...result.features
+        .filter((f: string) => /^Vin_(\d+\.?\d*)V$/.test(f))
+        .map((f: string) => parseFloat(f.match(/^Vin_(\d+\.?\d*)V$/)![1])), 0);
+      const hasLowVoltageContext = maxVin > 0 && maxVin <= 30;
+      const hasNoVinButAutomotive = maxVin === 0 && /车规|汽车|车载|12V/.test(query);
+      if (hasLowVoltageContext || hasNoVinButAutomotive) {
+        result.features = result.features.filter((f: string) => f !== "高压(≥30V)" && f !== "高耐压");
+        if (result.must) result.must = result.must.filter((f: string) => f !== "高压(≥30V)" && f !== "高耐压");
+      }
     }
 
     // Post-process: strip non-standard Mbps (only 1/2/5/8/10/20/50/100/150/200 allowed)
@@ -471,7 +499,7 @@ export async function POST(req: NextRequest) {
       "TVS/ESD","EMI滤波器","BMS","电子保险丝","电源时序","视频滤波","音频功放","音频总线","匹配电阻",
       "逻辑门","电池监控","传感器接口","仪表放大器","差动放大器","对数放大器","线性充电","高边驱动",
       "低边驱动","氮化镓功率芯片","零漂运算放大器","高压运算放大器","低压运算放大器","隔离ADC",
-      "高速数据复用器","电压基准放大器","半双工","全双工","非管理型","低噪声","高PSRR","霍尔","磁阻","TMR","AMR","SIC",
+      "高速数据复用器","电压基准放大器","半双工","全双工","非管理型","低噪声","高PSRR","霍尔","磁阻","TMR","AMR","SIC","SiC","低漂移","迟滞","过流保护",
     ]);
     const VALID_PATTERNS = [
       /^Vin_[\d.]+V$/, /^Vout_[\d.]+V$/, /^Iout_[\d.]+A$/,

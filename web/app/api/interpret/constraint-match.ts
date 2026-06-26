@@ -373,8 +373,8 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
 
   // DCDC compound: product is DCDC but params define topology (降压/buck, 升压/boost)
   if (tokens.includes('dcdc')) {
-    if (t === '降压') return /降压|buck|step[ -]?down/i.test(allEvidenceText);
-    if (t === '升压') return /升压|boost|step[ -]?up/i.test(allEvidenceText);
+    if (t === '降压') return tokens.includes('降压') || /降压|buck|step[ -]?down/i.test(allEvidenceText);
+    if (t === '升压') return tokens.includes('升压') || /升压|boost|step[ -]?up/i.test(allEvidenceText);
   }
 
   // Downgradable specs
