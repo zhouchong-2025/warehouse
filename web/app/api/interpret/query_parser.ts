@@ -657,6 +657,7 @@ export function parseQuery(query: string): ParseResult {
   const revOutMatch = normalizedQuery.match(/(\d+\.?\d*)\s*V\s*输出/i);
   const outVoltValue = (outVoltMatch || revOutMatch) ? parseFloat((outVoltMatch || revOutMatch)![1]) : null;
   if (outVoltValue !== null && !stepResolved) {
+    stepResolved = true;  // prevent subsequent LDO Vin→Vout from double-converting
     const voutTag = `Vout_${Number.isInteger(outVoltValue) ? outVoltValue : outVoltValue}V`;
     if (!features.includes(voutTag)) {
       features.push(voutTag);
