@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
     let llmResult: any;
     if (!parsed.needsLLM) {
       // Parser confident: skip LLM entirely
-      llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: parsed.vendor || vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
+      llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
     } else {
       // Parser not confident: use LLM with parser context
       const llmQuery = parsed.residualQuery ? `${query}
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
       const fallbackResult = {
         features: parsed.features,
         exclude_tags: parsed.exclude_tags,
-        vendor: parsed.vendor || vendor || null,
+        vendor: vendor || null,
         category_hint: parsed.category_hint,
         explanation: parsed.explanation,
         confidence: 'low',

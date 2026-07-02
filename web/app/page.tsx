@@ -14,6 +14,8 @@ type SearchResult = {
   score: number;
   matchedTerms: string[];
   missingTerms?: string[];
+  missingNice?: string[];
+  nicePartial?: boolean;
   matchSummary?: string;
   referenceOnly?: boolean;
   evidence?: { term: string; source: string }[];
@@ -519,11 +521,11 @@ export default function Home() {
     : constraintView
     ? (() => {
         const base = constraintView.items.map((s: ConstraintScore) => {
-          const v = constraintView.vendorByPn.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
-          const missingNice = constraintView.niceRequested.filter((tag) => !s.niceHit.includes(tag));
+          const v = constraintView.vendorByPn?.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
+          const missingNice = (constraintView.niceRequested || []).filter((tag) => !s.niceHit.includes(tag));
           const missingTerms = [...s.mustMiss, ...missingNice];
           const matchedCount = s.mustHit.length + s.niceHit.length;
-          const totalRequested = s.mustHit.length + s.mustMiss.length + constraintView.niceRequested.length;
+          const totalRequested = s.mustHit.length + s.mustMiss.length + (constraintView.niceRequested || []).length;
           const matchedAll = [...s.mustHit, ...s.niceHit];
           const nicePartial = s.mustMiss.length === 0 && missingNice.length > 0;
           return {
@@ -561,15 +563,18 @@ export default function Home() {
           const ap = allProducts.find(a => a.product.part_number === nr.pn);
           if (!ap) continue;
           base.push({
-            vendor: nr.vendor || ap.vendor,
+            vendor: (nr.vendor || ap.vendor) as string,
             vendorName: ap.vendorName,
             product: ap.product,
             score: 0,
             matchedTerms: (llmResult?.must || []).filter((t: string) => !t.startsWith('Iout_')),
             missingTerms: ['Iout数据未收录'],
+            missingNice: [],
+            nicePartial: false,
             matchSummary: `Rdson=${nr.rdson}，电流能力待FAE确认`,
             referenceOnly: true,
             evidence: [],
+            downgradeHits: {} as Record<string, string>,
           });
         }
         return base;

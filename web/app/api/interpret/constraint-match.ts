@@ -584,7 +584,8 @@ export function scoreByConstraints(
   products: ConstraintProduct[],
   must: string[],
   nice: string[],
-  mustMeta?: MustConstraint[]
+  mustMeta?: MustConstraint[],
+  query?: string
 ): ConstraintScore[] {
   const metas = alignMeta(must, mustMeta);
   return products.map((product) => {
@@ -702,7 +703,8 @@ export function applyConstraints(
   must: string[],
   nice: string[],
   mustMeta?: MustConstraint[],
-  sortKey?: SortIntent
+  sortKey?: SortIntent,
+  query?: string
 ): ConstraintResult {
   const metas = alignMeta(must, mustMeta);
   const scored = scoreByConstraints(products, must, nice, mustMeta);
