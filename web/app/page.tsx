@@ -149,6 +149,7 @@ export default function Home() {
   const [llmLoading, setLlmLoading] = useState(false);
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [preferredPns, setPreferredPns] = useState<Set<string>>(new Set());
 
   const toggleCompare = (part: string) => {
     setCompareList((prev) =>
@@ -167,6 +168,14 @@ export default function Home() {
       .then((r) => r.json())
       .then(setData)
       .finally(() => setLoading(false));
+    // Load preferred PNs (霆宝优选)
+    fetch("/data/preferred_pns.json")
+      .then((r) => r.json())
+      .then((map) => {
+        const pns = new Set<string>(Object.keys(map).map(k => k.toUpperCase()));
+        setPreferredPns(pns);
+      })
+      .catch(() => {});
   }, []);
 
   // Shared fetch function
@@ -415,6 +424,9 @@ export default function Home() {
   const isConstrainedQuery = !!(llmResult?.must && llmResult.must.length > 0 && llmResult.category_hint && CONSTRAINED_CATEGORIES.has(llmResult.category_hint));
   const constraintView = useMemo(() => {
     if (!llmResult?.must || llmResult.must.length === 0) return null;
+    // API already determined no_match → skip client-side constraints, show empty
+    const hasNoMatch = (llmResult.suggestions || []).some((s: any) => s.reason === 'no_match');
+    if (hasNoMatch) return { tier: null, banner: '', items: [] };
     const must = llmResult.must;
     const nice = llmResult.nice || [];
     const mustMeta = llmResult.mustMeta || [];
@@ -440,12 +452,24 @@ export default function Home() {
       }));
 
     const constrainedResult = isConstrainedQuery
-      ? applyConstraints(vendorPool, must, nice, mustMeta, sortKey)
+      ? applyConstraints(vendorPool, must, nice, mustMeta, sortKey, search)
       : null;
+    const has2_5G = (s: ConstraintScore) =>
+      (s.product._features || '').toLowerCase().split(/\s+/).includes('2.5g');
     const items = constrainedResult
-      ? constrainedResult.items.filter(s => s.categoryHit)  // 约束路径也必须命中品类标签
-    : scoreByConstraints(vendorPool, must, nice, mustMeta)
-        .filter(s => s.categoryHit)  // 非约束路径必须命中品类标签
+      ? [...constrainedResult.items.filter(s => s.categoryHit)]
+          .sort((a, b) =>
+            (b.fullMatch ? 1 : 0) - (a.fullMatch ? 1 : 0)
+            || a.mustMiss.length - b.mustMiss.length
+            || b.exactBonus - a.exactBonus
+            || b.niceHit.length - a.niceHit.length
+            || b.score - a.score
+            || ((preferredPns.has(b.product.part_number?.toUpperCase() || '') ? 1 : 0)
+                - (preferredPns.has(a.product.part_number?.toUpperCase() || '') ? 1 : 0))
+            || ((has2_5G(a) ? 1 : 0) - (has2_5G(b) ? 1 : 0))
+          )
+    : scoreByConstraints(vendorPool, must, nice, mustMeta, search)
+        .filter(s => s.categoryHit)
         .sort((a, b) =>
           (b.fullMatch ? 1 : 0) - (a.fullMatch ? 1 : 0)
           || (b.categoryHit ? 1 : 0) - (a.categoryHit ? 1 : 0)
@@ -453,10 +477,22 @@ export default function Home() {
           || b.exactBonus - a.exactBonus
           || b.niceHit.length - a.niceHit.length
           || b.score - a.score
+          || ((preferredPns.has(b.product.part_number?.toUpperCase() || '') ? 1 : 0)
+              - (preferredPns.has(a.product.part_number?.toUpperCase() || '') ? 1 : 0))
+          || ((has2_5G(a) ? 1 : 0) - (has2_5G(b) ? 1 : 0))
         );
+    // Debug: preferred PN sorting
+    if (items.length > 0 && preferredPns.size > 0) {
+      console.log('[preferred] loaded', preferredPns.size, 'PNs, first 3 results:',
+        items.slice(0, 5).map(s => ({
+          pn: s.product.part_number,
+          preferred: preferredPns.has((s.product.part_number || '').toUpperCase()),
+          score: s.score, fullMatch: s.fullMatch, mustMiss: s.mustMiss.length
+        })));
+    }
     const vendorByPn = new Map(vendorPool.map(r => [r.part_number, { vendor: r.__vendor, vendorName: (data[r.__vendor] as VendorData)?.name || '' }]));
     return { items, vendorByPn, niceRequested: nice, tier: constrainedResult?.tier ?? null, banner: constrainedResult?.banner ?? '' };
-  }, [isConstrainedQuery, allProducts, activeVendor, vendors, llmResult, data]);
+  }, [isConstrainedQuery, allProducts, activeVendor, vendors, llmResult, data, preferredPns]);
 
   // ── 竞品型号反查(cross_ref): 扫全库"可替代产品"字段, 确定性检索 ──
   // 不走文本初筛(竞品型号在可替代产品字段, 非常规 searchable), 直接全库 crossRefSearch.
@@ -481,32 +517,72 @@ export default function Home() {
         };
       })
     : constraintView
-    ? constraintView.items.map((s: ConstraintScore) => {
-        const v = constraintView.vendorByPn.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
-        const missingNice = constraintView.niceRequested.filter((tag) => !s.niceHit.includes(tag));
-        const missingTerms = [...s.mustMiss, ...missingNice];
-        const matchedCount = s.mustHit.length + s.niceHit.length;
-        const totalRequested = s.mustHit.length + s.mustMiss.length + constraintView.niceRequested.length;
-        const matchedAll = [...s.mustHit, ...s.niceHit];
-        return {
-          vendor: v.vendor,
-          vendorName: v.vendorName,
-          product: s.product as Product,
-          score: s.score,
-          matchedTerms: matchedAll,
-          missingTerms,
-          matchSummary: totalRequested > 0 ? `${matchedCount}/${totalRequested} 条件` : undefined,
-          referenceOnly: missingTerms.length > 0,
-          evidence: getEvidenceSources(s.product as Product, matchedAll),
-          downgradeHits: s.downgradeHits || {},
-        };
-      })
+    ? (() => {
+        const base = constraintView.items.map((s: ConstraintScore) => {
+          const v = constraintView.vendorByPn.get(s.product.part_number || "") || { vendor: "", vendorName: "" };
+          const missingNice = constraintView.niceRequested.filter((tag) => !s.niceHit.includes(tag));
+          const missingTerms = [...s.mustMiss, ...missingNice];
+          const matchedCount = s.mustHit.length + s.niceHit.length;
+          const totalRequested = s.mustHit.length + s.mustMiss.length + constraintView.niceRequested.length;
+          const matchedAll = [...s.mustHit, ...s.niceHit];
+          const nicePartial = s.mustMiss.length === 0 && missingNice.length > 0;
+          return {
+            vendor: v.vendor,
+            vendorName: v.vendorName,
+            product: s.product as Product,
+            score: s.score,
+            matchedTerms: matchedAll,
+            missingTerms,
+            missingNice,
+            matchSummary: totalRequested > 0 ? `${matchedCount}/${totalRequested} 条件` : undefined,
+            referenceOnly: s.mustMiss.length > 0,
+            nicePartial,
+            evidence: getEvidenceSources(s.product as Product, matchedAll),
+            downgradeHits: s.downgradeHits || {},
+          };
+        });
+        // Merge API near-miss results (tier=0): enrich existing referenceOnly items with Rdson
+        const apiResults = (llmResult as any)?.results || [];
+        const apiNearMiss = apiResults.filter((r: any) => r.tier === 0 && r.rdson);
+        const enrichedPns = new Set<string>();
+        for (const item of base) {
+          if (!item.referenceOnly) continue;
+          const nr = apiNearMiss.find((r: any) => r.pn === item.product.part_number);
+          if (nr) {
+            item.matchSummary = `Rdson=${nr.rdson}，电流能力待FAE确认`;
+            item.missingTerms = ['Iout数据未收录'];
+            (item as any).faeNearMiss = true;
+            enrichedPns.add(nr.pn);
+          }
+        }
+        // Safety net: push any near-miss products not already in base
+        for (const nr of apiNearMiss) {
+          if (enrichedPns.has(nr.pn)) continue;
+          const ap = allProducts.find(a => a.product.part_number === nr.pn);
+          if (!ap) continue;
+          base.push({
+            vendor: nr.vendor || ap.vendor,
+            vendorName: ap.vendorName,
+            product: ap.product,
+            score: 0,
+            matchedTerms: (llmResult?.must || []).filter((t: string) => !t.startsWith('Iout_')),
+            missingTerms: ['Iout数据未收录'],
+            matchSummary: `Rdson=${nr.rdson}，电流能力待FAE确认`,
+            referenceOnly: true,
+            evidence: [],
+          });
+        }
+        return base;
+      })()
     : (filteredResults || []);
 
   const visibleSuggestions = useMemo(() => {
     const suggestions = llmResult?.suggestions || [];
+    // Always show no_match — user asked for something that doesn't exist
+    const noMatch = suggestions.filter((s) => s.reason === 'no_match');
+    if (noMatch.length > 0) return noMatch;
     if (!constraintView || constraintView.tier !== 1) return suggestions;
-    return suggestions.filter((s) => s.reason === 'too_many');
+    return suggestions.filter((s) => s.reason === 'too_many' || s.reason === 'data_missing' || s.reason === 'llm_rescue' || s.reason === 'fae_near_miss');
   }, [llmResult, constraintView]);
 
   const totalProducts = vendors.reduce((s, v) => s + v.productCount, 0);
@@ -598,7 +674,7 @@ export default function Home() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索型号、参数或销售用语，如 CAN-FD 特定帧唤醒..."
+              placeholder="搜索参数、应用需求，如 CAN-FD 特定帧唤醒..."
               className="w-full px-5 py-3.5 pr-12 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter' && search.trim()) setSearchTrigger(c => c + 1); }}
@@ -733,7 +809,7 @@ export default function Home() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {displayResults.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms, missingTerms, matchSummary, referenceOnly, evidence, downgradeHits }) => (
+              {displayResults.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms, missingTerms, missingNice, matchSummary, referenceOnly, nicePartial, evidence, downgradeHits }) => (
                 <div key={`${vendor}-${product.part_number}`} className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#1e6ef0] hover:shadow-[0_0_16px_rgba(30,110,240,0.1)] transition-all group">
                   {/* Part number + vendor + score */}
                   <div className="flex items-start justify-between mb-2">
@@ -756,11 +832,14 @@ export default function Home() {
                     ) : null;
                   })()}
 
-                  {/* Match quality badge */}
+                  {/* Match quality badge + 霆宝优选 */}
                   {matchSummary ? (
                     <div className="mb-2 flex flex-wrap items-center gap-1">
-                      <span className={`text-[10px] px-1 py-0.5 rounded ${referenceOnly ? "bg-[#d29922]/20 text-[#d29922]" : downgradeHits && Object.keys(downgradeHits).length > 0 ? "bg-[#1e6ef0]/15 text-[#58a6ff]" : "bg-[#3fb950]/20 text-[#3fb950]"}`}>
-                        {referenceOnly ? "参考料" : downgradeHits && Object.keys(downgradeHits).length > 0 ? `降级兼容 (${Object.values(downgradeHits).join('、')})` : "优先推荐"}
+                      {preferredPns.has(product.part_number?.toUpperCase() || '') && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-[#f0883e]/20 text-[#f0883e] font-medium">霆宝优选</span>
+                      )}
+                      <span className={`text-[10px] px-1 py-0.5 rounded ${referenceOnly ? "bg-[#d29922]/20 text-[#d29922]" : nicePartial ? "bg-[#1e6ef0]/15 text-[#58a6ff]" : downgradeHits && Object.keys(downgradeHits).length > 0 ? "bg-[#1e6ef0]/15 text-[#58a6ff]" : "bg-[#3fb950]/20 text-[#3fb950]"}`}>
+                        {referenceOnly ? "参考料" : nicePartial ? `部分匹配（缺少${(missingNice || []).join('、')}）` : downgradeHits && Object.keys(downgradeHits).length > 0 ? `降级兼容 (${Object.values(downgradeHits).join('、')})` : "完全匹配"}
                       </span>
                       {missingTerms && missingTerms.length > 0 && (
                         <span className="text-[10px] px-1 py-0.5 rounded bg-[#f85149]/10 text-[#ff7b72]">

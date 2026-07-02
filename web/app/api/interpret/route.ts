@@ -6,6 +6,73 @@ import { parseQuery } from './query_parser';
 import { tagSatisfied } from './constraint-match';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
+// Category hierarchy: when a subclass tag exists, remove the umbrella parent tag.
+// Pattern: "隔离X" → X + 隔离, "子放大器" → 放大器/运放, "子传感器" → 传感器, etc.
+// Also covers LLM/parser naming variants (e.g. both 隔离栅极驱动 AND 隔离式栅极驱动器).
+const CATEGORY_HIERARCHY: Record<string, string[]> = {
+  // ── 放大器族: 子类 → 运放/放大器 ──
+  "隔离放大器": ["运放", "放大器", "隔离"],
+  "仪表放大器": ["运放", "放大器"],
+  "差动放大器": ["运放", "放大器"],
+  "对数放大器": ["运放", "放大器"],
+  "电流检测放大器": ["运放", "放大器"],
+  "高速运算放大器": ["运放", "放大器"],
+  "精密运算放大器": ["运放", "放大器"],
+  "高压运算放大器": ["运放", "放大器"],
+  "低压运算放大器": ["运放", "放大器"],
+  "零漂运算放大器": ["运放", "放大器"],
+  // ── 隔离接口族: 隔离X → X + 隔离 ──
+  "隔离RS485": ["RS-485", "隔离"],
+  "隔离RS-232": ["RS-232", "隔离"],
+  "隔离CAN": ["CAN-FD", "隔离"],
+  "隔离I2C": ["I2C", "隔离"],
+  "隔离ADC": ["ADC", "隔离"],
+  "集成隔离电源的隔离RS485": ["RS-485", "隔离RS485", "隔离", "集成隔离电源"],
+  "集成隔离电源的隔离CAN": ["CAN-FD", "隔离CAN", "隔离", "集成隔离电源"],
+  // ── 隔离广义 ──
+  "隔离栅极驱动": ["栅极驱动", "驱动", "隔离"],
+  "隔离式栅极驱动器": ["栅极驱动器", "栅极驱动", "驱动", "隔离"],
+  "非隔离栅极驱动器": ["栅极驱动器", "栅极驱动"],
+  "非隔离栅极驱动": ["栅极驱动器", "栅极驱动"],
+  "数字隔离器": ["隔离"],
+  "隔离电源": ["电源", "隔离"],
+  // ── CAN → CAN-FD: 孤立CAN升级为CAN-FD ──
+  "CAN-FD": ["CAN"],
+  // ── 传感器族: 子类 → 传感器 ──
+  "电流传感器": ["传感器"],
+  "温度传感器": ["传感器"],
+  "压力传感器": ["传感器"],
+  "位置传感器": ["传感器"],
+  "速度传感器": ["传感器"],
+  "线性位置传感器": ["位置传感器", "传感器"],
+  "霍尔角度编码器": ["传感器"],
+  "磁阻角度编码器": ["传感器"],
+  "霍尔开关/锁存器": ["传感器"],
+  "磁阻开关/锁存器": ["传感器"],
+  // ── 以太网族: 子类 → 以太网 ──
+  "交换机": ["以太网"],
+  "网卡": ["以太网"],
+  "以太网供电": ["以太网"],
+  // ── 驱动族: 具体驱动 → 驱动 ──
+  "低边驱动": ["驱动"],
+  "高边驱动": ["驱动"],
+  "马达驱动": ["驱动"],
+  // ── 电源族 ──
+  "电子保险丝": ["电源保护"],
+  "理想二极管": ["电源保护"],
+  "LDO": ["电源"],
+  "DCDC": ["电源"],
+  "降压": ["DCDC"],
+  "升压": ["DCDC"],
+  // ── 电池管理族 ──
+  "线性充电": ["电池管理"],
+  "电池监控": ["电池管理"],
+  "BMS": ["电池管理"],
+  // ── 开关族 ──
+  "负载开关": ["开关"],
+  "高边开关": ["开关"],
+};
+
 const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理、信号链、接口隔离、传感器驱动四大领域。根据用户描述推断芯片品类和关键参数，输出JSON特征标签。
 
 == 可用标签 ==
@@ -31,6 +98,7 @@ const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理
 - 匹配电阻/匹配电阻网络/电阻网络→匹配电阻
 - 传感器接口→传感器接口; 视频滤波/视频滤波器→视频滤波; 音频线路驱动→音频功放
 - "精度高"→精密(≤1mV); "带宽XXMHz"→不强制品类(可能是运放/比较器/放大器)
+- ★品类层级: 隔离放大器/仪表放大器/差动放大器/对数放大器 都是放大器的子类。用户说"隔离电压的运放"→ primary_category=隔离放大器, 不要同时输出运放标签(隔离放大器已包含运放含义)
 
 == 接口与隔离 ==
 - CAN→CAN-FD; LIN→LIN; RS-232/485→对应标签; SBC→SBC
@@ -116,7 +184,7 @@ A: {"features":["千兆","100FX"],"vendor":null,"category_hint":"以太网","exp
 - 仅当用户明确在"用某竞品型号找国产替代/pin-to-pin/兼容料"时 intent="cross_ref", 并把竞品型号填入 cross_ref_target(大写)。例: "把我现在用的那颗TI双通道隔离换成国产"→intent="cross_ref"(若有明确型号则填, 没有则留空走品类搜索)。
 - 注意: 大多数"型号+替代"查询已被规则层拦截, LLM 只需兜底口语化、没明说型号的模糊表达。拿不准就用 spec_search, 不要乱标 cross_ref。
 
-仅输出JSON: {"features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
+仅输出JSON: {"primary_category":"","features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -158,40 +226,59 @@ export async function POST(req: NextRequest) {
 
 [Parser已识别: ${parsed.features.join(', ') || '无'}]` : query;
 
-      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
-        body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: llmQuery }], temperature: 0.1, max_tokens: 200 }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        // LLM failed: fall back to parser output if available, else empty
-        llmResult = parsed.needsLLM ? { features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [] }
-          : { features: parsed.features, vendor: parsed.vendor || vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
-      } else {
-        const data = await response.json();
-        const llmContent = data.choices?.[0]?.message?.content || "";
-        const jsonMatch = llmContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
-        } else {
-          llmResult = JSON.parse(jsonMatch[0]);
-          // Merge parser features (parser is authoritative for deterministic matches)
-          if (parsed.features.length > 0) {
-            llmResult.features = [...new Set([...parsed.features, ...(llmResult.features || [])])];
-          }
-          // Merge exclude_tags from parser (parser knows about modifier-based exclusions)
-          if (parsed.exclude_tags && parsed.exclude_tags.length > 0) {
-            llmResult.exclude_tags = parsed.exclude_tags;
-          }
-          // LLM intent 兜底(snake_case→camelCase): 规则层未识别 cross_ref 时, 采纳 LLM 判断
-          if (llmResult.intent === 'cross_ref' && llmResult.cross_ref_target) {
-            llmResult._llmCrossRef = String(llmResult.cross_ref_target).toUpperCase().trim();
-          }
-        }
+      // Promise.race timeout — never discard parser features on LLM failure
+      const fallbackResult = {
+        features: parsed.features,
+        exclude_tags: parsed.exclude_tags,
+        vendor: parsed.vendor || vendor || null,
+        category_hint: parsed.category_hint,
+        explanation: parsed.explanation,
+        confidence: 'low',
+        suggestions: []
+      };
+      try {
+      const response = await Promise.race([
+        fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+          body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: llmQuery }], temperature: 0.1, max_tokens: 200 }),
+        }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 12000))
+      ]);
+      if (!response.ok) throw new Error('LLM HTTP error');
+      const data = await response.json();
+      const llmContent = data.choices?.[0]?.message?.content || "";
+      const jsonMatch = llmContent.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('LLM bad JSON');
+      llmResult = JSON.parse(jsonMatch[0]);
+      // Merge parser features (parser is authoritative for deterministic matches)
+      if (parsed.features.length > 0) {
+        llmResult.features = [...new Set([...parsed.features, ...(llmResult.features || [])])];
+      }
+      // Merge exclude_tags from parser
+      if (parsed.exclude_tags && parsed.exclude_tags.length > 0) {
+        llmResult.exclude_tags = parsed.exclude_tags;
+      }
+      } catch (e) {
+        // LLM timeout/error → fallback to parser output, never discard features
+        llmResult = fallbackResult;
       }
     }
     clearTimeout(timeout);
+
+    // Resolve category hierarchy: when a subclass is present, remove umbrella parent.
+    // Runs for BOTH paths (parser-only and LLM) to ensure consistency.
+    if (llmResult.features && llmResult.features.length > 0) {
+      const featureSet = new Set(llmResult.features);
+      for (const [subclass, parents] of Object.entries(CATEGORY_HIERARCHY)) {
+        if (featureSet.has(subclass)) {
+          for (const parent of parents) {
+            featureSet.delete(parent);
+          }
+        }
+      }
+      llmResult.features = [...featureSet];
+    }
 
     const result = llmResult;
     result.suggestions = [];
@@ -261,6 +348,21 @@ export async function POST(req: NextRequest) {
       result.must = result.features.filter((f: string) => typeof f === 'string');
       result.nice = [];
       result.mustMeta = result.must.map((f: string) => ({ tag: f, dimension: 'spec' }));
+    }
+    // Apply category hierarchy to must tags (resolve subclass/parent conflicts)
+    if (result.must && result.must.length > 0) {
+      const mustSet = new Set(result.must);
+      for (const [subclass, parents] of Object.entries(CATEGORY_HIERARCHY)) {
+        if (mustSet.has(subclass)) {
+          for (const parent of parents) {
+            mustSet.delete(parent);
+          }
+        }
+      }
+      result.must = [...mustSet];
+      if (result.mustMeta) {
+        result.mustMeta = result.mustMeta.filter((m: any) => result.must.includes(m.tag));
+      }
     }
     // ── 透传排序意图 sortKey(高/低 + 参数 → 数值排序) ──
     // 独立于 must: 排序意图对所有品类有效(高PSRR的LDO / 大电流的DCDC等), 不门控以太网.
@@ -592,12 +694,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Suggestion generation
-    try {
+    // (try-catch removed for debugging)
       const dataPath = resolve(process.cwd(), "public/data/products_structured.json");
       const raw = readFileSync(dataPath, "utf-8");
       const products = JSON.parse(raw);
       const effectiveVendor = result.vendor || vendor || null;
-      const all: { pn: string; ft: string; params: string; detailIntro: string; detailFeatures: string }[] = [];
+      const all: { pn: string; ft: string; params: string; detailIntro: string; detailFeatures: string; _section: string; _features: string }[] = [];
       for (const [slug, v] of Object.entries(products) as any[]) {
         const vendorGroup = ['3peak-analog', '3peak-auto'].includes(String(slug)) ? '3peak' : String(slug);
         if (effectiveVendor && vendorGroup !== effectiveVendor && String(slug) !== effectiveVendor) continue;
@@ -607,6 +709,8 @@ export async function POST(req: NextRequest) {
           params: (p._params || ""),
           detailIntro: (p._detail_intro || ""),
           detailFeatures: (p._detail_features || ""),
+          _section: (p._section || "").toLowerCase(),
+          _features: (p._features || "").toLowerCase(),
         });
       }
 
@@ -620,7 +724,7 @@ export async function POST(req: NextRequest) {
         if (feature === "隔离") return tokens.some(t => t.includes("kvrms") || t === "隔离");
         return false;
       };
-      const semanticHit = (p: { ft: string; params?: string; detailIntro?: string; detailFeatures?: string }, feature: string) => {
+      const semanticHit = (p: { ft: string; params?: string; detailIntro?: string; detailFeatures?: string; _section?: string }, feature: string) => {
         const meta = mustMetaByTag.get(feature);
         if (meta) {
           return tagSatisfied({
@@ -628,6 +732,7 @@ export async function POST(req: NextRequest) {
             _params: p.params || "",
             _detail_intro: p.detailIntro || "",
             _detail_features: p.detailFeatures || "",
+            _section: p._section || "",
           } as any, feature, meta as any);
         }
         // Suggestions are a soft UI aid: only trust explicit feature-token hits here.
@@ -637,9 +742,17 @@ export async function POST(req: NextRequest) {
       if (requestedTags.length < 1) return NextResponse.json(result);
       const exactMatches = all.filter(p => requestedTags.every(f => semanticHit(p, f)));
       const hasHardConstraints = Array.isArray(result.must) && result.must.length > 0;
-      if (exactMatches.length > 0 && exactMatches.length <= 10) return NextResponse.json(result);
-      
-      // 全命中查询只允许“结果太多，建议加参数”，不允许落入“最接近/未完全匹配”话术。
+      if (exactMatches.length > 0 && exactMatches.length <= 10) {
+        (result as any).results = exactMatches.map(p => ({ pn: p.pn, vendor: '', tier: 1, hitCount: requestedTags.length, missingTags: [] }));
+        return NextResponse.json(result);
+      }
+
+      if (exactMatches.length > 10 && exactMatches.length <= 30) {
+        (result as any).results = exactMatches.map(p => ({ pn: p.pn, vendor: '', tier: 1, hitCount: requestedTags.length, missingTags: [] }));
+        return NextResponse.json(result);
+      }
+
+      // 全命中查询只允许"结果太多，建议加参数"，不允许落入"最接近/未完全匹配"话术。
       if (exactMatches.length > 30 && features.length <= 2) {
         const samplePn = exactMatches.slice(0, 3).map(p => p.pn).join("、");
         result.suggestions.push({ text: `匹配${exactMatches.length}款，建议添加具体参数缩小范围。当前结果含${samplePn}等。`, query, reason: "too_many" });
@@ -796,11 +909,6 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
-    } catch (e) {
-      console.error("Suggestion error:", e);
-      result.suggestions.push({ text: "未找到完全匹配的产品，请尝试放宽搜索条件", query, reason: "no_match" });
-    }
-
     return NextResponse.json(result);
   } catch (e: any) {
     if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [] });

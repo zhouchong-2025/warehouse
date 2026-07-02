@@ -196,6 +196,9 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /网卡|网络适配器|nic\b/i, tag: '网卡', priority: 72, category_hint: '以太网' },
   { pattern: /t1[ -]?phy|sgmii|rgmii|qsgmii|以太网|phy.*接口/i, tag: '以太网', priority: 70, category_hint: '以太网' },
 ];
+// Exported for route.ts to classify LLM category tags correctly
+export const CATEGORY_TAG_NAMES = new Set(CATEGORY_RULES.map(r => r.tag));
+
 
 // ═══════════════════════════════════════════════════════════
 //  MODIFIER RULES
@@ -465,6 +468,7 @@ export function parseQuery(query: string): ParseResult {
   // SBC 复合模式下可与 SBC 共存的总线维度标签(集成在 SBC 内的总线收发器)
   const SBC_BUS_TAGS = new Set(['CAN-FD', 'LIN', 'RS-485', 'RS-232']);
   let sbcMatched = false;
+  const seenHints = new Set<string>(); // dedup: same category_hint → only first match
   for (const rule of sorted) {
     if (rule.pattern.test(query)) {
       // 非隔离 guard: skip isolation compound tags when query explicitly says 非隔离
@@ -486,25 +490,42 @@ export function parseQuery(query: string): ParseResult {
         sources.set(subordinateTag, 'modifier');
       }
 
+      // Dedup by category_hint for non-special cases:
+      // - Ethernet: multi-dimension coexistence → no dedup
+      // - SBC composite: SBC + bus tags coexist → no dedup
+      // - Others: same category_hint → skip (first highest-priority match wins)
+      const isEthernet = rule.category_hint === '以太网';
+      const isSbcComposite = isSbcQuery && (rule.tag === 'SBC' || SBC_BUS_TAGS.has(rule.tag));
+      if (!isEthernet && !isSbcComposite && seenHints.has(rule.category_hint)) {
+        continue;
+      }
+
       if (!features.includes(rule.tag)) {
         features.push(rule.tag);
         sources.set(rule.tag, 'category');
       }
       if (!categoryHint) categoryHint = rule.category_hint;
       categoryMatched = true;
-      // 以太网类: 不break, 允许速率+子品类多维共存; 其他品类: first-match-wins
-      if (rule.category_hint === '以太网') {
+      if (!isEthernet && !isSbcComposite) {
+        seenHints.add(rule.category_hint);
+      }
+      // 以太网类: 不break, 允许速率+子品类多维共存
+      if (isEthernet) {
         ethMatched = true;
         continue;
       }
       if (ethMatched) continue; // 已进入以太网多维匹配, 跳过非以太网规则
       // SBC 复合模式: query含sbc时, SBC品类 与 总线维度(CAN/LIN/RS-485/RS-232) 正交共存
-      if (isSbcQuery && (rule.tag === 'SBC' || SBC_BUS_TAGS.has(rule.tag))) {
+      if (isSbcComposite) {
         sbcMatched = true;
         continue;
       }
       if (sbcMatched && (rule.tag === 'SBC' || SBC_BUS_TAGS.has(rule.tag))) continue;
-      break;
+      // Multi-category coexistence: queries like "mcu with can" span distinct
+      // dimension groups (MCU/DSP + CAN-FD). Continue scanning instead of
+      // break, so both categories are collected. Same-tag dedup is handled
+      // by !features.includes(rule.tag) above.
+      continue;
     }
   }
 
@@ -568,6 +589,21 @@ export function parseQuery(query: string): ParseResult {
     const cnMap: Record<string, number> = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10 };
     const a = cnMap[chSwitchMatch[1]] || 0;
     const b = cnMap[chSwitchMatch[2]] || 0;
+    if (a > 0 && b > 0) {
+      const tag = `${a}:${b}`;
+      if (!features.includes(tag)) {
+        features.push(tag);
+        sources.set(tag, 'param');
+      }
+    }
+  }
+  // Arabic/mixed digits: "16切一", "16切1", "8切1" → N:M
+  const arSwitchMatch = query.match(/(\d+)\s*切\s*([一二三四五六七八九十\d]+)/);
+  if (arSwitchMatch) {
+    const cnMap2: Record<string, number> = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10 };
+    const a = parseInt(arSwitchMatch[1]);
+    const bRaw = arSwitchMatch[2];
+    const b = /^\d+$/.test(bRaw) ? parseInt(bRaw) : (cnMap2[bRaw] || 0);
     if (a > 0 && b > 0) {
       const tag = `${a}:${b}`;
       if (!features.includes(tag)) {
@@ -852,8 +888,10 @@ export function parseQuery(query: string): ParseResult {
   // Cleaned residual: strip noise particles to detect real unconsumed content
   const NOISE_RE = /\b(的|了|吗|个|是|有|我|你|帮|推荐|推荐一|需要|请问|找|一下|款|颗|个|能|可以|有没有|想要|什么|帮忙|求|可否|是否|怎么|如何|哪|几|给|用|做|要|搞|弄|弄个)\b/gi;
   const residualClean = residual.replace(NOISE_RE, '').replace(/\s+/g, ' ').trim();
-  // 15+ chars of meaningful residual → parser didn't understand enough → escalate to LLM
-  const residualTooLong = residualClean.length > 15;
+  // 3+ chars of meaningful residual → parser didn't understand enough → escalate to LLM.
+  // (Was 15 — too high. "16切一"=4chars carries real signal but was below old threshold.)
+  const hasMeaningful = /[\u4e00-\u9fff\d]/.test(residualClean);
+  const residualTooLong = residualClean.length > 3 && hasMeaningful;
 
   return {
     features,
@@ -861,7 +899,7 @@ export function parseQuery(query: string): ParseResult {
     category_hint: categoryHint,
     explanation,
     confidence: categoryMatched && !residualTooLong ? 'high' : 'low',
-    needsLLM: !categoryMatched || residualTooLong,
+    needsLLM: !categoryMatched || residualTooLong,  // LLM only when parser can't fully digest the query
     residualQuery: residual,
     must,
     nice,

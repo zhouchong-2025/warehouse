@@ -2,14 +2,23 @@
 """
 Generate structured product data from wiki extracted markdown.
 Parses vendor-specific selection tables and outputs a searchable JSON.
+
+On Vercel/CI where wiki data is absent, this script is a no-op
+(products_structured.json is committed and used directly).
 """
 import json
 import re
+import sys
 from pathlib import Path
 
-WIKI_RAW = Path("/Users/zhouchong/Projects/warehouse/wiki/raw/papers")
-OUTPUT = Path("/Users/zhouchong/Projects/warehouse/web/public/data")
+ROOT = Path(__file__).resolve().parent.parent
+WIKI_RAW = ROOT / "wiki" / "raw" / "papers"
+OUTPUT = ROOT / "web" / "public" / "data"
 OUTPUT.mkdir(parents=True, exist_ok=True)
+
+if not WIKI_RAW.exists():
+    print(f"Wiki data not found at {WIKI_RAW} — skipping (data already committed)")
+    sys.exit(0)
 
 products = []
 vendors_data = {}

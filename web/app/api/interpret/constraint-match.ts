@@ -223,10 +223,14 @@ function channelCountOf(product: ConstraintProduct, tokens: string[]): number | 
     /(number of channels?|channel count|通道数|通道数量|adc input channel|input channel(?:\s+数量)?|参考\s*通道数|输入通道\s*数量)\s*[:：]\s*(\d+)/gi,
     /(\d+)\s*通道/gi,
     /\b(\d+)\s*ch\b/gi,
+    // Novosense format: "正向/ 反向通道: 3/1" → total channels = sum of F+R
+    /正向\s*\/\s*反向通道\s*[:：]\s*(\d+)\s*\/\s*(\d+)/gi,
   ]) {
     let m: RegExpExecArray | null;
     while ((m = re.exec(paramsText)) !== null) {
-      const n = parseInt(m[m.length - 1], 10);
+      const n = m.length === 3
+        ? parseInt(m[1], 10) + parseInt(m[2], 10)  // F/R pair → total = F + R
+        : parseInt(m[m.length - 1], 10);
       if (!Number.isNaN(n)) best = best == null ? n : Math.max(best, n);
     }
   }
@@ -322,8 +326,9 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   const tokens = feats.split(/\s+/).filter(Boolean);
   const t = tag.toLowerCase();
   const paramsText = (product._params || "").toLowerCase();
+  const sectionText = (product._section || "").toLowerCase();
   const detailTextRaw = ((product._detail_intro || "") + " " + (product._detail_features || "")).toLowerCase();
-  const allEvidenceText = `${paramsText} ${detailTextRaw}`;
+  const allEvidenceText = `${paramsText} ${detailTextRaw} ${sectionText}`;
 
   // Duplex evidence from params/detail
   if (t === '半双工' || t === '全双工') {
@@ -485,8 +490,14 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   // Exact token match
   if (tokens.some((tk) => tk === t)) return true;
 
-  // Hard category/grade
+  // Hard category/grade — but check section/params before rejecting.
+  // Products in "集成隔离电源的隔离RS485 选型表" section ARE RS-485 products
+  // even if their _features tokens don't include "RS-485" separately.
+  // Also normalize hyphens: "RS-485" vs "RS485" in section names.
   if (meta && (meta.dimension === 'category' || meta.dimension === 'grade')) {
+    const tNoHyphen = t.replace(/-/g, '');
+    if (sectionText.includes(t) || sectionText.includes(tNoHyphen)) return true;
+    if (paramsText.includes(t) || paramsText.includes(tNoHyphen)) return true;
     return false;
   }
 
