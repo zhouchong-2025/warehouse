@@ -244,6 +244,9 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     let llmResult: any;
+    let llmCalled = false;
+    let llmSucceeded = false;
+    let llmRawFeatures: string[] = [];
     if (!parsed.needsLLM) {
       // Parser confident: skip LLM entirely
       llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
@@ -263,6 +266,7 @@ export async function POST(req: NextRequest) {
         confidence: 'low',
         suggestions: []
       };
+      llmCalled = true;
       try {
       const response = await Promise.race([
         fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -278,6 +282,8 @@ export async function POST(req: NextRequest) {
       const jsonMatch = llmContent.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('LLM bad JSON');
       llmResult = JSON.parse(jsonMatch[0]);
+      llmRawFeatures = [...(llmResult.features || [])];
+      llmSucceeded = true;
       // Merge parser features (parser is authoritative for deterministic matches)
       if (parsed.features.length > 0) {
         llmResult.features = [...new Set([...parsed.features, ...(llmResult.features || [])])];
@@ -309,7 +315,7 @@ export async function POST(req: NextRequest) {
 
     const result = llmResult;
     result.suggestions = [];
-    result._debug = { llmUsed: parsed.needsLLM, parserFeatures: parsed.features, residualLength: (parsed.residualQuery || '').length };
+    result._debug = { llmCalled, llmSucceeded, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
     // ── LLM-driven must/nice assembly ──
     // Parser's must + mustMeta are the authoritative structured output.
     // LLM's nice_features tells us which tags to relax from must to nice.
