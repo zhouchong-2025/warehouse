@@ -969,6 +969,7 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
+    result._debug = { llmUsed: parsed.needsLLM, parserFeatures: parsed.features, residualLength: (parsed.residualQuery || '').length };
     return NextResponse.json(result);
   } catch (e: any) {
     if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [] });
