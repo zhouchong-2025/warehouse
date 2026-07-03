@@ -277,7 +277,10 @@ export async function POST(req: NextRequest) {
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 12000))
       ]);
-      if (!response.ok) throw new Error('LLM HTTP error');
+      if (!response.ok) {
+        const errBody = await response.text();
+        throw new Error(`LLM HTTP ${response.status}: ${errBody.slice(0, 200)}`);
+      }
       const data = await response.json();
       const llmContent = data.choices?.[0]?.message?.content || "";
       const jsonMatch = llmContent.match(/\{[\s\S]*\}/);
