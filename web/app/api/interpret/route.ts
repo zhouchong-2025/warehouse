@@ -249,9 +249,7 @@ export async function POST(req: NextRequest) {
       llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
     } else {
       // Parser not confident: use LLM with parser context
-      const llmQuery = parsed.residualQuery ? `${query}
-
-[Parser已识别: ${parsed.features.join(', ') || '无'}]` : query;
+      const llmQuery = parsed.residualQuery ? `${query}\n\n[Parser部分识别: ${parsed.features.join(', ') || '无'}。原始查询可能含未被识别的内容，请基于完整查询重新判断。]` : query;
 
       // Promise.race timeout — never discard parser features on LLM failure
       const fallbackResult = {
