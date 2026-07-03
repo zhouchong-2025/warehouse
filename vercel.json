@@ -4,6 +4,6 @@
   "outputDirectory": "web/.next",
   "framework": "nextjs",
   "env": {
-    "DEEPSEEK_API_KEY": "@deepseek-key"
+    "DEEPSEEK_API_KEY": "@DEEPSEEK_KEY"
   }
 }
