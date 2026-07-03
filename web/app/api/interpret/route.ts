@@ -309,6 +309,7 @@ export async function POST(req: NextRequest) {
 
     const result = llmResult;
     result.suggestions = [];
+    result._debug = { llmUsed: parsed.needsLLM, parserFeatures: parsed.features, residualLength: (parsed.residualQuery || '').length };
     // ── LLM-driven must/nice assembly ──
     // Parser's must + mustMeta are the authoritative structured output.
     // LLM's nice_features tells us which tags to relax from must to nice.
@@ -813,7 +814,8 @@ export async function POST(req: NextRequest) {
       }
 
       // 全命中查询只允许"结果太多，建议加参数"，不允许落入"最接近/未完全匹配"话术。
-      if (exactMatches.length > 30 && features.length <= 2) {
+      // needsLLM=true 时放行：parser 未完全理解查询，LLM 可能已补全标签，不应拦截
+      if (exactMatches.length > 30 && features.length <= 2 && !parsed.needsLLM) {
         const samplePn = exactMatches.slice(0, 3).map(p => p.pn).join("、");
         result.suggestions.push({ text: `匹配${exactMatches.length}款，建议添加具体参数缩小范围。当前结果含${samplePn}等。`, query, reason: "too_many" });
         return NextResponse.json(result);
@@ -969,7 +971,6 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
-    result._debug = { llmUsed: parsed.needsLLM, parserFeatures: parsed.features, residualLength: (parsed.residualQuery || '').length };
     return NextResponse.json(result);
   } catch (e: any) {
     if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [] });
