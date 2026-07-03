@@ -25,3 +25,4 @@ scripts/_archived/
 # IDE
 .vscode/
 .idea/
+web/public/wiki
