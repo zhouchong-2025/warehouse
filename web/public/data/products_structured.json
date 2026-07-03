@@ -45577,7 +45577,7 @@
   },
   "novosense": {
     "name": "纳芯微",
-    "productCount": 957,
+    "productCount": 966,
     "products": [
       {
         "part_number": "NSM2011",
@@ -55751,54 +55751,6 @@
         "_detail_intro": "NCA1145B-Q1: 支持局部联网的高速 CAN 收发器 NCA1145B 是一款高速 CAN 收发器，为控制器局域网（CAN）协议控制器和双线 CAN 物理总线提供接口。该收发器在待机和睡眠模式下功耗极低。 同时，NCA1145B 通过选择性唤醒功能支持符合 ISO11898-2:2024 标准的 CAN 部分联网。",
         "_detail_features": "通过 AEC-Q100 汽车应用 1 级认证 | 完全符合 ISO11898-2:2024 标准 | I/O 电压范围支持 1.8V、3.3V 和 5V MCU | 电源电压：VCC：4.5V 至 5.5V；VIO：1.7V 至 5.5V；VBAT：4. 5V 至 40V | 超低电流待机和睡眠模式 | 自主总线偏置 | 通过标准 CAN 唤醒模式或符合 ISO 11898-2:2024 标准的选择性唤醒帧检 | 测进行远程唤醒，并通过 WAKE 引脚进行本地唤醒 | 总线故障保护： - 总线故障保护：-58V 至 58V | 过温警告和关机 | 16 位、24 位或 32 位 SPI，用于配置、控制和诊断 | 数据传输速率：高达 5Mbps | 高级系统和收发器中断处理 | 工作温度：-40℃ 至 125℃ | 符合 RoHS 和 REACH 标准的封装： SOP14、DFN14 | 车身电子装置和照明 | 与仪表组 | 混合动力、电动 | 和动力总成系统 | HS-CAN | Wake-up | Partial networkin g | CAN FD-passive | NCA1",
         "_detail_apps": "汽车信息娱乐系统"
-      },
-      {
-        "part_number": "Q1SPR",
-        "_section": "LIN 收发器选型表",
-        "_sections": [
-          "LIN 收发器选型表"
-        ],
-        "_params": "最大码流 (Kbps): 20 | 母线电压保护: -40~+40 | 本地/ 远程: mote | 工作温度范围 (℃): -40~150 | 封装类型: SOP14",
-        "_raw": "20 | -40~+40 | mote | -40~150 | SOP14",
-        "_features": "LIN 0.02Mbps 收发器选型表 工业级",
-        "_params_numeric": {
-          "最大码流__kbps_": {
-            "raw": "20",
-            "value": 20.0,
-            "unit": "kbps"
-          },
-          "工作温度范围____": {
-            "raw": "-40~150",
-            "is_range": true,
-            "min": -40.0,
-            "max": 150.0,
-            "unit": "℃"
-          }
-        }
-      },
-      {
-        "part_number": "Q1DNR",
-        "_section": "LIN 收发器选型表",
-        "_sections": [
-          "LIN 收发器选型表"
-        ],
-        "_params": "最大码流 (Kbps): 20 | 母线电压保护: -40~+40 | 本地/ 远程: mote | 工作温度范围 (℃): -40~150 | 封装类型: DFN14",
-        "_raw": "20 | -40~+40 | mote | -40~150 | DFN14",
-        "_features": "LIN 0.02Mbps 收发器选型表 工业级",
-        "_params_numeric": {
-          "最大码流__kbps_": {
-            "raw": "20",
-            "value": 20.0,
-            "unit": "kbps"
-          },
-          "工作温度范围____": {
-            "raw": "-40~150",
-            "is_range": true,
-            "min": -40.0,
-            "max": 150.0,
-            "unit": "℃"
-          }
-        }
       },
       {
         "part_number": "NLC5301",
@@ -68001,6 +67953,235 @@
         "_detail_intro": "NSUC1700：通用型低压处理器MCU 1 个LINUART 模块 1 个窗口看门狗 1 个数字看门狗 1 个FlexCAN 控制器 三种工作模式：active、idle、sleep ROHS NSUC1700 是一种集成CAN、LIN 等车规级外设的通用微控制器，此外还针对电机控制集成了专有的增强型PWM 可广泛用于控制压缩机，直流 有刷电机、直流无刷电机、步进电机等控制场景，同时还能够支持控制车内的其他驱动相关的系统，如车身、热管理等可在新能源汽车中广泛使用。 该芯片采用先进的制程工艺，结温最高可支持到150° C，能够满足汽车AEC-Q100 Grade 1 级别，芯片采用的是ARM Cortex-M3 内核，该内核使 用独立的数据总线和地址总线，能够提高取指令和取数据的效率。",
         "_detail_features": "2 个16bit 定时器 | 6 路增强型EPWM 输出 | 1 个1.5V 的LDO( 不支持对外输出) | 全温范围内sleep 模式静态功耗小于50uA | AEC - Q100 可靠性标准 | ARM Cortex-M3 32bit core | 128KBytes Flash(ECC) | 16KBytes SRAM(ECC) | 4KBytes NVR(ECC) | 32MHz 高精度振荡器( 支持PLL 倍频） | 35KHz 低功耗低速时钟 | 工作电压2.7V~5.5V | PLL 支持最高72MHz | 2 个12bit 高精度1.8MSPS ADC | 4 个8bit DAC | 4 个模拟比较器Comp | 2 个SPI 接口（支持3 线4 线SPI 通信） | LQFP48 9mm × 9mm | Cortex M3 | (Up to | 72MHz) | (32MHz) | (35KHz) | Semsor | GPIOs | Comparator | SysCtrl | AHB2APB | Fiash 128KB | SRAM 16KB",
         "_detail_apps": "汽车PTC 控制器 | 汽车压缩机控制器"
+      },
+      {
+        "part_number": "NCA9555",
+        "_section": "IO 扩展器",
+        "_features": "IO扩展器 I2C 16通道 低待机电流 中断输出 极性反转 开漏输出 ESD保护",
+        "_params": "Part Number: NCA9555 | 通道数: 16 | VCC (V): 2.3~5.5 | I2C地址: 8 | 频率 (kHz): 400 | 工作温度 (℃): -40~85 | 封装: TSSOP-24",
+        "_params_numeric": {
+          "通道数": {
+            "value": 16
+          },
+          "vcc__v_": {
+            "raw": "2.3~5.5",
+            "is_range": true,
+            "min": 2.3,
+            "max": 5.5,
+            "unit": "V"
+          },
+          "频率__khz_": {
+            "value": 400,
+            "unit": "Hz"
+          }
+        },
+        "_detail_intro": "NCA9555 是一款24引脚CMOS器件，提供16位通用并行I2C总线数输入/输出GPIO扩展功能。为ACPI电源开关、传感器、按键、LED和风扇等应用的额外I/O口需求提供了简单的解决方案。",
+        "_detail_features": "工作电源电压范围2.3V至5.5V | I2C到并行端口扩展器 | 极性反转寄存器 | 开漏电路低电平有效中断输出 | 与大多数MCU兼容 | 16个I/O引脚，默认为16个输入 | 低待机电流 | ESD保护超出JESD22标准"
+      },
+      {
+        "part_number": "NCA9534B",
+        "_section": "IO 扩展器",
+        "_features": "IO扩展器 I2C 8通道 低待机电流 中断输出 极性反转 开漏输出 ESD保护",
+        "_params": "Part Number: NCA9534B | 通道数: 8 | VCC (V): 2.3~5.5 | I2C地址: 8 | 频率 (kHz): 400 | 工作温度 (℃): -40~85 | 封装: TSSOP-24",
+        "_params_numeric": {
+          "通道数": {
+            "value": 8
+          },
+          "vcc__v_": {
+            "raw": "2.3~5.5",
+            "is_range": true,
+            "min": 2.3,
+            "max": 5.5,
+            "unit": "V"
+          },
+          "频率__khz_": {
+            "value": 400,
+            "unit": "Hz"
+          }
+        },
+        "_detail_intro": "NCA9534B 是一款16引脚CMOS器件，提供8位通用并行I2C总线数输入/输出GPIO扩展功能。为ACPI电源开关、传感器、按键、LED和风扇等应用的额外I/O口需求提供了简单的解决方案。",
+        "_detail_features": "工作电源电压范围2.3V至5.5V | I2C到并行端口扩展器 | 极性反转寄存器 | 开漏电路低电平有效中断输出 | 与大多数MCU兼容 | 8个I/O引脚，默认为8个输入 | 低待机电流 | ESD保护超出JESD22标准"
+      },
+      {
+        "part_number": "NCA9539-Q1",
+        "_section": "IO 扩展器",
+        "_features": "IO扩展器 I2C 16通道 车规AEC-Q100 低待机电流 中断输出 极性反转 开漏输出 ESD保护",
+        "_params": "Part Number: NCA9539-Q1 | 通道数: 16 | VCC (V): 1.65~5.5 | I2C地址: 4 | 频率 (kHz): 400 | 工作温度 (℃): -40~85 | 封装: SOW-16 TSSOP-24 | AEC-Q100: Yes",
+        "_params_numeric": {
+          "通道数": {
+            "value": 16
+          },
+          "vcc__v_": {
+            "raw": "1.65~5.5",
+            "is_range": true,
+            "min": 1.65,
+            "max": 5.5,
+            "unit": "V"
+          },
+          "频率__khz_": {
+            "value": 400,
+            "unit": "Hz"
+          }
+        },
+        "_detail_intro": "NCA9539-Q1 是一款汽车级16引脚CMOS器件，提供16位通用并行I2C总线数输入/输出GPIO扩展功能。为ACPI电源开关、传感器、按键、LED和风扇等应用的额外I/O口需求提供了简单的解决方案。",
+        "_detail_features": "工作电源电压范围1.65V至5.5V | I2C到并行端口扩展器 | 极性反转寄存器 | 开漏电路低电平有效中断输出 | 与大多数MCU兼容 | 16个I/O引脚，默认为16个输入 | 低待机电流 | ESD保护超出JESD22标准 | AEC-Q100认证"
+      },
+      {
+        "part_number": "NCA3176",
+        "_section": "RS-485 收发器",
+        "_features": "RS-485 半双工 20Mbps ESD保护 故障安全",
+        "_params": "Part Number: NCA3176 | 供电电压(V): 3.0~5.5 | 双工: Half-duplex | 共模电压范围(V): -7~12 | 总线ESD(kV): 8 | 最大速率(Mbps): 20 | 工作温度(℃): -40~125 | 封装: SOP8 MSOP8",
+        "_params_numeric": {
+          "供电电压__v_": {
+            "raw": "3.0~5.5",
+            "is_range": true,
+            "min": 3.0,
+            "max": 5.5,
+            "unit": "V"
+          },
+          "速率__mbps_": {
+            "value": 20
+          }
+        },
+        "_detail_intro": "NCA3176 是一款半双工RS485收发器，电源电压范围3.0至5.5V，符合TIA-485-A规范。具有1/8单位负载接收器输入阻抗，允许总线上多达256个收发器，数据传输速率高达20Mbps。",
+        "_detail_features": "电源电压：3.0V至5.5V | 半双工 | 20Mbps速率 | 总线ESD ±8kV | 故障安全接收器 | 总线上最多256个收发器 | 工作温度-40℃~125℃"
+      },
+      {
+        "part_number": "NCA3492",
+        "_section": "RS-485 收发器",
+        "_features": "RS-485 全双工 20Mbps ESD保护 故障安全",
+        "_params": "Part Number: NCA3492 | 供电电压(V): 3.0~5.5 | 双工: Full-duplex | 共模电压范围(V): -7~12 | 总线ESD(kV): 8 | 最大速率(Mbps): 20 | 工作温度(℃): -40~125 | 封装: SOP14",
+        "_params_numeric": {
+          "供电电压__v_": {
+            "raw": "3.0~5.5",
+            "is_range": true,
+            "min": 3.0,
+            "max": 5.5,
+            "unit": "V"
+          },
+          "速率__mbps_": {
+            "value": 20
+          }
+        },
+        "_detail_intro": "NCA3492 是一款全双工RS485收发器，电源电压范围3.0至5.5V，符合TIA-485-A规范。具有1/8单位负载接收器输入阻抗，允许总线上多达256个收发器，数据传输速率高达20Mbps。",
+        "_detail_features": "电源电压：3.0V至5.5V | 全双工 | 20Mbps速率 | 总线ESD ±8kV | 故障安全接收器 | 总线上最多256个收发器 | 工作温度-40℃~125℃"
+      },
+      {
+        "part_number": "NCA9545",
+        "_section": "I2C 开关",
+        "_features": "I2C 4通道 电平转换 中断输出 RESET",
+        "_params": "Part Number: NCA9545 | 通道数: 4 | VCC(V): 1.65~5.5 | I2C频率(kHz): 400 | 中断: Yes | RESET: Yes | 工作温度(℃): -40~85",
+        "_params_numeric": {
+          "通道数": {
+            "value": 4
+          },
+          "vcc__v_": {
+            "raw": "1.65~5.5",
+            "is_range": true,
+            "min": 1.65,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9545 是通过I2C总线控制的四路双向转换开关。SCL/SDA上行数据分散到四对下行通道，可选择任意通道组合。四个中断输入，低电平有效复位。",
+        "_detail_features": "4选1双向I2C开关 | 1.65V~5.5V供电 | 400kHz I2C | 四个中断输入 | RESET复位 | 电平转换支持1.8V/2.5V/3.3V/5V | 工作温度-40℃~85℃"
+      },
+      {
+        "part_number": "NCA9546",
+        "_section": "I2C 开关",
+        "_features": "I2C 4通道 电平转换 RESET",
+        "_params": "Part Number: NCA9546 | 通道数: 4 | VCC(V): 1.65~5.5 | I2C频率(kHz): 400 | RESET: Yes | 工作温度(℃): -40~85",
+        "_params_numeric": {
+          "通道数": {
+            "value": 4
+          },
+          "vcc__v_": {
+            "raw": "1.65~5.5",
+            "is_range": true,
+            "min": 1.65,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9546 是通过I2C总线控制的四路双向转换开关，带低电平有效复位(RESET)输入。可选择任意SCN/SDN通道组合。",
+        "_detail_features": "4选1双向I2C开关 | 1.65V~5.5V供电 | 400kHz I2C | RESET复位 | 电平转换支持1.8V/2.5V/3.3V/5V | 工作温度-40℃~85℃"
+      },
+      {
+        "part_number": "NCA9548",
+        "_section": "I2C 开关",
+        "_features": "I2C 8通道 电平转换 RESET",
+        "_params": "Part Number: NCA9548 | 通道数: 8 | VCC(V): 1.65~5.5 | I2C频率(kHz): 400 | RESET: Yes | 工作温度(℃): -40~85",
+        "_params_numeric": {
+          "通道数": {
+            "value": 8
+          },
+          "vcc__v_": {
+            "raw": "1.65~5.5",
+            "is_range": true,
+            "min": 1.65,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9548 是通过I2C总线控制的八路双向转换开关。SCL/SDA上行数据分散到八对下行通道，可选择任意通道组合。低电平有效复位。",
+        "_detail_features": "8选1双向I2C开关 | 1.65V~5.5V供电 | 400kHz I2C | RESET复位 | 电平转换支持1.8V/2.5V/3.3V/5V | 工作温度-40℃~85℃"
+      },
+      {
+        "part_number": "NCA9306",
+        "_section": "I2C 电平转换器",
+        "_features": "I2C 电平转换 双向 SMBUS",
+        "_params": "Part Number: NCA9306 | 通道数: 2 | 电压范围(V): 1.2~5.5 | I2C频率(kHz): 400 | 封装: VSSOP-8",
+        "_params_numeric": {
+          "通道数": {
+            "value": 2
+          },
+          "vcc__v_": {
+            "raw": "1.2~5.5",
+            "is_range": true,
+            "min": 1.2,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9306 是一款双路双向I2C和SMBUS电压电平转换器，可在1.2V到5V间实现双向电压转换，无须方向引脚。低导通电阻，最短传播延迟。",
+        "_detail_features": "2位双向I2C转换器 | 兼容I2C和SMBUS | 1.2V~5.5V电压转换 | 400kHz | 低导通电阻 | EN使能控制 | ESD保护"
+      },
+      {
+        "part_number": "NCA9511",
+        "_section": "I2C 缓冲器",
+        "_features": "I2C 缓冲器 SMBUS 热插拔",
+        "_params": "Part Number: NCA9511 | VCC(V): 2.3~5.5 | I2C频率(kHz): 400 | 工作温度(℃): -40~85",
+        "_params_numeric": {
+          "vcc__v_": {
+            "raw": "2.3~5.5",
+            "is_range": true,
+            "min": 2.3,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9511 是一款I2C总线热插拔和SMBUS缓冲器，支持带电插入和移除而不破坏总线数据。",
+        "_detail_features": "I2C总线热插拔 | SMBUS兼容 | 2.3V~5.5V供电 | 400kHz | 预充电功能避免数据损坏 | 工作温度-40℃~85℃"
+      },
+      {
+        "part_number": "NCA9617A",
+        "_section": "I2C 缓冲器",
+        "_features": "I2C 缓冲器 双路 电平转换 SMBUS",
+        "_params": "Part Number: NCA9617A | 通道数: 2 | 电压范围(V): 0.8~5.5 | I2C频率(kHz): 1000 | 工作温度(℃): -40~125 | ESD: 5500V HBM",
+        "_params_numeric": {
+          "通道数": {
+            "value": 2
+          },
+          "vcc__v_": {
+            "raw": "0.8~5.5",
+            "is_range": true,
+            "min": 0.8,
+            "max": 5.5,
+            "unit": "V"
+          }
+        },
+        "_detail_intro": "NCA9617A 是一款双路双向I2C和SMBUS缓冲器，支持低至0.8V和高达5.5V间的双向电压电平转换，支持时钟伸展和多主仲裁。",
+        "_detail_features": "双路双向I2C缓冲器 | 0.8V~5.5V电平转换 | 支持1MHz快速模式+ | 时钟伸展和多主仲裁 | 5500V HBM ESD | 工作温度-40℃~125℃"
       }
     ]
   },

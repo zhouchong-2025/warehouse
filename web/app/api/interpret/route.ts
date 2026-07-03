@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-import { parseQuery } from './query_parser';
+import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES } from './query_parser';
 import { tagSatisfied } from './constraint-match';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
@@ -61,9 +61,7 @@ const CATEGORY_HIERARCHY: Record<string, string[]> = {
   "电子保险丝": ["电源保护"],
   "理想二极管": ["电源保护"],
   "LDO": ["电源"],
-  "DCDC": ["电源"],
-  "降压": ["DCDC"],
-  "升压": ["DCDC"],
+  "DCDC": ["降压", "升压", "电源"],
   // ── 电池管理族 ──
   "线性充电": ["电池管理"],
   "电池监控": ["电池管理"],
@@ -80,7 +78,8 @@ const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理
 
 == 电源管理 ==
 - 理解VIN→VOUT→IOUT的关系。用户说"X转Y"或"X到Y"→X是Vin, Y是Vout
-- 降压(step-down/buck)→DCDC+降压; 升压(boost)→DCDC+升压
+- 降压(step-down/buck)→DCDC; 升压(boost)→DCDC
+- DCDC 是降压/升压/反激等拓扑的上位品类标签
 - 线性稳压/LDO→LDO; 只说"电源芯片"且电压差小→优先LDO
 - 电流单位: 用户说"1A"=1A, "200mA"=0.2A; 注意mA和A不要混淆
 - LDO关键指标: 噪声/PSRR; DCDC关键指标: 开关频率/效率
@@ -88,6 +87,7 @@ const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理
 - 电子保险丝/eFuse→电子保险丝; 关注输入电压、限流值、导通电阻
 - 电源时序→电源时序; 高边驱动/高边开关→高边驱动
 - 只说"Xv, Yv, Za"无品类词→不限定品类(用户可能接受LDO或DCDC)
+- ★精确数值标签: 用户给出具体电压/电流数字时，直接生成对应的精确标签(如48v→Vin_48V, 70v→Vin_70V, 12vout→Vout_12V, 1a→Iout_1A)。不要只在静态标签列表里选，实际电压值就是正确的标签。精确值永远放进 features(硬需求)
 
 == 信号链 ==
 - 运放: 关注通道数、带宽(GBW)、轨到轨、Vos精度、静态功耗
@@ -141,50 +141,77 @@ const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理
 
 == Few-shot 示例 ==
 Q: CAN FD 车规 低功耗唤醒
-A: {"features":["CAN-FD","车规AEC-Q100","低功耗唤醒"],"vendor":null,"category_hint":"接口","explanation":"CAN FD车规收发器，支持低功耗唤醒","confidence":"high"}
+A: {"features":["CAN-FD","低功耗唤醒"],"nice_features":["车规AEC-Q100"],"vendor":null,"category_hint":"接口","explanation":"CAN FD收发器，硬需求=支持低功耗唤醒；车规是偏好","confidence":"high"}
 
 Q: 隔离 RS-485 高速
-A: {"features":["隔离","RS-485","20Mbps"],"vendor":null,"category_hint":"隔离接口","explanation":"隔离RS-485收发器，高速20Mbps","confidence":"high"}
+A: {"features":["隔离","RS-485","20Mbps"],"nice_features":[],"vendor":null,"category_hint":"隔离接口","explanation":"隔离RS-485收发器，硬需求=隔离+20Mbps高速","confidence":"high"}
 
 Q: RS-232 5发3收
-A: {"features":["RS-232","3T5R"],"vendor":null,"category_hint":"接口","explanation":"RS-232收发器，3路发送5路接收","confidence":"high"}
+A: {"features":["RS-232","3T5R"],"nice_features":[],"vendor":null,"category_hint":"接口","explanation":"RS-232收发器，3路发送5路接收","confidence":"high"}
 
 Q: 隔离 485 高速 半双工
-A: {"features":["隔离","RS-485","20Mbps","半双工"],"vendor":null,"category_hint":"隔离接口","explanation":"隔离RS-485收发器，高速半双工","confidence":"high"}
+A: {"features":["隔离","RS-485","20Mbps","半双工"],"nice_features":[],"vendor":null,"category_hint":"隔离接口","explanation":"隔离RS-485收发器，硬需求=隔离+高速+半双工","confidence":"high"}
 
 Q: LDO 5V 1A
-A: {"features":["LDO","Vout_5V","Iout_1A","Vin_5V"],"vendor":null,"category_hint":"电源","explanation":"LDO线性稳压器，5V输出1A","confidence":"high"}
+A: {"features":["LDO","Vout_5V","Iout_1A"],"nice_features":[],"vendor":null,"category_hint":"电源","explanation":"LDO线性稳压器，硬需求=5V输出1A","confidence":"high"}
+
+Q: 48v转12v 1a 最大输入支持70v
+A: {"features":["DCDC","Vin_70V","Vout_12V","Iout_1A"],"nice_features":[],"vendor":null,"category_hint":"电源","explanation":"降压DCDC，硬需求=输入耐压70V输出12V/1A","confidence":"high"}
 
 Q: BMS 3节 电池保护
-A: {"features":["BMS"],"vendor":null,"category_hint":"电池管理","explanation":"3节电池保护BMS芯片","confidence":"high"}
+A: {"features":["BMS"],"nice_features":[],"vendor":null,"category_hint":"电池管理","explanation":"3节电池保护BMS芯片","confidence":"high"}
 
 Q: 非隔离栅极驱动
-A: {"features":["非隔离栅极驱动"],"vendor":null,"category_hint":"驱动","explanation":"非隔离栅极驱动芯片","confidence":"high"}
+A: {"features":["非隔离栅极驱动"],"nice_features":[],"vendor":null,"category_hint":"驱动","explanation":"非隔离栅极驱动芯片","confidence":"high"}
 
 Q: 模拟开关 8通道
-A: {"features":["模拟开关","8通道"],"vendor":null,"category_hint":"接口","explanation":"8通道模拟开关","confidence":"high"}
+A: {"features":["模拟开关","8通道"],"nice_features":[],"vendor":null,"category_hint":"接口","explanation":"8通道模拟开关","confidence":"high"}
 
 Q: 理想二极管 12V
-A: {"features":["理想二极管","Vin_12V"],"vendor":null,"category_hint":"电源","explanation":"理想二极管ORing控制器，12V输入","confidence":"high"}
+A: {"features":["理想二极管","Vin_12V"],"nice_features":[],"vendor":null,"category_hint":"电源","explanation":"理想二极管ORing控制器，12V输入","confidence":"high"}
 
 Q: 电子保险丝 高压
-A: {"features":["电子保险丝","高压(≥30V)"],"vendor":null,"category_hint":"电源","explanation":"高压电子保险丝eFuse","confidence":"high"}
+A: {"features":["电子保险丝","高压(≥30V)"],"nice_features":[],"vendor":null,"category_hint":"电源","explanation":"高压电子保险丝eFuse","confidence":"high"}
 
 Q: 直流马达驱动
-A: {"features":["马达驱动"],"vendor":null,"category_hint":"驱动","explanation":"直流马达驱动芯片","confidence":"high"}
+A: {"features":["马达驱动"],"nice_features":[],"vendor":null,"category_hint":"驱动","explanation":"直流马达驱动芯片","confidence":"high"}
+
+Q: can-fd 带特定帧唤醒
+A: {"features":["CAN-FD","特定帧唤醒"],"nice_features":[],"vendor":null,"category_hint":"接口","explanation":"CAN FD收发器，硬需求=支持特定帧唤醒功能","confidence":"high"}
 
 Q: 车规百兆phy tx接口
-A: {"features":["车规AEC-Q100","百兆","100Base-TX"],"vendor":null,"category_hint":"以太网","explanation":"车规百兆以太网PHY，TX指100Base-TX双绞线铜口介质，非MAC侧RGMII","confidence":"high"}
+A: {"features":["百兆","100Base-TX"],"nice_features":["车规AEC-Q100"],"vendor":null,"category_hint":"以太网","explanation":"百兆以太网PHY，硬需求=百兆+TX铜口；车规是偏好","confidence":"high"}
 
 Q: 千兆phy 光口
-A: {"features":["千兆","100FX"],"vendor":null,"category_hint":"以太网","explanation":"千兆以太网PHY，光口对应光纤介质","confidence":"high"}
+A: {"features":["千兆","100FX"],"nice_features":[],"vendor":null,"category_hint":"以太网","explanation":"千兆以太网PHY，光口对应光纤介质","confidence":"high"}
+
+Q: 隔离电压的运放有吗
+A: {"features":["隔离放大器"],"nice_features":[],"vendor":null,"category_hint":"放大器","explanation":"隔离放大器就是隔离型的运放，不需要额外的运放或隔离标签","confidence":"high"}
+
+Q: 有没有电流传感器 m7内核的mcu 支持can
+A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor":null,"category_hint":"传感器","explanation":"用户同时在找电流传感器和带CAN的M7 MCU","confidence":"medium"}
+
+== features vs nice_features 判定规则 ==
+放入 features (硬需求—缺了就不是用户要的东西):
+- 品类标签(隔离CAN, LDO, DCDC, 运放, 隔离放大器, 栅极驱动...)
+- 具体功能特性(特定帧唤醒, 低功耗唤醒, 隔离, 半双工, 全双工, 轨到轨...)
+- 精确数值参数(Vin_12V, Iout_1A, Vout_3.3V, 20Mbps, 8通道, 16:1...)
+- 接口协议(RS-485, I2C, CAN-FD, LIN, SGMII, 100Base-TX...)
+
+放入 nice_features (软偏好—满足更好但不满足也能接受):
+- 质量/可靠性等级(车规AEC-Q100, 工业级, 消费级)
+- 纯性能修饰(低噪声, 高PSRR, 高速(≥50MHz))
+- 速度描述词当品类已明确时(千兆→以太网已有, 百兆→以太网已有。例外: 用户只说\"千兆phy\"无其他约束时千兆进features)
+- 封装/温度范围等(用户没明确要求的不加)
+
+如果拿不准，优先放 features。
 
 == 意图识别(intent) ==
 - 默认 intent="spec_search"(按品类/参数找料)。
 - 仅当用户明确在"用某竞品型号找国产替代/pin-to-pin/兼容料"时 intent="cross_ref", 并把竞品型号填入 cross_ref_target(大写)。例: "把我现在用的那颗TI双通道隔离换成国产"→intent="cross_ref"(若有明确型号则填, 没有则留空走品类搜索)。
 - 注意: 大多数"型号+替代"查询已被规则层拦截, LLM 只需兜底口语化、没明说型号的模糊表达。拿不准就用 spec_search, 不要乱标 cross_ref。
 
-仅输出JSON: {"primary_category":"","features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
+仅输出JSON: {"primary_category":"","features":[],"nice_features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -241,7 +268,7 @@ export async function POST(req: NextRequest) {
         fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
-          body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: llmQuery }], temperature: 0.1, max_tokens: 200 }),
+          body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: llmQuery }], temperature: 0.1, max_tokens: 300 }),
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('LLM timeout')), 12000))
       ]);
@@ -282,71 +309,84 @@ export async function POST(req: NextRequest) {
 
     const result = llmResult;
     result.suggestions = [];
-    // ── 透传 parser 派生的 must/nice 约束(以太网硬过滤+降级用) ──
-    // When LLM was used, merge parser's structured must tags with LLM-invented features
-    // that the parser doesn't know about (e.g., "LED驱动", "低边驱动").
+    // ── LLM-driven must/nice assembly ──
+    // Parser's must + mustMeta are the authoritative structured output.
+    // LLM's nice_features tells us which tags to relax from must to nice.
+    // LLM's features add tags the parser missed.
+    const llmNiceTags = new Set((llmResult.nice_features || []) as string[]);
+    const llmWasUsed = parsed.needsLLM;
+
     if (parsed.must && parsed.must.length > 0) {
-      // Start with parser's must (has dimension/family/value metadata)
+      // Start with parser's must (already filtered: strongestByFamily, category, etc.)
       result.must = [...parsed.must];
-      // Compute max values to filter LLM cascade noise
-      const maxVin = Math.max(...parsed.must
-        .filter((f: string) => /^Vin_(\d+\.?\d*)V$/.test(f))
-        .map((f: string) => parseFloat(f.match(/^Vin_(\d+\.?\d*)V$/)![1])), 0);
-      const maxIout = Math.max(...parsed.must
-        .filter((f: string) => /^Iout_(\d+\.?\d*)A$/.test(f))
-        .map((f: string) => parseFloat(f.match(/^Iout_(\d+\.?\d*)A$/)![1])), 0);
-      const maxChan = Math.max(...parsed.must
-        .filter((f: string) => /^(\d+)通道$/.test(f))
-        .map((f: string) => parseInt(f.match(/^(\d+)通道$/)![1])), 0);
-      const maxPort = Math.max(...parsed.must
-        .filter((f: string) => /^(\d+)口$/.test(f))
-        .map((f: string) => parseInt(f.match(/^(\d+)口$/)![1])), 0);
-      const maxVout = Math.max(...parsed.must
-        .filter((f: string) => /^Vout_(\d+\.?\d*)V$/.test(f))
-        .map((f: string) => parseFloat(f.match(/^Vout_(\d+\.?\d*)V$/)![1])), 0);
-      // Add LLM features that parser didn't classify → default to spec dimension
-      const parserKnown = new Set([...result.must, ...(parsed.nice || [])]);
-      for (const f of result.features) {
-        if (!parserKnown.has(f) && !result.must.includes(f)) {
-          // Skip cascade Vin/Iout/通道/口 tags (parser/LLM hallucinates weaker thresholds)
-          const vinM = f.match(/^Vin_(\d+\.?\d*)V$/);
-          const ioutM = f.match(/^Iout_(\d+\.?\d*)A$/);
-          const chanM = f.match(/^(\d+)通道$/);
-          const portM = f.match(/^(\d+)口$/);
-          const voutM = f.match(/^Vout_(\d+\.?\d*)V$/);
-          if (vinM && parseFloat(vinM[1]) < maxVin) continue;
-          if (ioutM && parseFloat(ioutM[1]) < maxIout) continue;
-          if (chanM && parseInt(chanM[1]) < maxChan) continue;
-          if (portM && parseInt(portM[1]) < maxPort) continue;
-          if (voutM && parseFloat(voutM[1]) < maxVout) continue;
-          result.must.push(f);
-          if (parsed.mustMeta) {
-            // Compute family/value for param tags so constraint layer uses _params_numeric
-            const vFM = f.match(/^Vout_(\d+\.?\d*)V$/);
-            const iFM = f.match(/^Iout_(\d+\.?\d*)A$/);
-            const vinFM = f.match(/^Vin_(\d+\.?\d*)V$/);
-            if (vFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vout', value: parseFloat(vFM[1]) });
-            else if (iFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Iout', value: parseFloat(iFM[1]) });
-            else if (vinFM) parsed.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vin', value: parseFloat(vinFM[1]) });
-            else parsed.mustMeta.push({ tag: f, dimension: 'spec' });
-          }
-          // Soft modifiers from LLM → push to nice instead of polluting must
-          const SOFT_MODIFIERS = new Set(['低噪声', '低功耗(≤50µA)', '高PSRR', '低功耗唤醒']);
-          if (SOFT_MODIFIERS.has(f)) {
-            result.must.pop();
-            if (parsed.mustMeta) parsed.mustMeta.pop();
+      result.mustMeta = [...(parsed.mustMeta || [])];
+
+      // Remove tags that LLM classifies as nice (but keep in nice array)
+      if (llmWasUsed && llmNiceTags.size > 0) {
+        for (let i = result.must.length - 1; i >= 0; i--) {
+          if (llmNiceTags.has(result.must[i])) {
             if (!result.nice) result.nice = [];
-            result.nice.push(f);
+            result.nice.push(result.must[i]);
+            result.must.splice(i, 1);
+            if (result.mustMeta) result.mustMeta.splice(i, 1);
           }
         }
       }
-      result.nice = parsed.nice || [];
-      result.mustMeta = parsed.mustMeta || [];
+
+      // Add LLM features that parser didn't produce → default to must (unless in llmNiceTags)
+      const parserKnown = new Set([...parsed.must, ...(parsed.nice || [])]);
+      for (const f of result.features) {
+        if (parserKnown.has(f) || result.must.includes(f)) continue;
+        // Skip cascade Vin/Iout/通道/口/Vout tags (weaker than parser's strongest)
+        const maxVin = Math.max(...result.must
+          .filter((s: string) => /^Vin_(\d+\.?\d*)V$/.test(s))
+          .map((s: string) => parseFloat(s.match(/^Vin_(\d+\.?\d*)V$/)![1])), 0);
+        const maxIout = Math.max(...result.must
+          .filter((s: string) => /^Iout_(\d+\.?\d*)A$/.test(s))
+          .map((s: string) => parseFloat(s.match(/^Iout_(\d+\.?\d*)A$/)![1])), 0);
+        const maxChan = Math.max(...result.must
+          .filter((s: string) => /^(\d+)通道$/.test(s))
+          .map((s: string) => parseInt(s.match(/^(\d+)通道$/)![1])), 0);
+        const maxPort = Math.max(...result.must
+          .filter((s: string) => /^(\d+)口$/.test(s))
+          .map((s: string) => parseInt(s.match(/^(\d+)口$/)![1])), 0);
+        const maxVout = Math.max(...result.must
+          .filter((s: string) => /^Vout_(\d+\.?\d*)V$/.test(s))
+          .map((s: string) => parseFloat(s.match(/^Vout_(\d+\.?\d*)V$/)![1])), 0);
+        const vinM = f.match(/^Vin_(\d+\.?\d*)V$/);
+        const ioutM = f.match(/^Iout_(\d+\.?\d*)A$/);
+        const chanM = f.match(/^(\d+)通道$/);
+        const portM = f.match(/^(\d+)口$/);
+        const voutM = f.match(/^Vout_(\d+\.?\d*)V$/);
+        if (vinM && parseFloat(vinM[1]) < maxVin) continue;
+        if (ioutM && parseFloat(ioutM[1]) < maxIout) continue;
+        if (chanM && parseInt(chanM[1]) < maxChan) continue;
+        if (portM && parseInt(portM[1]) < maxPort) continue;
+        if (voutM && parseFloat(voutM[1]) < maxVout) continue;
+        if (llmNiceTags.has(f)) {
+          if (!result.nice) result.nice = [];
+          result.nice.push(f);
+        } else {
+          result.must.push(f);
+          if (result.mustMeta) {
+            const vFM = f.match(/^Vout_(\d+\.?\d*)V$/);
+            const iFM = f.match(/^Iout_(\d+\.?\d*)A$/);
+            const vinFM = f.match(/^Vin_(\d+\.?\d*)V$/);
+            if (vFM) result.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vout', value: parseFloat(vFM[1]) });
+            else if (iFM) result.mustMeta.push({ tag: f, dimension: 'spec', family: 'Iout', value: parseFloat(iFM[1]) });
+            else if (vinFM) result.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vin', value: parseFloat(vinFM[1]) });
+            else result.mustMeta.push({ tag: f, dimension: CATEGORY_TAG_NAMES.has(f) ? 'category' : 'spec' });
+          }
+        }
+      }
+      result.nice = [...new Set([...(result.nice || []), ...(parsed.nice || [])])];
       result.category_hint = result.category_hint || parsed.category_hint;
     } else {
-      // No parser must — use LLM features with minimal classification
-      result.must = result.features.filter((f: string) => typeof f === 'string');
-      result.nice = [];
+      // No parser must — use LLM features with LLM classification
+      const llmNice = (llmResult.nice_features || []) as string[];
+      const niceSet = new Set(llmNice);
+      result.must = result.features.filter((f: string) => typeof f === 'string' && !niceSet.has(f));
+      result.nice = llmNice;
       result.mustMeta = result.must.map((f: string) => ({ tag: f, dimension: 'spec' }));
     }
     // Apply category hierarchy to must tags (resolve subclass/parent conflicts)
@@ -362,6 +402,26 @@ export async function POST(req: NextRequest) {
       result.must = [...mustSet];
       if (result.mustMeta) {
         result.mustMeta = result.mustMeta.filter((m: any) => result.must.includes(m.tag));
+      }
+    }
+    // Dynamic umbrella removal: if must has tag A (hint=X) AND tag X, remove X.
+    // e.g. "DCDC"(hint="电源") + "电源" → remove "电源"
+    // Derived from CATEGORY_RULES category_hint, no manual mapping needed.
+    if (result.must && result.must.length > 0) {
+      const mustSet = new Set(result.must);
+      let changed = false;
+      for (const tag of result.must) {
+        const hint = CATEGORY_HINT_MAP[tag];
+        if (hint && hint !== tag && mustSet.has(hint)) {
+          mustSet.delete(hint);
+          changed = true;
+        }
+      }
+      if (changed) {
+        result.must = [...mustSet];
+        if (result.mustMeta) {
+          result.mustMeta = result.mustMeta.filter((m: any) => result.must.includes(m.tag));
+        }
       }
     }
     // ── 透传排序意图 sortKey(高/低 + 参数 → 数值排序) ──

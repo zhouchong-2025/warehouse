@@ -198,6 +198,11 @@ const CATEGORY_RULES: CategoryRule[] = [
 ];
 // Exported for route.ts to classify LLM category tags correctly
 export const CATEGORY_TAG_NAMES = new Set(CATEGORY_RULES.map(r => r.tag));
+// tag → category_hint mapping (highest priority wins). Used for dynamic umbrella removal.
+export const CATEGORY_HINT_MAP: Record<string, string> = {};
+for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
+  if (!CATEGORY_HINT_MAP[r.tag]) CATEGORY_HINT_MAP[r.tag] = r.category_hint;
+}
 
 
 // ═══════════════════════════════════════════════════════════
@@ -374,7 +379,7 @@ const PARAM_RULES: ParamRule[] = [
     extract: (m) => { const ma = parseInt(m[1]); return ma <= 10000 && ma >= 50 ? cumulativeThresholds(ma/1000, [12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0.5], 'A').map(t => `Iout_${t}`) : []; } },
   // Voltage: produces Vin_ tags; engine post-processing converts to Vout_ for LDO/output context
   { pattern: /(\d+\.?\d*)\s*V\b(?!\w)/i,
-    extract: (m) => { const v = parseFloat(m[1]); if (v >= 0.5 && v <= 60) { const ts = [48, 36, 24, 12, 5, 3.3, 2.5, 1.8, 1.2, 1, 0.8, 0.6]; return ts.filter(t => v >= t).map(t => `Vin_${Number.isInteger(t)?t:t}V`); } return []; } },
+    extract: (m) => { const v = parseFloat(m[1]); if (v >= 0.5 && v <= 600) { const exact = `Vin_${Number.isInteger(v) ? v : v}V`; const ts = [48, 36, 24, 12, 5, 3.3, 2.5, 1.8, 1.2, 1, 0.8, 0.6]; const cumul = ts.filter(t => v >= t).map(t => `Vin_${Number.isInteger(t)?t:t}V`); return [...new Set([exact, ...cumul])]; } return []; } },
   { pattern: /(\d+)\s*通道/,
     extract: (m) => { const n = parseInt(m[1]); return [32, 16, 8, 4, 2, 1].filter(t => n >= t).map(t => `${t}通道`); } },
   { pattern: /(\d+)\s*路/,
@@ -665,8 +670,8 @@ export function parseQuery(query: string): ParseResult {
 
   // Step 3: Param extraction
   for (const rule of PARAM_RULES) {
-    const match = rule.pattern.exec(normalizedQuery);
-    if (match) {
+    const matches = [...(normalizedQuery.matchAll(new RegExp(rule.pattern.source, rule.pattern.flags.includes('g') ? rule.pattern.flags : rule.pattern.flags + 'g')))];
+    for (const match of matches) {
       for (const tag of rule.extract(match)) {
         if (!features.includes(tag)) {
           features.push(tag);
@@ -755,8 +760,8 @@ export function parseQuery(query: string): ParseResult {
     features.splice(idx, 1);
     sources.delete('精密(≤1mV)');
   }
-  // 局部网络唤醒 包含 唤醒 语义 → 抑制独立唤醒标签
-  if (features.includes('局部网络唤醒') && features.includes('唤醒')) {
+  // 局部网络唤醒/特定帧唤醒 包含 唤醒 语义 → 抑制独立唤醒标签
+  if ((features.includes('局部网络唤醒') || features.includes('特定帧唤醒')) && features.includes('唤醒')) {
     const idx = features.indexOf('唤醒');
     features.splice(idx, 1);
     sources.delete('唤醒');

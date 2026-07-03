@@ -498,6 +498,17 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     const tNoHyphen = t.replace(/-/g, '');
     if (sectionText.includes(t) || sectionText.includes(tNoHyphen)) return true;
     if (paramsText.includes(t) || paramsText.includes(tNoHyphen)) return true;
+    if (feats.includes(t) || feats.includes(tNoHyphen)) return true;
+    // Check category synonyms in section/params (e.g. "DCDC" matches "降压"/"buck")
+    const CATEGORY_SYNONYMS: Record<string, string[]> = {
+      'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
+    };
+    const syns = CATEGORY_SYNONYMS[t];
+    if (syns) {
+      for (const syn of syns) {
+        if (sectionText.includes(syn) || paramsText.includes(syn) || feats.includes(syn)) return true;
+      }
+    }
     return false;
   }
 
