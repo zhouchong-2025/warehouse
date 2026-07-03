@@ -893,10 +893,9 @@ export function parseQuery(query: string): ParseResult {
   // Cleaned residual: strip noise particles to detect real unconsumed content
   const NOISE_RE = /\b(的|了|吗|个|是|有|我|你|帮|推荐|推荐一|需要|请问|找|一下|款|颗|个|能|可以|有没有|想要|什么|帮忙|求|可否|是否|怎么|如何|哪|几|给|用|做|要|搞|弄|弄个)\b/gi;
   const residualClean = residual.replace(NOISE_RE, '').replace(/\s+/g, ' ').trim();
-  // 3+ chars of meaningful residual → parser didn't understand enough → escalate to LLM.
-  // (Was 15 — too high. "16切一"=4chars carries real signal but was below old threshold.)
+  // Any meaningful residual → parser didn't fully understand → escalate to LLM.
   const hasMeaningful = /[\u4e00-\u9fff\d]/.test(residualClean);
-  const residualTooLong = residualClean.length > 3 && hasMeaningful;
+  const residualTooLong = residualClean.length > 0 && hasMeaningful;
 
   return {
     features,

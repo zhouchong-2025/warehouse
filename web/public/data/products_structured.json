@@ -55363,13 +55363,13 @@
       },
       {
         "part_number": "NSI8200-DSPR",
-        "_section": "数字隔离器",
+        "_section": "隔离I2C",
         "_sections": [
           "2C 选型表"
         ],
         "_params": "通道: 2 | 最大时钟频率 （MHz）: 2 | 最大码流 (Mbps): 2 | 隔离等级: Basic | 隔离电压 (kV): 3.75 | 测试电压 (kV): 7 | CMTI (kV/μs): 150 | 产品等级: Industrial | 工作温度 (° C): -40~125 | 封装类型: SOP8",
         "_raw": "2 | 2 | 2 | Basic | 3.75 | 7 | 150 | Industrial | -40~125 | SOP8",
-        "_features": "工业级 2Mbps 隔离 选型表 2C 数字隔离器",
+        "_features": "工业级 2Mbps 隔离 I2C 数字隔离器",
         "_params_numeric": {
           "最大码流__mbps_": {
             "raw": "2",
@@ -55393,13 +55393,13 @@
       },
       {
         "part_number": "NSI8200-DSWR",
-        "_section": "数字隔离器",
+        "_section": "隔离I2C",
         "_sections": [
           "2C 选型表"
         ],
         "_params": "通道: 2 | 最大时钟频率 （MHz）: 2 | 最大码流 (Mbps): 2 | 隔离等级: Reinforced | 隔离电压 (kV): 5 | 测试电压 (kV): 10 | CMTI (kV/μs): 150 | 产品等级: Industrial | 工作温度 (° C): -40~125 | 封装类型: SOW16",
         "_raw": "2 | 2 | 2 | Reinforced | 5 | 10 | 150 | Industrial | -40~125 | SOW16",
-        "_features": "工业级 2Mbps 隔离 选型表 2C 数字隔离器",
+        "_features": "工业级 2Mbps 隔离 I2C 数字隔离器",
         "_params_numeric": {
           "最大码流__mbps_": {
             "raw": "2",
@@ -55423,13 +55423,13 @@
       },
       {
         "part_number": "NSI8200-DSWWAR",
-        "_section": "数字隔离器",
+        "_section": "隔离I2C",
         "_sections": [
           "2C 选型表"
         ],
         "_params": "通道: 2 | 最大时钟频率 （MHz）: 2 | 最大码流 (Mbps): 2 | 隔离等级: Reinforced | 隔离电压 (kV): 8 | 测试电压 (kV): 10 | CMTI (kV/μs): 150 | 产品等级: Industrial | 工作温度 (° C): -40~125 | 封装类型: SOWW8",
         "_raw": "2 | 2 | 2 | Reinforced | 8 | 10 | 150 | Industrial | -40~125 | SOWW8",
-        "_features": "工业级 2Mbps 隔离 选型表 2C 数字隔离器",
+        "_features": "工业级 2Mbps 隔离 I2C 数字隔离器",
         "_params_numeric": {
           "最大码流__mbps_": {
             "raw": "2",
