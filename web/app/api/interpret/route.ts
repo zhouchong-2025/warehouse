@@ -247,6 +247,7 @@ export async function POST(req: NextRequest) {
     let llmCalled = false;
     let llmSucceeded = false;
     let llmRawFeatures: string[] = [];
+    let llmError = '';
     if (!parsed.needsLLM) {
       // Parser confident: skip LLM entirely
       llmResult = { features: parsed.features, exclude_tags: parsed.exclude_tags, vendor: vendor || null, category_hint: parsed.category_hint, explanation: parsed.explanation, confidence: parsed.confidence, suggestions: [] };
@@ -293,6 +294,7 @@ export async function POST(req: NextRequest) {
         llmResult.exclude_tags = parsed.exclude_tags;
       }
       } catch (e) {
+        llmError = e instanceof Error ? e.message : String(e);
         // LLM timeout/error → fallback to parser output, never discard features
         llmResult = fallbackResult;
       }
@@ -315,7 +317,7 @@ export async function POST(req: NextRequest) {
 
     const result = llmResult;
     result.suggestions = [];
-    result._debug = { llmCalled, llmSucceeded, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
+    result._debug = { llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
     // ── LLM-driven must/nice assembly ──
     // Parser's must + mustMeta are the authoritative structured output.
     // LLM's nice_features tells us which tags to relax from must to nice.
