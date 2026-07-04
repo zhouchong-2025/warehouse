@@ -222,9 +222,10 @@ export async function POST(req: NextRequest) {
   const t0 = Date.now();
   let parsed: ParseResult | undefined;
   let tParse = 0, tLlm = 0;
+  let query = '';
   try {
     const body = await req.json();
-    const query = body.query;
+    query = body.query;
     const vendor = body.vendor || null;
     if (!query || !DEEPSEEK_API_KEY) {
       return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM未配置", confidence: "low", suggestions: [] });
@@ -986,8 +987,16 @@ export async function POST(req: NextRequest) {
         }
       }
     result._debug.timings = { ...result._debug.timings, total: Date.now() - t0 };
+    // Structured log → Vercel Logs dashboard
+    console.log(JSON.stringify({
+      r: requestId, q: query, t: Date.now() - t0,
+      llm: llmSucceeded ? 'ok' : (llmCalled ? `fail:${llmError}` : 'skip'),
+      features: result.features?.length, must: result.must?.length,
+      suggestions: result.suggestions?.length,
+    }));
     return NextResponse.json(result);
   } catch (e: any) {
+    console.log(JSON.stringify({ r: requestId, q: query || '?', t: Date.now() - t0, error: e.message }));
     const debug = { requestId, timings: { total: Date.now() - t0 }, llmCalled: parsed?.needsLLM ?? false, error: e.message };
     if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [], _debug: debug });
     return NextResponse.json({ error: e.message, features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [], _debug: debug });
