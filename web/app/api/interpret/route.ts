@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, type ParseResult } from './query_parser';
+import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, type ParseResult, buildPromptTagList } from './query_parser';
 import { tagSatisfied } from './constraint-match';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
@@ -74,10 +74,12 @@ const CATEGORY_HIERARCHY: Record<string, string[]> = {
   "高边开关": ["开关"],
 };
 
+const PROMPT_TAGS = buildPromptTagList();
+
 const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理、信号链、接口隔离、传感器驱动四大领域。根据用户描述推断芯片品类和关键参数，输出JSON特征标签。
 
 == 可用标签 ==
-低功耗(≤50µA), 低功耗唤醒, CAN-FD, 特定帧唤醒, VIO, 高耐压, LIN, 8Mbps,5Mbps,2Mbps,1Mbps, 轨到轨, 高速(≥50MHz), 中速(≥10MHz), 超低功耗(≤1µA), 精密(≤1mV), 车规AEC-Q100, 高压(≥30V), 工业级, 消费级, 千兆, 2.5G, 百兆, 100FX, 100Base-TX, T1-PHY, SGMII, RGMII, QSGMII, 交换机, 网卡, 以太网供电, 2口,4口,5口,8口, Pin-to-Pin兼容, 5kVrms隔离, 3kVrms隔离, 隔离电源, 隔离CAN, 隔离RS485, 集成隔离电源的隔离CAN, 集成隔离电源的隔离RS485, I2C, RS-485, RS-232, MLVDS, LDO, DCDC, ADC, DAC, 比较器, 电压基准, 串联型电压基准, 并联型电压基准, 运放, 放大器, 隔离放大器, 栅极驱动, 非隔离栅极驱动, 隔离栅极驱动, 数字隔离器, 复位芯片, IO扩展, 模拟开关, 负载开关, 马达驱动, 隔离, 电流传感器, 电流检测放大器, 电流功率检测器, 温度传感器, 压力传感器, 位置传感器, 线性位置传感器, 霍尔角度编码器, 磁阻角度编码器, 霍尔开关/锁存器, 磁阻开关/锁存器, 速度传感器, 降压, 升压, SBC, 电平转换, PMIC, DrMOS, LED驱动, MCU/DSP, 低边驱动, 氮化镓功率芯片, 低导通电阻, 理想二极管, TVS/ESD, EMI滤波器, BMS, 电子保险丝, 电源时序, 视频滤波, 音频功放, 音频总线, 匹配电阻, 逻辑门, 电池监控, 传感器接口, 仪表放大器, 差动放大器, 对数放大器, 线性充电, 高边驱动, 高速数据复用器, 电压基准放大器, 半双工, 全双工, 12bit,16bit,18bit,24bit, 1T1R,2T2R,3T5R,4T4R, 16:1,8:1,4:1,2:1,1:1, 1通道,2通道,4通道,8通道,16通道, 1A,2A,5A,7A,10A, 10Mbps,20Mbps,50Mbps,100Mbps,200Mbps, Vin_5V,Vin_12V,Vin_24V, Vout_3.3V,Vout_5V,Vout_12V, Iout_1A,Iout_2A,Iout_3A,Iout_5A,Iout_6A,Iout_10A, 低噪声,高PSRR, 以太网, PHY, IO扩展器, 隔离ADC, 隔离I2C, 隔离RS485, 高边开关, 电池充电, 固态继电器, 霍尔, 磁阻
+${PROMPT_TAGS}
 
 == 电源管理 ==
 - 理解VIN→VOUT→IOUT的关系。用户说"X转Y"或"X到Y"→X是Vin, Y是Vout

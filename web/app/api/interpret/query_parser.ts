@@ -8,6 +8,8 @@
  * If no category matched → needsLLM=true → LLM handles fuzzy case
  */
 
+import { PARAM_DEFS } from './param-defs';
+
 // ── Types ──────────────────────────────────────────────────
 
 export interface ParseResult {
@@ -209,6 +211,66 @@ for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
 export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
 };
+
+// ── Dynamic prompt tag list ──
+// Built from rule tables — guarantees SYSTEM_PROMPT stays in sync with parser.
+export function buildPromptTagList(): string {
+  // Category tags (priority-ordered, deduplicated)
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  
+  // Modifier tags first (as in current hardcoded order)
+  for (const r of MODIFIER_RULES) {
+    if (r.tag && !seen.has(r.tag)) {
+      seen.add(r.tag);
+      tags.push(r.tag);
+    }
+  }
+  
+  // Category tags (highest priority first)
+  for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
+    if (!seen.has(r.tag)) {
+      seen.add(r.tag);
+      tags.push(r.tag);
+    }
+  }
+  
+  // Param value tags from PARAM_DEFS
+  for (const d of PARAM_DEFS) {
+    for (const rule of d.parserRules) {
+      // Generate representative values for LLM reference
+      // (These are illustrative — LLM sees the pattern and generates actual values)
+      const examples: Record<string, string[]> = {
+        'Mbps': ['10Mbps,20Mbps,50Mbps,100Mbps,200Mbps'],
+        'kVrms': ['5kVrms隔离,3kVrms隔离'],
+        'Vin':  ['Vin_5V,Vin_12V,Vin_24V'],
+        'Vout': ['Vout_3.3V,Vout_5V,Vout_12V'],
+        'Iout': ['Iout_1A,Iout_2A,Iout_3A,Iout_5A,Iout_6A,Iout_10A'],
+        '通道':  ['1通道,2通道,4通道,8通道,16通道'],
+        'bit':  ['12bit,16bit,18bit,24bit'],
+        '端口':  ['2口,4口,5口,8口'],
+      };
+      if (examples[d.family] && !seen.has(examples[d.family][0])) {
+        seen.add(examples[d.family][0]);
+        tags.push(examples[d.family][0]);
+        break;
+      }
+    }
+  }
+  
+  // Static extras (not covered by parser rules — LLM-specific concepts)
+  const extras = [
+    'PMIC', 'DrMOS', 'LED驱动', '氮化镓功率芯片', '低导通电阻',
+    'TVS/ESD', 'EMI滤波器', '电压基准放大器', '固态继电器',
+    '1T1R,2T2R,3T5R,4T4R', '16:1,8:1,4:1,2:1,1:1',
+    '1A,2A,5A,7A,10A',
+  ];
+  for (const e of extras) {
+    if (!seen.has(e)) tags.push(e);
+  }
+  
+  return tags.join(', ');
+}
 
 
 // ═══════════════════════════════════════════════════════════

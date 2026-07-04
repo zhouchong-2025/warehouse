@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: web/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}
+
+      - run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Next.js build
+        run: npx next build
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+  constraint-tests:
+    needs: typecheck-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/cache@v4
+        with:
+          path: web/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('web/package-lock.json') }}
+      - run: npm ci
+
+      - name: Start dev server
+        run: npx next dev --port 3000 &
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run constraint regression
+        run: python3 ../scripts/test_constraint_layer.py
