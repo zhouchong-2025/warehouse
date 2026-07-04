@@ -204,6 +204,12 @@ for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
   if (!CATEGORY_HINT_MAP[r.tag]) CATEGORY_HINT_MAP[r.tag] = r.category_hint;
 }
 
+// Category synonyms for constraint matching — e.g. "DCDC" matches "降压"/"buck" etc.
+// Single source: constraint-match.ts imports this instead of defining inline.
+export const CATEGORY_SYNONYMS: Record<string, string[]> = {
+  'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
+};
+
 
 // ═══════════════════════════════════════════════════════════
 //  MODIFIER RULES

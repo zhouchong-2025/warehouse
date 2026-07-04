@@ -69696,5 +69696,18 @@
         }
       }
     ]
+  },
+  "_dataVersion": {
+    "version": "2.0",
+    "updated": "2026-07-04T06:00:01Z",
+    "gitCommit": "0d50908",
+    "lastDataCommit": "2026-07-04 00:07:07 +0800",
+    "totalProducts": 2188,
+    "vendors": {
+      "3peak-analog": 894,
+      "3peak-auto": 260,
+      "novosense": 966,
+      "yutai": 68
+    }
   }
 }

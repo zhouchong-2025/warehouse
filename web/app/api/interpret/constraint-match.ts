@@ -1,6 +1,7 @@
 // constraint-match.ts
 // must/nice 约束匹配 + 维度感知的三级降级兜底
 
+import { CATEGORY_SYNONYMS } from './query_parser';
 export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade' | 'technology';
 export interface MustConstraint {
   tag: string;
@@ -500,9 +501,6 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     if (paramsText.includes(t) || paramsText.includes(tNoHyphen)) return true;
     if (feats.includes(t) || feats.includes(tNoHyphen)) return true;
     // Check category synonyms in section/params (e.g. "DCDC" matches "降压"/"buck")
-    const CATEGORY_SYNONYMS: Record<string, string[]> = {
-      'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
-    };
     const syns = CATEGORY_SYNONYMS[t];
     if (syns) {
       for (const syn of syns) {

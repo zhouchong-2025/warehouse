@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES } from './query_parser';
+import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, type ParseResult } from './query_parser';
 import { tagSatisfied } from './constraint-match';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
@@ -214,6 +214,7 @@ A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor
 仅输出JSON: {"primary_category":"","features":[],"nice_features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
+  let parsed: ParseResult | undefined;
   try {
     const body = await req.json();
     const query = body.query;
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
     } catch {} // If data file missing, fall through to LLM
 
     // ── Deterministic query parser (bypass LLM for resolved queries) ──
-    const parsed = parseQuery(query);
+    parsed = parseQuery(query);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
@@ -984,7 +985,8 @@ export async function POST(req: NextRequest) {
       }
     return NextResponse.json(result);
   } catch (e: any) {
-    if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [] });
-    return NextResponse.json({ error: e.message, features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [] });
+    const debug = { llmCalled: parsed?.needsLLM ?? false, error: e.message };
+    if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [], _debug: debug });
+    return NextResponse.json({ error: e.message, features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [], _debug: debug });
   }
 }
