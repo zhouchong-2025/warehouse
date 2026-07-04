@@ -221,7 +221,7 @@ export default function Home() {
   }, [searchTrigger]);
 
   const vendors: VendorFilterOption[] = useMemo(() => {
-    const entries = Object.entries(data);
+    const entries = Object.entries(data).filter(([k]) => !String(k).startsWith('_'));
     const groupedSlugs = new Set<string>();
     const filters: VendorFilterOption[] = [];
 
@@ -253,7 +253,7 @@ export default function Home() {
   // Build flat product list
   const allProducts = useMemo(() => {
     const all: { vendor: string; vendorName: string; product: Product }[] = [];
-    for (const [slug, v] of Object.entries(data)) {
+    for (const [slug, v] of Object.entries(data).filter(([k]) => !String(k).startsWith('_'))) {
       for (const p of v.products) {
         all.push({ vendor: slug, vendorName: v.name, product: p });
       }

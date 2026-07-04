@@ -38,7 +38,7 @@ function CompareContent() {
 
   const allParts = useMemo(() => {
     const parts: { part: string; vendorName: string; product: Product }[] = [];
-    for (const [, v] of Object.entries(data)) {
+    for (const [, v] of Object.entries(data).filter(([k]) => !String(k).startsWith('_'))) {
       for (const p of v.products) {
         if (!p.part_number) continue;
         parts.push({ part: p.part_number!, vendorName: v.name, product: p });

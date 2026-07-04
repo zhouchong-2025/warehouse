@@ -2,7 +2,7 @@
 """
 numerify_params.py — P5 参数数值化
 
-从 _params 字符串中提取数值+量纲，附加到产品数据。
+从 _params 和 _detail_features/_detail_intro 提取数值+量纲，附加到产品数据。
 格式: {value: float, unit: str, raw: str}
 
 支持的单位模式:
@@ -85,6 +85,10 @@ COL_UNIT_HINTS = {
 def parse_value(raw_str):
     """从字符串提取数值和单位, 返回 {value, unit, raw, is_range, min, max}"""
     s = raw_str.strip()
+    # Strip common unit prefixes: "VBAT: 5.5~27V" → "5.5~27V"
+    s = re.sub(r'^(VBAT|VCC|VDD|VIN|VIO|VREF|VOUT|BAT|SUPPLY)\s*[:：]\s*', '', s, flags=re.I)
+    # Strip ± tolerance prefix: "±3000" → "3000"
+    s = re.sub(r'^±\s*', '', s)
     if not s:
         return None
     
@@ -100,8 +104,12 @@ def parse_value(raw_str):
         except:
             pass
     
-    # 尝试区间: "3 to 5", "3~5", "-40 to 125"
-    range_m = re.match(r'([+-]?\d+\.?\d*)\s*(to|~|～)\s*([+-]?\d+\.?\d*)', s, re.I)
+    # 尝试区间: "3 to 5", "3~5", "8-55", "-40 to 125"
+    range_m = re.match(r'([+-]?\d+\.?\d*)\s*(to|~|～|-)\s*([+-]?\d+\.?\d*)', s, re.I)
+    if range_m:
+        # Dash separator: first number must NOT be negative (avoid -40-125 ambiguity)
+        if range_m.group(2) == '-' and range_m.group(1).startswith('-'):
+            range_m = None
     if range_m:
         result['is_range'] = True
         result['min'] = float(range_m.group(1))
@@ -114,6 +122,34 @@ def parse_value(raw_str):
                 break
         if 'unit' not in result:
             result['unit'] = '?'
+        return result
+    
+    # Fixed离散值列表: "Fixed (0.8, 1.2, 1.5)" / "固定 (0.8, 1.2)"
+    #   → 转为 range [min, max] (产品可订购这些固定电压, 搜索层范围匹配是合理近似)
+    fixed_m = re.match(r'(?:Fixed|固定|可选|可选值)\s*\(\s*([\d.,\s]+)\s*\)', s, re.I)
+    if fixed_m:
+        nums = [float(x) for x in re.findall(r'\d+\.?\d*', fixed_m.group(1))]
+        if nums:
+            result['is_range'] = True
+            result['min'] = min(nums)
+            result['max'] = max(nums)
+            result['unit'] = '?'
+            return result
+    
+    # Fixed单值: "Fixed 3.3" / "固定 3.3" (no parens)
+    fixed_single_m = re.match(r'(?:Fixed|固定)\s+([+-]?\d+\.?\d*)', s, re.I)
+    if fixed_single_m:
+        result['value'] = float(fixed_single_m.group(1))
+        result['unit'] = '?'
+        return result
+    
+    # Adjustable range: "Adjustable (0.5 to 5.2)"
+    adj_m = re.match(r'(?:Adjustable|可调)\s*\(\s*([\d.]+)\s*(?:to|~|～|-)\s*([\d.]+)\s*\)', s, re.I)
+    if adj_m:
+        result['is_range'] = True
+        result['min'] = float(adj_m.group(1))
+        result['max'] = float(adj_m.group(2))
+        result['unit'] = '?'
         return result
     
     # 单值: "3.3V", "5000Vrms", "240K" (后面跟单位), "100" (纯数字)
@@ -153,11 +189,36 @@ def infer_unit(col_name):
             return UNIT_MAP[u]
     return None
 
-def numerify_product(product):
-    """为单个产品生成 _params_numeric"""
-    params_str = product.get('_params', '')
-    if not params_str:
+def scan_detail_for_numerics(product):
+    """从 _detail_features / _detail_intro 散文文本提取数值参数 (兜底 _params 缺失)"""
+    text = ' | '.join(filter(None, [
+        product.get('_detail_features', ''),
+        product.get('_detail_intro', ''),
+    ]))
+    if not text:
         return {}
+    numeric = {}
+    # "工作电压范围至40V" / "工作电压范围至 40 V" → max voltage
+    m = re.search(r'工作电压范围[至到]\s*([\d.]+)\s*V', text)
+    if m:
+        numeric['工作电压_max'] = {'value': float(m.group(1)), 'unit': 'V', 'raw': m.group(0)}
+    # "供电电压：5.5~27V" / "电源电压: 4.5-28 V"
+    m = re.search(r'(?:供电电压|工作电压|电源电压|输入电压)\s*[：:]\s*([\d.]+)\s*[~～\-to]+\s*([\d.]+)\s*V', text)
+    if m:
+        numeric['供电电压'] = {'is_range': True, 'min': float(m.group(1)), 'max': float(m.group(2)), 'unit': 'V', 'raw': m.group(0)}
+    # "输出电流：2A" / "持续电流 3 A"
+    m = re.search(r'(?:输出电流|持续电流|负载电流|最大电流)\s*[：:]\s*([\d.]+)\s*A', text)
+    if m:
+        numeric['输出电流'] = {'value': float(m.group(1)), 'unit': 'A', 'raw': m.group(0)}
+    # "导通电阻范围：8mΩ ~ 140mΩ"
+    m = re.search(r'导通电阻[范围]?\s*[：:]\s*([\d.]+)\s*mΩ\s*[~～\-to]+\s*([\d.]+)\s*mΩ', text)
+    if m:
+        numeric['导通电阻范围'] = {'is_range': True, 'min': float(m.group(1)), 'max': float(m.group(2)), 'unit': 'mΩ', 'raw': m.group(0)}
+    return numeric
+
+def numerify_product(product):
+    """为单个产品生成 _params_numeric (含 detail 兜底扫描)"""
+    params_str = product.get('_params', '')
     
     # 非参数列名(描述/特性等)
     NON_PARAM_COLS = {'产品描述', '产品类别', 'description', 'features', '特性',
@@ -175,34 +236,41 @@ def numerify_product(product):
                       'pwm rejection', 'communication interface'}
     
     numeric = {}
-    for part in params_str.split(' | '):
-        if ': ' not in part and ':' not in part:
-            continue
-        kv = part.split(':', 1)
-        col_name = kv[0].strip()
-        val_str = kv[1].strip()
-        
-        # 跳过非参数列
-        if col_name.lower() in {c.lower() for c in NON_PARAM_COLS}:
-            continue
-        # 跳过纯文本值(不含数字)
-        if not re.search(r'\d', val_str):
-            continue
-        
-        parsed = parse_value(val_str)
-        if not parsed:
-            continue
-        
-        # 推断单位
-        if parsed.get('unit') == '?':
-            inferred = infer_unit(col_name)
-            if inferred:
-                parsed['unit'] = inferred
-            else:
-                continue  # 无法推断单位 → 跳过
-        
-        norm_key = re.sub(r'[^\w]', '_', col_name.lower())[:40]
-        numeric[norm_key] = parsed
+    if params_str:
+        for part in params_str.split(' | '):
+            if ': ' not in part and ':' not in part:
+                continue
+            kv = part.split(':', 1)
+            col_name = kv[0].strip()
+            val_str = kv[1].strip()
+            
+            # 跳过非参数列
+            if col_name.lower() in {c.lower() for c in NON_PARAM_COLS}:
+                continue
+            # 跳过纯文本值(不含数字)
+            if not re.search(r'\d', val_str):
+                continue
+            
+            parsed = parse_value(val_str)
+            if not parsed:
+                continue
+            
+            # 推断单位
+            if parsed.get('unit') == '?':
+                inferred = infer_unit(col_name)
+                if inferred:
+                    parsed['unit'] = inferred
+                else:
+                    continue  # 无法推断单位 → 跳过
+            
+            norm_key = re.sub(r'[^\w]', '_', col_name.lower())[:40]
+            numeric[norm_key] = parsed
+    
+    # 从 detail 文本兜底扫描 (_params 中没有的才会补充)
+    detail_nums = scan_detail_for_numerics(product)
+    for k, v in detail_nums.items():
+        if k not in numeric:
+            numeric[k] = v
     
     return numeric
 

@@ -69,7 +69,7 @@ function ProductContent() {
     if (!slug.trim() || !Object.keys(data).length) return [];
     const q = slug.toLowerCase();
     const items: { product: Product; vendorName: string; vendorSlug: string }[] = [];
-    for (const [vendorSlug, v] of Object.entries(data)) {
+    for (const [vendorSlug, v] of Object.entries(data).filter(([k]) => !String(k).startsWith('_'))) {
       for (const p of v.products) {
         if ((p.part_number || "").toLowerCase().includes(q)) {
           items.push({

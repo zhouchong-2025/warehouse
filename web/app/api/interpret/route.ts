@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
       const raw = readFileSync(dataPath, "utf-8");
       const products = JSON.parse(raw);
       const qLower = query.trim().toLowerCase();
-      for (const [, v] of Object.entries(products) as any[]) {
+      for (const [, v] of Object.entries(products).filter(([k]) => !String(k).startsWith('_')) as any[]) {
         for (const p of (v as any).products) {
           if ((p.part_number || "").toLowerCase() === qLower) {
             return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "PN exact match", confidence: "high", suggestions: [] });
@@ -773,7 +773,7 @@ export async function POST(req: NextRequest) {
       const products = JSON.parse(raw);
       const effectiveVendor = result.vendor || vendor || null;
       const all: { pn: string; ft: string; params: string; detailIntro: string; detailFeatures: string; _section: string; _features: string }[] = [];
-      for (const [slug, v] of Object.entries(products) as any[]) {
+      for (const [slug, v] of Object.entries(products).filter(([k]) => !String(k).startsWith('_')) as any[]) {
         const vendorGroup = ['3peak-analog', '3peak-auto'].includes(String(slug)) ? '3peak' : String(slug);
         if (effectiveVendor && vendorGroup !== effectiveVendor && String(slug) !== effectiveVendor) continue;
         for (const p of (v as any).products) all.push({
