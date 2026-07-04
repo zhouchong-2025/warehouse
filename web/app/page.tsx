@@ -63,9 +63,20 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetch("/data/products_structured.json")
-      .then((r) => r.json())
-      .then(setData)
+    // Vendor-split lazy loading: load index (48KB) then fetch vendor files in parallel
+    fetch("/data/vendor_index.json")
+      .then(r => r.json())
+      .then(async (index: { vendors: Record<string, { name: string; productCount: number }> }) => {
+        const vendorSlugs = Object.keys(index.vendors);
+        const vendorData: Record<string, VendorData> = {};
+        // Fetch all vendor files in parallel
+        await Promise.all(vendorSlugs.map(async (slug) => {
+          const r = await fetch(`/data/vendors/${slug}.json`);
+          const d = await r.json();
+          vendorData[slug] = { name: d.name, productCount: d.productCount, products: d.products };
+        }));
+        setData(vendorData);
+      })
       .finally(() => setLoading(false));
     // Load preferred PNs (霆宝优选)
     fetch("/data/preferred_pns.json")

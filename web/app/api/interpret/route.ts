@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 
 import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, type ParseResult, buildPromptTagList } from './query_parser';
 import { tagSatisfied } from './constraint-match';
+import { findProductByPN, loadAllVendors, loadVendor } from './data-loader';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
 // Category hierarchy: when a subclass tag exists, remove the umbrella parent tag.
@@ -231,19 +230,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM未配置", confidence: "low", suggestions: [] });
     }
 
-    // PN detection: if query matches an exact part number in the database, skip LLM.
-    // Frontend text search handles PN matching. This avoids LLM misinterpreting "tpt7482" as a category.
+    // PN detection: use pn_lookup index (65KB) instead of loading all 5.7MB
     try {
-      const dataPath = resolve(process.cwd(), "public/data/products_structured.json");
-      const raw = readFileSync(dataPath, "utf-8");
-      const products = JSON.parse(raw);
-      const qLower = query.trim().toLowerCase();
-      for (const [, v] of Object.entries(products).filter(([k]) => !String(k).startsWith('_')) as any[]) {
-        for (const p of (v as any).products) {
-          if ((p.part_number || "").toLowerCase() === qLower) {
-            return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "PN exact match", confidence: "high", suggestions: [] });
-          }
-        }
+      const match = findProductByPN(query);
+      if (match) {
+        return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "PN exact match", confidence: "high", suggestions: [] });
       }
     } catch {} // If data file missing, fall through to LLM
 
@@ -777,24 +768,25 @@ export async function POST(req: NextRequest) {
     }
 
     // Suggestion generation
-    // (try-catch removed for debugging)
-      const dataPath = resolve(process.cwd(), "public/data/products_structured.json");
-      const raw = readFileSync(dataPath, "utf-8");
-      const products = JSON.parse(raw);
+    // Vendor-split loading: if vendor filter set, load only matching vendor(s); else load all
       const effectiveVendor = result.vendor || vendor || null;
       const all: { pn: string; ft: string; params: string; detailIntro: string; detailFeatures: string; _section: string; _features: string }[] = [];
-      for (const [slug, v] of Object.entries(products).filter(([k]) => !String(k).startsWith('_')) as any[]) {
-        const vendorGroup = ['3peak-analog', '3peak-auto'].includes(String(slug)) ? '3peak' : String(slug);
-        if (effectiveVendor && vendorGroup !== effectiveVendor && String(slug) !== effectiveVendor) continue;
-        for (const p of (v as any).products) all.push({
-          pn: p.part_number,
-          ft: (p._features || "").toLowerCase(),
-          params: (p._params || ""),
-          detailIntro: (p._detail_intro || ""),
-          detailFeatures: (p._detail_features || ""),
-          _section: (p._section || "").toLowerCase(),
-          _features: (p._features || "").toLowerCase(),
-        });
+      const vendors = loadAllVendors();
+      for (const v of vendors) {
+        if (!v.products || !v.products.length) continue;
+        const vendorGroup = ['3peak-analog', '3peak-auto'].includes(v.slug) ? '3peak' : v.slug;
+        if (effectiveVendor && vendorGroup !== effectiveVendor && v.slug !== effectiveVendor) continue;
+        for (const p of v.products as any[]) {
+          all.push({
+            pn: p.part_number,
+            ft: (p._features || "").toLowerCase(),
+            params: (p._params || ""),
+            detailIntro: (p._detail_intro || ""),
+            detailFeatures: (p._detail_features || ""),
+            _section: (p._section || "").toLowerCase(),
+            _features: (p._features || "").toLowerCase(),
+          });
+        }
       }
 
       const features: string[] = result.features || [];

@@ -59,9 +59,17 @@ function ProductContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/data/products_structured.json")
-      .then((r) => r.json())
-      .then(setData)
+    fetch("/data/vendor_index.json")
+      .then(r => r.json())
+      .then(async (index: { vendors: Record<string, { name: string; productCount: number }> }) => {
+        const data: Record<string, any> = {};
+        await Promise.all(Object.keys(index.vendors).map(async (slug) => {
+          const r = await fetch(`/data/vendors/${slug}.json`);
+          const d = await r.json();
+          data[slug] = { name: d.name, productCount: d.productCount, products: d.products };
+        }));
+        setData(data);
+      })
       .finally(() => setLoading(false));
   }, []);
 

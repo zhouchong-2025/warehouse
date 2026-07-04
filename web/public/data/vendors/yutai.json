@@ -1,0 +1,1513 @@
+{
+  "name": "裕太微",
+  "productCount": 68,
+  "products": [
+    {
+      "part_number": "YT8010A",
+      "_section": "80系列/车规",
+      "_sections": [
+        "80系列/车规"
+      ],
+      "_params": "简介: FE PHY 车规 100Base-T1 | 封装: QFN36 | 制程: 130nm | 状态: MP | 工作环境温度: -40°C-125°C | 端口: 802.3bw | 接口: MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | Note: P2P BCM89811,功能兼容RTL9000B系列",
+      "_raw": "FE PHY 车规 100Base-T1 | QFN36 | 130nm | MP | -40°C-125°C | 802.3bw | MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | P2P BCM89811,功能兼容RTL9000B系列",
+      "_features": "MII 百兆 以太网 RMII RGMII 车规AEC-Q100 T1-PHY",
+      "_params_numeric": {
+        "制程": {
+          "raw": "130nm",
+          "value": 130.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-125°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8011A",
+      "_section": "80系列/车规",
+      "_sections": [
+        "80系列/车规"
+      ],
+      "_params": "简介: GE PHY 车载1000base-T1 | 封装: QFN48 | 制程: 28nm | 状态: MP | 工作环境温度: -40°C-125°C | 端口: 802.3bw/802.3bp | 接口: RGMII & SGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P兼容RTL9010AA",
+      "_raw": "GE PHY 车载1000base-T1 | QFN48 | 28nm | MP | -40°C-125°C | 802.3bw/802.3bp | RGMII & SGMII (RGMII支持3.3V/2.5V/1.8V) | P2P兼容RTL9010AA",
+      "_features": "MII 千兆 T1-PHY 以太网 RGMII 车规AEC-Q100 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-125°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8011AN",
+      "_section": "80系列/车规",
+      "_sections": [
+        "80系列/车规"
+      ],
+      "_params": "简介: GE PHY 车载1000base-T1 | 封装: QFN48 | 制程: 28nm | 状态: MP | 工作环境温度: -40°C-125°C | 端口: 802.3bw/802.3bp | 接口: RGMII & SGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P兼容RTL9010AA",
+      "_raw": "GE PHY 车载1000base-T1 | QFN48 | 28nm | MP | -40°C-125°C | 802.3bw/802.3bp | RGMII & SGMII (RGMII支持3.3V/2.5V/1.8V) | P2P兼容RTL9010AA",
+      "_features": "MII 千兆 T1-PHY 以太网 RGMII 车规AEC-Q100 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-125°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8011AR",
+      "_section": "80系列/车规",
+      "_sections": [
+        "80系列/车规"
+      ],
+      "_params": "简介: GE PHY 车载1000base-T1 | 封装: QFN40 | 制程: 28nm | 状态: MP | 工作环境温度: -40°C-125°C | 端口: 802.3bw/802.3bp | 接口: RGMII(支持3.3V/2.5V/1.8V) | Note: P2P兼容RTL9010ARG",
+      "_raw": "GE PHY 车载1000base-T1 | QFN40 | 28nm | MP | -40°C-125°C | 802.3bw/802.3bp | RGMII(支持3.3V/2.5V/1.8V) | P2P兼容RTL9010ARG",
+      "_features": "MII 千兆 以太网 RGMII 车规AEC-Q100 T1-PHY",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-125°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8111H",
+      "_section": "81系列/phy系列",
+      "_sections": [
+        "81系列/phy系列"
+      ],
+      "_params": "简介: PHY 10base-T1L | 封装: QFN40 | 制程: 55nm | 状态: Engineering Sample | 工作环境温度: -40°C-105°C | 端口: 802.3cg | 接口: MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V/1.8V) | Note: P2P兼容adin1100",
+      "_raw": "PHY 10base-T1L | QFN40 | 55nm | Engineering Sample | -40°C-105°C | 802.3cg | MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V/1.8V) | P2P兼容adin1100",
+      "_features": "工业级 MII 百兆 RGMII RMII 以太网 T1-PHY",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-105°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8510H",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY LRE 工业级 | 封装: QFN40 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1FE LRE100-1 | 接口: MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | Note: BCM54811/RTL8201G",
+      "_raw": "FE PHY LRE 工业级 | QFN40 | 110nm | MP | -40°C-85°C | 1FE LRE100-1 | MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | BCM54811/RTL8201G",
+      "_features": "工业级 MII 百兆 100Base-TX RGMII RMII 以太网 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8510C",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY LRE 消费级 | 封装: QFN40 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1FE  LRE100-1 | 接口: MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | Note: BCM54811/RTL8201G",
+      "_raw": "FE PHY LRE 消费级 | QFN40 | 110nm | MP | 0°C-70°C | 1FE  LRE100-1 | MII/RMII/RGMII (RGMII/RMII/MII支持3.3V/2.5V) | BCM54811/RTL8201G",
+      "_features": "MII 百兆 消费级 100Base-TX RGMII RMII 以太网 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "SZ18201",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 消费级 | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1FE | 接口: RMII /MII(支持3.3V) | Note: P2P 兼容 Rxx8201F   不支持100M fiber 功能兼容IP101/DP83848等",
+      "_raw": "FE PHY 消费级 | QFN32 | 110nm | MP | 0°C-70°C | 1FE | RMII /MII(支持3.3V) | P2P 兼容 Rxx8201F   不支持100M fiber 功能兼容IP101/DP83848等",
+      "_features": "MII 100FX 百兆 消费级 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8512H",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 工业级 | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1FE | 接口: MII/RMII(支持3.3V) | Note: P2P 兼容 RTL8201FI   支持LD 只有3.3V 功能兼容IP101GRI, DP83848/83822/83823/83826, KSZ8041/8081/8721, LAN8700/8710/8720等",
+      "_raw": "FE PHY 工业级 | QFN32 | 110nm | MP | -40°C-85°C | 1FE | MII/RMII(支持3.3V) | P2P 兼容 RTL8201FI   支持LD 只有3.3V 功能兼容IP101GRI, DP83848/83822/83823/83826, KSZ8041/8081/8721, LAN8700/8710/8720等",
+      "_features": "工业级 MII 百兆 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8512C",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 消费级 | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1FE | 接口: MII/RMII(支持3.3V) | Note: P2P 兼容 RTL8201F   支持LD  只有3.3V 功能兼容IP101/DP83848等",
+      "_raw": "FE PHY 消费级 | QFN32 | 110nm | MP | 0°C-70°C | 1FE | MII/RMII(支持3.3V) | P2P 兼容 RTL8201F   支持LD  只有3.3V 功能兼容IP101/DP83848等",
+      "_features": "MII 百兆 消费级 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8522C",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 消费级 支持100FX | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1FE | 接口: MII/RMII(支持3.3V/2.5/1.8V/1.5V) | Note: P2P 兼容RTL82X1/JL11X1",
+      "_raw": "FE PHY 消费级 支持100FX | QFN32 | 110nm | MP | 0°C-70°C | 1FE | MII/RMII(支持3.3V/2.5/1.8V/1.5V) | P2P 兼容RTL82X1/JL11X1",
+      "_features": "MII 100FX 百兆 消费级 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8522H",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 工业级 支持100FX | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1FE | 接口: MII/RMII(支持3.3V/2.5/1.8V/1.5V) | Note: P2P 兼容RTL82X1/JL11X1",
+      "_raw": "FE PHY 工业级 支持100FX | QFN32 | 110nm | MP | -40°C-85°C | 1FE | MII/RMII(支持3.3V/2.5/1.8V/1.5V) | P2P 兼容RTL82X1/JL11X1",
+      "_features": "工业级 MII 100FX 百兆 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8522A",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 工业级特殊场景 支持100FX | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-105°C | 端口: 1FE | 接口: MII/RMII(支持3.3V/2.5/1.8V/1.5V) | Note: 满足Automotive Application AEC-Q100 Grade 2",
+      "_raw": "FE PHY 工业级特殊场景 支持100FX | QFN32 | 110nm | MP | -40°C-105°C | 1FE | MII/RMII(支持3.3V/2.5/1.8V/1.5V) | 满足Automotive Application AEC-Q100 Grade 2",
+      "_features": "MII 百兆 100FX 100Base-TX 以太网 RMII 1口 车规AEC-Q100",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-105°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8522E",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: FE PHY 工业级特殊场景 支持100FX | 封装: QFN32 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-125°C | 端口: 1FE | 接口: MII/RMII(支持3.3V/2.5/1.8V/1.5V)",
+      "_raw": "FE PHY 工业级特殊场景 支持100FX | QFN32 | 110nm | MP | -40°C-125°C | 1FE | MII/RMII(支持3.3V/2.5/1.8V/1.5V) | ",
+      "_features": "工业级 MII 100FX 百兆 100Base-TX 以太网 RMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-125°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8511H",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 工业级 | 封装: QFN40 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE  LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V) | Note: P2P 兼容 AR8035",
+      "_raw": "GE PHY 工业级 | QFN40 | 110nm | MP | -40°C-85°C | 1GE  LRE100-4 | RGMII (RGMII支持3.3V/2.5V) | P2P 兼容 AR8035",
+      "_features": "工业级 MII 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8511C",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 消费级 | 封装: QFN40 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE  LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V) | Note: P2P 兼容 AR8035",
+      "_raw": "GE PHY 消费级 | QFN40 | 110nm | MP | 0°C-70°C | 1GE  LRE100-4 | RGMII (RGMII支持3.3V/2.5V) | P2P 兼容 AR8035",
+      "_features": "MII 消费级 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8521SH-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY SYNC-E 工业级 | 封装: QFN48 | 制程: 110nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE  LRE100-4 | 接口: RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8211FSI 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_raw": "GE PHY SYNC-E 工业级 | QFN48 | 110nm | MP | -40°C-85°C | 1GE  LRE100-4 | RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8211FSI 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_features": "工业级 MII Serdes 100FX 千兆 RGMII 以太网 1口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8521SC-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY SYNC-E 消费级 | 封装: QFN48 | 制程: 110nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE LRE100-4 | 接口: RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8211FS 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_raw": "GE PHY SYNC-E 消费级 | QFN48 | 110nm | MP | 0°C-70°C | 1GE LRE100-4 | RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8211FS 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_features": "MII Serdes 100FX 消费级 千兆 RGMII 以太网 1口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "110nm",
+          "value": 110.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531H-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 工业级 | 封装: QFN40 | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8211FI 功能兼容AR8035/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_raw": "GE PHY 工业级 | QFN40 | 55nm | MP | -40°C-85°C | 1GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8211FI 功能兼容AR8035/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_features": "工业级 MII 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531C-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 消费级 | 封装: QFN40 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8211F 功能兼容AR8035/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_raw": "GE PHY 消费级 | QFN40 | 55nm | MP | 0°C-70°C | 1GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8211F 功能兼容AR8035/KSZ9031/DP83867/B50212/B50612/88E1111/151x等",
+      "_features": "MII 消费级 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531DH-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 工业级 | 封装: QFN40 | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8211FDI",
+      "_raw": "GE PHY 工业级 | QFN40 | 55nm | MP | -40°C-85°C | 1GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8211FDI",
+      "_features": "工业级 MII 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531DC-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 消费级 | 封装: QFN40 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8211FD",
+      "_raw": "GE PHY 消费级 | QFN40 | 55nm | MP | 0°C-70°C | 1GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8211FD",
+      "_features": "MII 消费级 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531P-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 消费级 | 封装: QFN40 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE LRE100-4 | 接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8211FP",
+      "_raw": "GE PHY 消费级 | QFN40 | 55nm | MP | 0°C-70°C | 1GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8211FP",
+      "_features": "MII 消费级 千兆 以太网 RGMII 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531SH-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 工业级 | 封装: QFN48 | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE LRE100-4 | 接口: RGMII/serdes (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8211FSI 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/88E151x等",
+      "_raw": "GE PHY 工业级 | QFN48 | 55nm | MP | -40°C-85°C | 1GE LRE100-4 | RGMII/serdes (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8211FSI 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/88E151x等",
+      "_features": "工业级 MII Serdes 100FX 千兆 RGMII 以太网 1口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8531SC-CA",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: GE PHY 消费级 | 封装: QFN48 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE LRE100-4 | 接口: RGMII/Serdes (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8211FS 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/88E151x等",
+      "_raw": "GE PHY 消费级 | QFN48 | 55nm | MP | 0°C-70°C | 1GE LRE100-4 | RGMII/Serdes (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8211FS 功能兼容AR8033/KSZ9031/DP83867/B50212/B50612/88E1111/88E151x等",
+      "_features": "MII Serdes 100FX 消费级 千兆 RGMII 以太网 1口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8543C",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: 2GE PHY消费级 | 封装: QFN68 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 2GE | 接口: RGMII(支持3.3V/2.5V/1.8V/1.5V)",
+      "_raw": "2GE PHY消费级 | QFN68 | 55nm | MP | 0°C-70°C | 2GE | RGMII(支持3.3V/2.5V/1.8V/1.5V) | ",
+      "_features": "2口 MII 消费级 千兆 以太网 RGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8543H",
+      "_section": "85系列/phy系列",
+      "_sections": [
+        "85系列/phy系列"
+      ],
+      "_params": "简介: 2GE PHY 工业级 | 封装: QFN68 | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 2GE | 接口: RGMII(支持3.3V/2.5V/1.8V/1.5V)",
+      "_raw": "2GE PHY 工业级 | QFN68 | 55nm | MP | -40°C-85°C | 2GE | RGMII(支持3.3V/2.5V/1.8V/1.5V) | ",
+      "_features": "工业级 MII 2口 千兆 RGMII 以太网",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8821H",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 2.5GPHY 工业级 | 封装: QFN48 | 制程: 28nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 2.5GE | 接口: SGMII-Plus serdes支持2500BASEX/fiber1000/100/SGMII | Note: P2P 兼容 RTL8221BI",
+      "_raw": "2.5GPHY 工业级 | QFN48 | 28nm | MP | -40°C-85°C | 2.5GE | SGMII-Plus serdes支持2500BASEX/fiber1000/100/SGMII | P2P 兼容 RTL8221BI",
+      "_features": "工业级 MII Serdes 100FX 千兆 2.5G 以太网 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8821C",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 2.5GPHY 消费级 | 封装: QFN48 | 制程: 28nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 2.5GE | 接口: SGMII-Plus serdes支持2500BASEX/fiber1000/100/SGMII | Note: P2P 兼容 RTL8221B",
+      "_raw": "2.5GPHY 消费级 | QFN48 | 28nm | MP | 0°C-70°C | 2.5GE | SGMII-Plus serdes支持2500BASEX/fiber1000/100/SGMII | P2P 兼容 RTL8221B",
+      "_features": "MII Serdes 100FX 消费级 千兆 2.5G 以太网 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8824H",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 4口2.5GPHY 工业级 | 封装: DRQFN172 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: -40°C-85°C | 端口: 4*2.5GE | 接口: USXGMII | Note: P2P 兼容QCA8085, 功能兼容RTL8224N/88E2540/GPY245",
+      "_raw": "4口2.5GPHY 工业级 | DRQFN172 | 28nm | ES 25/Q1 | -40°C-85°C | 4*2.5GE | USXGMII | P2P 兼容QCA8085, 功能兼容RTL8224N/88E2540/GPY245",
+      "_features": "工业级 MII 4口 千兆 USXGMII 2.5G 以太网",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8824C",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 4口2.5GPHY 消费级 | 封装: DRQFN172 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 4*2.5GE | 接口: USXGMII | Note: P2P 兼容QCA8085, 功能兼容RTL8224N/88E2540/GPY245",
+      "_raw": "4口2.5GPHY 消费级 | DRQFN172 | 28nm | ES 25/Q1 | 0°C-70°C | 4*2.5GE | USXGMII | P2P 兼容QCA8085, 功能兼容RTL8224N/88E2540/GPY245",
+      "_features": "MII 消费级 4口 千兆 USXGMII 2.5G 以太网",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8825H",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 4口2.5GPHY 工业级 | 封装: QFN128 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: -40°C-85°C | 端口: 4*2.5GE | 接口: USXGMII | Note: 功能兼容QCA8085/RTL8224N/88E2540/GPY245",
+      "_raw": "4口2.5GPHY 工业级 | QFN128 | 28nm | ES 25/Q1 | -40°C-85°C | 4*2.5GE | USXGMII | 功能兼容QCA8085/RTL8224N/88E2540/GPY245",
+      "_features": "工业级 MII 4口 千兆 USXGMII 2.5G 以太网",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8825C",
+      "_section": "88系列PHY",
+      "_sections": [
+        "88系列PHY"
+      ],
+      "_params": "简介: 4口2.5GPHY 消费级 | 封装: QFN128 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 4*2.5GE | 接口: USXGMII | Note: 功能兼容QCA8085/RTL8224N/88E2540/GPY245",
+      "_raw": "4口2.5GPHY 消费级 | QFN128 | 28nm | ES 25/Q1 | 0°C-70°C | 4*2.5GE | USXGMII | 功能兼容QCA8085/RTL8224N/88E2540/GPY245",
+      "_features": "MII 消费级 4口 千兆 USXGMII 2.5G 以太网",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8618C",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 8GE PHY 消费级 | 封装: LQFP128-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE | 接口: 2*QSGMII | Note: P2P 兼容 RTL8218B 功能兼容88E1680/VSC8658等",
+      "_raw": "8GE PHY 消费级 | LQFP128-E | 55nm | MP | 0°C-70°C | 8GE | 2*QSGMII | P2P 兼容 RTL8218B 功能兼容88E1680/VSC8658等",
+      "_features": "QSGMII MII 消费级 千兆 以太网 8口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8618H",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 8GE PHY 工业级 | 封装: LQFP128-E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 8GE | 接口: 2*QSGMII | Note: P2P 兼容 RTL8218BI 功能兼容88E1680/VSC8658等",
+      "_raw": "8GE PHY 工业级 | LQFP128-E | 55nm | MP | -40°C-85°C | 8GE | 2*QSGMII | P2P 兼容 RTL8218BI 功能兼容88E1680/VSC8658等",
+      "_features": "QSGMII 工业级 MII 千兆 以太网 8口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8614C",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 4GCombo 消费级 | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 4*SGMII /4GE | 接口: QSGMII | Note: P2P 兼容 RTL8214FC",
+      "_raw": "4GCombo 消费级 | LQFP176-E | 55nm | MP | 0°C-70°C | 4*SGMII /4GE | QSGMII | P2P 兼容 RTL8214FC",
+      "_features": "QSGMII MII 消费级 4口 千兆 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8614H",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 4GCombo 工业级 | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 4*SGMII /4GE | 接口: QSGMII | Note: P2P 兼容 RTL8214FCI",
+      "_raw": "4GCombo 工业级 | LQFP176-E | 55nm | MP | -40°C-85°C | 4*SGMII /4GE | QSGMII | P2P 兼容 RTL8214FCI",
+      "_features": "QSGMII 工业级 MII 4口 千兆 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8614QC",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 4Fiber 消费级 | 封装: QFN88-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 4*SGMII/1000ASE-X | 接口: QSGMII | Note: P2P 兼容  RTL8214QF",
+      "_raw": "4Fiber 消费级 | QFN88-E | 55nm | MP | 0°C-70°C | 4*SGMII/1000ASE-X | QSGMII | P2P 兼容  RTL8214QF",
+      "_features": "QSGMII MII 100FX 消费级 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8614QH",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 4Fiber 工业级 | 封装: QFN88-E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 4*SGMII/1000ASE-X | 接口: QSGMII | Note: P2P 兼容  RTL8214QFI",
+      "_raw": "4Fiber 工业级 | QFN88-E | 55nm | MP | -40°C-85°C | 4*SGMII/1000ASE-X | QSGMII | P2P 兼容  RTL8214QFI",
+      "_features": "QSGMII 工业级 MII 100FX SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8628C",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 8GE PHY 消费级 | 封装: LQFP128-E | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 8GE | 接口: 2*QSGMII/1*O-USGMII | Note: P2P 兼容 RTL8218E/NF1008 功能兼容88E1680/VSC8658等",
+      "_raw": "8GE PHY 消费级 | LQFP128-E | 28nm | ES 25/Q1 | 0°C-70°C | 8GE | 2*QSGMII/1*O-USGMII | P2P 兼容 RTL8218E/NF1008 功能兼容88E1680/VSC8658等",
+      "_features": "QSGMII MII 消费级 千兆 以太网 8口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT8628H",
+      "_section": "85/86系列/多口Phy",
+      "_sections": [
+        "85/86系列/多口Phy"
+      ],
+      "_params": "简介: 8GE PHY 工业级 | 封装: LQFP128-E | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: -40°C-85°C | 端口: 8GE | 接口: 2*QSGMII/1*O-USGMII | Note: P2P 兼容 RTL8218EI/NF1008 功能兼容88E1680/VSC8658等",
+      "_raw": "8GE PHY 工业级 | LQFP128-E | 28nm | ES 25/Q1 | -40°C-85°C | 8GE | 2*QSGMII/1*O-USGMII | P2P 兼容 RTL8218EI/NF1008 功能兼容88E1680/VSC8658等",
+      "_features": "QSGMII 工业级 MII 千兆 以太网 8口 SGMII",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT6801",
+      "_section": "68系列网卡",
+      "_sections": [
+        "68系列网卡"
+      ],
+      "_params": "简介: 千兆网卡 消费级 | 封装: QFN32/40 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE | 接口: PCIE 1.1 | Note: P2P 兼容  RTL8111H 功能兼容I210等",
+      "_raw": "千兆网卡 消费级 | QFN32/40 | 55nm | MP | 0°C-70°C | 1GE | PCIE 1.1 | P2P 兼容  RTL8111H 功能兼容I210等",
+      "_features": "PCIE 消费级 千兆 以太网 网卡 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT6801S",
+      "_section": "68系列网卡",
+      "_sections": [
+        "68系列网卡"
+      ],
+      "_params": "简介: 千兆网卡 消费级 | 封装: QFN32/40 | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 1GE | 接口: PCIE 1.1 | Note: P2P 兼容  RTL8111HS 功能兼容I210等",
+      "_raw": "千兆网卡 消费级 | QFN32/40 | 55nm | MP | 0°C-70°C | 1GE | PCIE 1.1 | P2P 兼容  RTL8111HS 功能兼容I210等",
+      "_features": "PCIE 消费级 千兆 以太网 网卡 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT6801SH",
+      "_section": "68系列网卡",
+      "_sections": [
+        "68系列网卡"
+      ],
+      "_params": "简介: 千兆网卡 工业级 | 封装: QFN32/40 | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 1GE | 接口: PCIE 1.1 | Note: P2P 兼容  RTL8111HS 功能兼容I210等",
+      "_raw": "千兆网卡 工业级 | QFN32/40 | 55nm | MP | -40°C-85°C | 1GE | PCIE 1.1 | P2P 兼容  RTL8111HS 功能兼容I210等",
+      "_features": "工业级 PCIE 千兆 以太网 网卡 1口",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9215S",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 5GE+1RGMII+1Serdes （2.5G） | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 5GE LRE100-4 | 扩展接口: RGMII+SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8367S 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_raw": "5GE+1RGMII+1Serdes （2.5G） | LQFP128_E | 55nm | MP | 0°C-70°C | 5GE LRE100-4 | RGMII+SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8367S 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_features": "MII Serdes 100FX 消费级 交换机 千兆 2.5G RGMII 以太网 SGMII 92系列 5口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9215RB",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 5GE+2RGMII | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 5GE LRE100-4 | 扩展接口: 2*RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8367RB-VB 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_raw": "5GE+2RGMII | LQFP128_E | 55nm | MP | 0°C-70°C | 5GE LRE100-4 | 2*RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8367RB-VB 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_features": "MII 消费级 交换机 RGMII 以太网 92系列 5口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9215RBH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 5GE+2RGMII （工业级） | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 5GE LRE100-4 | 扩展接口: 2*RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容 RTL8367RBI 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_raw": "5GE+2RGMII （工业级） | LQFP128_E | 55nm | MP | -40°C-85°C | 5GE LRE100-4 | 2*RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容 RTL8367RBI 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_features": "工业级 MII 交换机 RGMII 以太网 92系列 5口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9215SC",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 5GE+1Fiber+1*RGMII/Serdes combo （云管交换机） | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 5GE LRE100-4 | 扩展接口: RGMII+SGMII-Plus 或2*SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8367SC 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_raw": "5GE+1Fiber+1*RGMII/Serdes combo （云管交换机） | LQFP128_E | 55nm | MP | 0°C-70°C | 5GE LRE100-4 | RGMII+SGMII-Plus 或2*SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8367SC 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_features": "MII Serdes 100FX 消费级 交换机 RGMII 以太网 SGMII 92系列 5口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9215SCH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 5GE+1Fiber+1*RGMII/Serdes combo （工业级云管交换机） | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 5GE LRE100-4 | 扩展接口: RGMII+SGMII-Plus 或2*SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8367SCI 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_raw": "5GE+1Fiber+1*RGMII/Serdes combo （工业级云管交换机） | LQFP128_E | 55nm | MP | -40°C-85°C | 5GE LRE100-4 | RGMII+SGMII-Plus 或2*SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8367SCI 内置RISC-V 功能兼容88E6172/6176/6141/6320/6350/6341 QCA8337/BCM53125/53135/GSW150等",
+      "_features": "工业级 MII Serdes 100FX 交换机 RGMII 以太网 SGMII 92系列 5口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9218MB",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE+2*RGMII/Serdes combo | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: 2*RGMII/SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8370MB  内置RISC-V 功能兼容88E6390",
+      "_raw": "8GE+2*RGMII/Serdes combo | LQFP176-E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | 2*RGMII/SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8370MB  内置RISC-V 功能兼容88E6390",
+      "_features": "MII Serdes 100FX 消费级 交换机 RGMII 以太网 SGMII 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9218N",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE傻瓜 | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: N/A | Note: P2P 兼容 RTL8370N-VB 内置RISC-V",
+      "_raw": "8GE傻瓜 | LQFP128_E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | N/A | P2P 兼容 RTL8370N-VB 内置RISC-V",
+      "_features": "消费级 交换机 以太网 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9218MBH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE+2*RGMII/Serdes combo 工业级 | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: -40°C-85°C | 端口: 8GE LRE100-4 | 扩展接口: 2*RGMII/SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容 RTL8370MBI 内置RISC-V 功能兼容88E6390",
+      "_raw": "8GE+2*RGMII/Serdes combo 工业级 | LQFP176-E | 55nm | MP | -40°C-85°C | 8GE LRE100-4 | 2*RGMII/SGMII-Plus (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容 RTL8370MBI 内置RISC-V 功能兼容88E6390",
+      "_features": "工业级 MII Serdes 100FX 交换机 RGMII 以太网 SGMII 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40°C-85°C",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9218NH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE傻瓜 工业级 | 封装: LQFP128_E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: N/A | Note: P2P 兼容 RTL8370N-VB 内置RISC-V",
+      "_raw": "8GE傻瓜 工业级 | LQFP128_E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | N/A | P2P 兼容 RTL8370N-VB 内置RISC-V",
+      "_features": "工业级 交换机 以太网 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9213NB",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 2GE+RGMII | 封装: QFN-76 | 制程: 55nm | 工作环境温度: 0°C-70°C | 端口: 2GE LRE100-4 | 扩展接口: RGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容RTL8363NB",
+      "_raw": "2GE+RGMII | QFN-76 | 55nm |  | 0°C-70°C | 2GE LRE100-4 | RGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容RTL8363NB",
+      "_features": "MII 消费级 交换机 RGMII 以太网 92系列 2口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9214NB",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 2GE+RGMII+RGMII/SGMII | 封装: QFN-88 | 制程: 55nm | 工作环境温度: 0°C-70°C | 端口: 2GE LRE100-4 | 扩展接口: RGMII+RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | Note: P2P 兼容RTL8364NB",
+      "_raw": "2GE+RGMII+RGMII/SGMII | QFN-88 | 55nm |  | 0°C-70°C | 2GE LRE100-4 | RGMII+RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) (Serdes 支持Fiber1000/100/SGMII) | P2P 兼容RTL8364NB",
+      "_features": "MII Serdes 100FX 消费级 交换机 RGMII 以太网 SGMII 92系列 2口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9214NBH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 2GE+RGMII+RGMII/SGMII | 封装: QFN-88 | 制程: 55nm | 工作环境温度: 0°C-70°C | 端口: 2GE LRE100-4 | 扩展接口: RGMII+RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) | Note: P2P 兼容RTL8364NB",
+      "_raw": "2GE+RGMII+RGMII/SGMII | QFN-88 | 55nm |  | 0°C-70°C | 2GE LRE100-4 | RGMII+RGMII/SGMII (RGMII支持3.3V/2.5V/1.8V) | P2P 兼容RTL8364NB",
+      "_features": "MII 消费级 交换机 RGMII 以太网 SGMII 92系列 2口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9232D",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 24G+4GC/2*SGMII plus Dumb | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100 4 | 扩展接口: (Serdes 支持Fiber1000/100/SGMII) 4QSGMII+QSGMII/2*SGMII plus | Note: 功能替换RTL8382L",
+      "_raw": "24G+4GC/2*SGMII plus Dumb | LQFP176-E | 55nm | MP | 0°C-70°C | 8GE LRE100 4 | (Serdes 支持Fiber1000/100/SGMII) 4QSGMII+QSGMII/2*SGMII plus | 功能替换RTL8382L",
+      "_features": "QSGMII MII Serdes 100FX 消费级 交换机 以太网 SGMII 92系列 24口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9230L",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE+2*SMII plus lite management | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: 2*SGMII plus | Note: 功能替换RTL8380",
+      "_raw": "8GE+2*SMII plus lite management | LQFP176-E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | 2*SGMII plus | 功能替换RTL8380",
+      "_features": "MII 消费级 交换机 以太网 SGMII 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9231L",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE+6*SMII plus lite management | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: 6*SGMII plus",
+      "_raw": "8GE+6*SMII plus lite management | LQFP176-E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | 6*SGMII plus | ",
+      "_features": "MII 消费级 交换机 以太网 SGMII 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9232L",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 24G+4GC/2*SGMII plus lite management | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: 0°C-70°C | 端口: 8GE LRE100-4 | 扩展接口: 4QSGMII+QSGMII/2*SGMII plus | Note: 功能替换RTL8382L  内置RISC-V",
+      "_raw": "24G+4GC/2*SGMII plus lite management | LQFP176-E | 55nm | MP | 0°C-70°C | 8GE LRE100-4 | 4QSGMII+QSGMII/2*SGMII plus | 功能替换RTL8382L  内置RISC-V",
+      "_features": "QSGMII MII 消费级 交换机 以太网 SGMII 92系列 24口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        },
+        "扩展接口": {
+          "raw": "4QSGMII+QSGMII/2*SGMII plus",
+          "value": 4.0,
+          "unit": "QSGMII"
+        }
+      }
+    },
+    {
+      "part_number": "YT9232LH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 24G+4GC/2*SGMII plus lite management | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: -40℃~85℃ | 端口: 8GE LRE100-4 | 扩展接口: 4QSGMII+QSGMII/2*SGMII plus | Note: 工业级 功能替换RTL8382LI    内置RISC-V",
+      "_raw": "24G+4GC/2*SGMII plus lite management | LQFP176-E | 55nm | MP | -40℃~85℃ | 8GE LRE100-4 | 4QSGMII+QSGMII/2*SGMII plus | 工业级 功能替换RTL8382LI    内置RISC-V",
+      "_features": "QSGMII 工业级 MII 交换机 以太网 SGMII 92系列 24口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40℃~85℃",
+          "value": -40.0,
+          "unit": "℃"
+        },
+        "扩展接口": {
+          "raw": "4QSGMII+QSGMII/2*SGMII plus",
+          "value": 4.0,
+          "unit": "QSGMII"
+        }
+      }
+    },
+    {
+      "part_number": "YT9231LH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8GE+6*SMII plus lite management | 封装: LQFP176-E | 制程: 55nm | 状态: MP | 工作环境温度: -40℃~85℃ | 端口: 8GE LRE100-4 | 扩展接口: 6*SGMII plus | Note: 工业级，单芯片解决方案    内置RISC-V",
+      "_raw": "8GE+6*SMII plus lite management | LQFP176-E | 55nm | MP | -40℃~85℃ | 8GE LRE100-4 | 6*SGMII plus | 工业级，单芯片解决方案    内置RISC-V",
+      "_features": "工业级 MII 交换机 以太网 SGMII 92系列 8口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40℃~85℃",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9224",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 4*2.5G+2*USXGMII/XFI | 封装: DRQFN172 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 4*2.5G | 扩展接口: 2*USXGMII/XFI | Note: 功能替换RTL8372,  电路兼容QCA8386",
+      "_raw": "4*2.5G+2*USXGMII/XFI | DRQFN172 | 28nm | ES 25/Q1 | 0°C-70°C | 4*2.5G | 2*USXGMII/XFI | 功能替换RTL8372,  电路兼容QCA8386",
+      "_features": "MII 消费级 千兆 USXGMII 交换机 2.5G 以太网 92系列",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9222",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 2*GE+2*2.5G+2*XFI/USXGMII | 封装: DRQFN172 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 2*GE+2*2.5G | 扩展接口: XFI/USXGMII | Note: 功能替换RTL8366 ,电路兼容QCA8385",
+      "_raw": "2*GE+2*2.5G+2*XFI/USXGMII | DRQFN172 | 28nm | ES 25/Q1 | 0°C-70°C | 2*GE+2*2.5G | XFI/USXGMII | 功能替换RTL8366 ,电路兼容QCA8385",
+      "_features": "MII 消费级 交换机 USXGMII 千兆 2.5G 以太网 92系列 2口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9228",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 8*2.5G+1XFI | 封装: DRQFN172 | 制程: 28nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 8*2.5G | 扩展接口: 8*2.5G+1XFI | Note: 功能替换RTL8373",
+      "_raw": "8*2.5G+1XFI | DRQFN172 | 28nm | ES 25/Q1 | 0°C-70°C | 8*2.5G | 8*2.5G+1XFI | 功能替换RTL8373",
+      "_features": "消费级 交换机 千兆 2.5G 以太网 92系列",
+      "_params_numeric": {
+        "制程": {
+          "raw": "28nm",
+          "value": 28.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9204B",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 4FE+RGMII+SGMII | 封装: QFN88-E | 制程: 55nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 4FE | 扩展接口: RGMII+SGMII | Note: 4口百兆管理型交换机",
+      "_raw": "4FE+RGMII+SGMII | QFN88-E | 55nm | ES 25/Q1 | 0°C-70°C | 4FE | RGMII+SGMII | 4口百兆管理型交换机",
+      "_features": "MII 百兆 消费级 交换机 RGMII 以太网 SGMII 92系列 4口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9204BH",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 4FE+RGMII+SGMII | 封装: QFN88-E | 制程: 55nm | 状态: ES 25/Q1 | 工作环境温度: -40℃~85℃ | 端口: 4FE | 扩展接口: RGMII+SGMII | Note: 4口百兆管理型交换机",
+      "_raw": "4FE+RGMII+SGMII | QFN88-E | 55nm | ES 25/Q1 | -40℃~85℃ | 4FE | RGMII+SGMII | 4口百兆管理型交换机",
+      "_features": "工业级 MII 百兆 交换机 RGMII 以太网 SGMII 92系列 4口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "-40℃~85℃",
+          "value": -40.0,
+          "unit": "℃"
+        }
+      }
+    },
+    {
+      "part_number": "YT9204LB",
+      "_section": "92系列 / 交换机",
+      "_sections": [
+        "92系列 / 交换机"
+      ],
+      "_params": "简介: 4FE_LRE+RGMII+SGMII | 封装: QFN88-E | 制程: 55nm | 状态: ES 25/Q1 | 工作环境温度: 0°C-70°C | 端口: 4*FE LRE100-1 | 扩展接口: RGMII+SGMII | Note: 4口百兆管理型交换机，支持2线长距离传输",
+      "_raw": "4FE_LRE+RGMII+SGMII | QFN88-E | 55nm | ES 25/Q1 | 0°C-70°C | 4*FE LRE100-1 | RGMII+SGMII | 4口百兆管理型交换机，支持2线长距离传输",
+      "_features": "MII 百兆 消费级 交换机 RGMII 以太网 SGMII 92系列 4口交换机",
+      "_params_numeric": {
+        "制程": {
+          "raw": "55nm",
+          "value": 55.0,
+          "unit": "nm"
+        },
+        "工作环境温度": {
+          "raw": "0°C-70°C",
+          "value": 0.0,
+          "unit": "℃"
+        }
+      }
+    }
+  ],
+  "slug": "yutai"
+}
