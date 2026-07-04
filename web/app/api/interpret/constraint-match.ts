@@ -2,6 +2,10 @@
 // must/nice 约束匹配 + 维度感知的三级降级兜底
 
 import { CATEGORY_SYNONYMS } from './query_parser';
+import { buildSemanticAliasMap } from '@/lib/semantic-evidence';
+
+// Module-level semantic alias map — built once from generated evidence rules
+const SEMANTIC_ALIASES: Record<string, string[]> = buildSemanticAliasMap();
 export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade' | 'technology';
 export interface MustConstraint {
   tag: string;
@@ -525,7 +529,6 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
 
   // Semantic aliases
   const evidenceText = allowDetailEvidence ? allEvidenceText : paramsText;
-  const SEMANTIC_ALIASES: Record<string, string[]> = {};
   const aliases = SEMANTIC_ALIASES[t];
   if (aliases && evidenceText.length > 5) {
     for (const alias of aliases) {

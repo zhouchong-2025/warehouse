@@ -214,7 +214,10 @@ A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor
 仅输出JSON: {"primary_category":"","features":[],"nice_features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
+  const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+  const t0 = Date.now();
   let parsed: ParseResult | undefined;
+  let tParse = 0, tLlm = 0;
   try {
     const body = await req.json();
     const query = body.query;
@@ -241,6 +244,7 @@ export async function POST(req: NextRequest) {
 
     // ── Deterministic query parser (bypass LLM for resolved queries) ──
     parsed = parseQuery(query);
+    tParse = Date.now() - t0;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
@@ -304,6 +308,7 @@ export async function POST(req: NextRequest) {
       }
     }
     clearTimeout(timeout);
+    tLlm = Date.now() - t0 - tParse;
 
     // Resolve category hierarchy: when a subclass is present, remove umbrella parent.
     // Runs for BOTH paths (parser-only and LLM) to ensure consistency.
@@ -321,7 +326,7 @@ export async function POST(req: NextRequest) {
 
     const result = llmResult;
     result.suggestions = [];
-    result._debug = { llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
+    result._debug = { requestId, timings: { parse: tParse, llm: tLlm }, llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
     // ── LLM-driven must/nice assembly ──
     // Parser's must + mustMeta are the authoritative structured output.
     // LLM's nice_features tells us which tags to relax from must to nice.
@@ -983,9 +988,10 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
+    result._debug.timings = { ...result._debug.timings, total: Date.now() - t0 };
     return NextResponse.json(result);
   } catch (e: any) {
-    const debug = { llmCalled: parsed?.needsLLM ?? false, error: e.message };
+    const debug = { requestId, timings: { total: Date.now() - t0 }, llmCalled: parsed?.needsLLM ?? false, error: e.message };
     if (e.name === "AbortError") return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM超时", confidence: "low", suggestions: [], _debug: debug });
     return NextResponse.json({ error: e.message, features: [], vendor: null, category_hint: null, explanation: "", confidence: "low", suggestions: [], _debug: debug });
   }

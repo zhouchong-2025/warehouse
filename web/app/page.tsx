@@ -3,127 +3,24 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { expandSearch } from "@/lib/synonyms";
 import { applyConstraints, scoreByConstraints, describeMatch, crossRefSearch, tagSatisfied, type ConstraintScore, type CrossRefHit } from "@/app/api/interpret/constraint-match";
-
-type Product = Record<string, string>;
-type VendorData = { name: string; productCount: number; products: Product[] };
-
-type SearchResult = {
-  vendor: string;
-  vendorName: string;
-  product: Product;
-  score: number;
-  matchedTerms: string[];
-  missingTerms?: string[];
-  missingNice?: string[];
-  nicePartial?: boolean;
-  matchSummary?: string;
-  referenceOnly?: boolean;
-  evidence?: { term: string; source: string }[];
-  downgradeHits?: Record<string, string>;  // 降级匹配: tag → 实际值
-};
-
-type VendorFilterOption = {
-  key: string;
-  name: string;
-  productCount: number;
-  slugs: string[];
-};
-
-type LLMInterpretation = {
-  features: string[];
-  vendor: string | null;
-  category_hint: string | null;
-  explanation: string;
-  confidence: string;
-  suggestions?: { text: string; query: string; reason: string }[];
-  exclude_tags?: string[];
-  must?: string[];
-  nice?: string[];
-  mustMeta?: import("@/app/api/interpret/constraint-match").MustConstraint[];
-  sortKey?: import("@/app/api/interpret/constraint-match").SortIntent;
-  intent?: 'spec_search' | 'cross_ref';
-  crossRefTarget?: string;
-} | null;
-
-const CATEGORY_BADGE_PRIORITY = [
-  "隔离栅极驱动", "非隔离栅极驱动", "栅极驱动", "数字隔离器", "隔离电源", "隔离放大器",
-  "马达驱动", "模拟开关", "电平转换", "IO扩展器", "IO扩展", "交换机", "网卡", "以太网供电",
-  "CAN-FD", "LIN", "RS-485", "RS-232", "MLVDS", "SBC",
-  "DCDC", "降压", "升压", "LDO", "电压基准", "ADC", "DAC",
-  "比较器", "运放", "放大器",
-  "电流传感器", "温度传感器", "压力传感器", "线性位置传感器", "磁阻角度编码器", "霍尔角度编码器",
-  "磁阻开关/锁存器", "霍尔开关/锁存器", "位置传感器", "速度传感器",
-  "负载开关", "高边开关", "高边驱动", "电源时序", "复位芯片", "电子保险丝", "理想二极管",
-  "电池监控", "BMS", "传感器接口", "匹配电阻", "视频滤波", "音频功放", "音频总线", "逻辑门",
-] as const;
-
-const CATEGORY_BADGE_SET = new Set<string>(CATEGORY_BADGE_PRIORITY);
+import SearchBar from "@/app/components/SearchBar";
+import ResultsList from "@/app/components/ResultsList";
+import ComparePanel from "@/app/components/ComparePanel";
+import {
+  type Product,
+  type VendorData,
+  type SearchResult,
+  type VendorFilterOption,
+  type LLMInterpretation,
+  getDisplayParams,
+  getEvidenceSources,
+  getCategoryBadge,
+  CATEGORY_BADGE_SET,
+} from "@/app/product-utils";
 
 const VENDOR_GROUPS = [
   { key: "3peak", name: "思瑞浦", slugs: ["3peak-analog", "3peak-auto"] },
 ] as const;
-
-function getCategoryBadge(product: Product): string {
-  const tokens = (product._features || "").split(/\s+/).filter(Boolean);
-  for (const tag of CATEGORY_BADGE_PRIORITY) {
-    if (tokens.includes(tag)) return tag;
-  }
-  return (product._section || "").trim();
-}
-
-// 2026-06-16: 追踪标签匹配的证据来源
-function getEvidenceSources(product: Product, matchedTerms: string[]): { term: string; source: string }[] {
-  const evidence: { term: string; source: string }[] = [];
-  const detailIntro = (product._detail_intro || "").toLowerCase();
-  const detailFeatures = (product._detail_features || "").toLowerCase();
-  const params = (product._params || "").toLowerCase();
-  const section = (product._section || "").toLowerCase();
-  const features = (product._features || "").toLowerCase();
-
-  for (const term of matchedTerms) {
-    const t = term.toLowerCase();
-    const sources: string[] = [];
-
-    // Check detail fields first (most valuable evidence for tech tags)
-    if (detailIntro.length > 10 && (detailIntro.includes(t) || detailFeatures.includes(t))) {
-      // More specific detection for tech terms
-      const techTerms: Record<string, RegExp> = {
-        '霍尔': /(?:线性)?霍尔|hall\s*effect/i,
-        '磁阻': /tmr|amr|磁阻|magnetoresistive/i,
-        'SIC': /\bsic\b|signal.improvement/i,
-        '特定帧唤醒': /selective\s*wake|partial\s*network|特定帧唤醒/i,
-      };
-      const techRe = techTerms[term];
-      const target = detailIntro + ' ' + detailFeatures;
-      if (techRe && techRe.test(target)) {
-        sources.push('产品介绍');
-      } else {
-        sources.push('产品介绍');
-      }
-    }
-
-    // Check params
-    if (params.length > 5 && params.includes(t)) {
-      sources.push('参数表');
-    }
-
-    // Check section (authoritative for category)
-    if (section.length > 3 && section.includes(t)) {
-      sources.push('选型表');
-    }
-
-    // Features always （作为默认）
-    if (features.includes(t)) {
-      sources.push('产品标签');
-    }
-
-    evidence.push({
-      term,
-      source: sources[0] || '产品标签',  // 优先展示最有价值的来源
-    });
-  }
-  return evidence;
-}
 
 function vendorMatchesFilter(vendorSlug: string, activeVendor: string | null, vendorFilters: VendorFilterOption[]): boolean {
   if (!activeVendor) return true;
@@ -592,59 +489,6 @@ export default function Home() {
 
   const totalProducts = vendors.reduce((s, v) => s + v.productCount, 0);
 
-  // Get displayable params for a product
-  const getDisplayParams = (p: Product): [string, string][] => {
-    const parsedParams: [string, string][] = (p._params || "")
-      .split(" | ")
-      .map((pair): [string, string] | null => {
-        const idx = pair.indexOf(": ");
-        if (idx <= 0) return null;
-        return [pair.slice(0, idx).trim(), pair.slice(idx + 2).trim()];
-      })
-      .filter((x): x is [string, string] => !!x && !!x[1]);
-
-    const preferredParamOrder = [
-      "供电电压(V)", "VIO 电压(V)", "输入电压", "工作电压 (V)", "工作电压(V)",
-      "最大工作速率 （Mbps)", "最大工作速率(Mbps)", "低功耗模式", "封装类型", "封装", "MSL",
-      "工作温度范围 (℃)", "工作温度 (℃)", "AEC-Q100",
-    ];
-    const chosen: [string, string][] = [];
-    const seen = new Set<string>();
-    for (const key of preferredParamOrder) {
-      const hit = parsedParams.find(([k]) => k === key);
-      if (hit && !seen.has(hit[0])) {
-        chosen.push(hit);
-        seen.add(hit[0]);
-      }
-    }
-    for (const pair of parsedParams) {
-      if (!seen.has(pair[0])) {
-        chosen.push(pair);
-        seen.add(pair[0]);
-      }
-      if (chosen.length >= 6) break;
-    }
-    if (chosen.length > 0) return chosen.slice(0, 6);
-
-    const priority = [
-      "_section", "package", "封装", "status", "状态", "supply_v_min", "supply_v_max",
-      "gbw_mhz", "channels", "rating", "temp_range", "工作温度",
-      "description", "产品描述", "category", "process_node", "ports",
-    ];
-    const params: [string, string][] = [];
-    for (const key of priority) {
-      if (p[key] && p[key].length < 60) {
-        params.push([key.replace(/_/g, " "), p[key]]);
-      }
-    }
-    for (const [k, v] of Object.entries(p)) {
-      if (!priority.includes(k) && v && v.length < 40 && k !== "part_number" && k !== "vendor_section" && !k.startsWith("param_")) {
-        if (params.length < 8) params.push([k.replace(/_/g, " "), v]);
-      }
-    }
-    return params.slice(0, 6);
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-[#0d1117]">
       {/* Header */}
@@ -663,402 +507,41 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero + Search */}
-      <section className="relative overflow-hidden border-b border-[#30363d]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1e6ef0]/10 via-transparent to-[#58a6ff]/5" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
-          <h2 className="text-3xl sm:text-5xl font-bold mb-4">
-            <span className="text-gradient">Teampo</span>
-            <span className="text-white"> 选型平台</span>
-          </h2>
-          <p className="text-[#8b949e] text-lg max-w-2xl mx-auto mb-8">
-            纳芯微 · 思瑞浦 · 裕太微 — {totalProducts} 个芯片，智能评分排序
-          </p>
-          <div className="max-w-xl mx-auto relative">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索参数、应用需求，如 CAN-FD 特定帧唤醒..."
-              className="w-full px-5 py-3.5 pr-12 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
-              autoFocus
-              onKeyDown={(e) => { if (e.key === 'Enter' && search.trim()) setSearchTrigger(c => c + 1); }}
-            />
-            <button
-              onClick={() => {
-                if (search.trim().length >= 3) setSearchTrigger(c => c + 1);
-              }}
-              disabled={llmLoading}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1e6ef0]/10 hover:bg-[#1e6ef0]/20 border border-[#1e6ef0]/30 hover:border-[#1e6ef0]/50 transition-all disabled:opacity-50"
-              title="搜索"
-            >
-              {llmLoading ? (
-                <div className="w-4 h-4 border-2 border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4 text-[#58a6ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              )}
-            </button>
-          </div>
-          {/* Synonym hint */}
-          {search.trim() && (() => {
-            const expanded = expandSearch(search.trim());
-            const originalTerms = search.trim().toLowerCase().split(/\s+/);
-            const newTerms = expanded.split(/\s+/).filter(t => !originalTerms.includes(t));
-            if (newTerms.length === 0) return null;
-            return (
-              <div className="mt-2 flex items-center justify-center gap-1 text-xs text-[#484f58]">
-                <span>🔍 智能匹配:</span>
-                {newTerms.slice(0, 5).map(t => (
-                  <span key={t} className="px-1.5 py-0.5 rounded bg-[#1e6ef0]/10 text-[#58a6ff]">{t}</span>
-                ))}
-              </div>
-            );
-          })()}
-          {/* LLM interpretation */}
-          {llmLoading && (
-            <div className="mt-2 flex items-center justify-center gap-2 text-xs text-[#484f58]">
-              <div className="w-3 h-3 border border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
-              <span>AI 正在理解您的需求...</span>
-            </div>
-          )}
-          {llmResult && !llmLoading && (
-            <div className="mt-2 max-w-xl mx-auto p-3 rounded-lg bg-[#3fb950]/5 border border-[#3fb950]/20 text-left">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-[#3fb950] font-medium">🤖 AI 理解:</span>
-                <span className="text-xs text-[#8b949e]">置信度 {llmResult.confidence}</span>
-              </div>
-              <p className="text-xs text-[#e6edf3]">{llmResult.explanation}</p>
-              {llmResult.features.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {llmResult.features.map(f => (
-                    <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950]">{f}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+      <SearchBar
+        search={search}
+        onSearchChange={setSearch}
+        onSearchSubmit={() => setSearchTrigger(c => c + 1)}
+        llmLoading={llmLoading}
+        llmResult={llmResult}
+        totalProducts={totalProducts}
+        vendorCount={vendors.length}
+      />
 
-      {/* Vendor filters */}
-      <div className="sticky top-[57px] z-40 backdrop-blur-xl bg-[#0d1117]/90 border-b border-[#30363d]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex gap-2 overflow-x-auto">
-          <button onClick={() => setActiveVendor(null)} className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${!activeVendor ? "bg-[#1e6ef0] text-white" : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"}`}>
-            全部 ({totalProducts})
-          </button>
-          {vendors.map((v) => (
-            <button key={v.key} onClick={() => setActiveVendor(activeVendor === v.key ? null : v.key)} className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeVendor === v.key ? "bg-[#1e6ef0] text-white" : "bg-[#161b22] text-[#8b949e] hover:text-white border border-[#30363d]"}`}>
-              {v.name} ({v.productCount})
-            </button>
-          ))}
-        </div>
-      </div>
+      <ResultsList
+        loading={loading}
+        results={results}
+        displayResults={displayResults}
+        constraintView={constraintView}
+        llmResult={llmResult}
+        crossRef={crossRef}
+        search={search}
+        visibleSuggestions={visibleSuggestions}
+        onApplySuggestion={applySuggestion}
+        compareList={compareList}
+        onToggleCompare={toggleCompare}
+        preferredPns={preferredPns}
+        vendors={vendors}
+        totalProducts={totalProducts}
+        activeVendor={activeVendor}
+        onVendorChange={setActiveVendor}
+      />
 
-      {/* Results */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-[#1e6ef0] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : results ? (
-          <>
-            <div className="mb-4 text-sm text-[#8b949e] flex items-center justify-between">
-              <span>找到 {displayResults.length} 个匹配 · {constraintView && (constraintView.tier || 0) > 1 ? "降级排序" : (llmResult?.sortKey ? llmResult.sortKey.label : "按相关度排序")}</span>
-              <span className="text-xs">显示 {Math.min(displayResults.length, 200)} 个</span>
-            </div>
-
-            {/* 竞品反查横幅(cross_ref): 命中=厂商声称标注; 零命中=诚实降级 */}
-            {crossRef && crossRef.hits.length > 0 && (
-              <div className="mb-4 max-w-3xl bg-[#1e6ef0]/8 border border-[#1e6ef0]/30 rounded-lg p-3">
-                <p className="text-[#e6edf3] text-sm">
-                  找到 {crossRef.hits.length} 款标称可替代 <span className="font-semibold">{crossRef.target}</span> 的国产料。
-                  替代关系来自厂商「可替代产品」标注，建议 FAE 核对通道数/隔离电压/速率等关键参数后选型。
-                </p>
-              </div>
-            )}
-            {crossRef && crossRef.hits.length === 0 && (
-              <div className="mb-4 max-w-3xl bg-[#d29922]/8 border border-[#d29922]/30 rounded-lg p-3">
-                <p className="text-[#e6edf3] text-sm">
-                  暂未找到标称可替代 <span className="font-semibold">{crossRef.target}</span> 的国产料（目前替代标注主要覆盖思瑞浦汽车产品线）。
-                  建议改用品类+参数搜索（如「2通道数字隔离器 100Mbps」）按规格找等效料。
-                </p>
-              </div>
-            )}
-
-            {/* 约束横幅 — tier2/3 降级说明, 或 tier1 带排序意图(高PSRR等)的说明 */}
-            {constraintView && constraintView.banner && (
-              <div className="mb-4 max-w-3xl bg-[#d29922]/8 border border-[#d29922]/30 rounded-lg p-3">
-                <p className="text-[#e6edf3] text-sm">{constraintView.banner}</p>
-              </div>
-            )}
-
-            {/* Suggestion banner — always show when AI has advice */}
-            {visibleSuggestions.length > 0 && displayResults.length > 0 && !constraintView?.banner && (
-              <div className="mb-4 max-w-3xl">
-                {visibleSuggestions.map((s, i) => (
-                  <div key={i} className="bg-[#d29922]/5 border border-[#d29922]/20 rounded-lg p-3 mb-2">
-                    <p className="text-[#e6edf3] text-sm">{s.text}</p>
-                    {s.query && s.query !== search && (
-                      <button
-                        onClick={() => applySuggestion(s.query)}
-                        className="mt-2 text-xs px-2.5 py-1 rounded border border-[#d29922]/30 text-[#d29922] hover:bg-[#d29922]/10 transition-colors"
-                      >
-                        用这个条件重搜
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {displayResults.slice(0, 200).map(({ vendor, vendorName, product, score, matchedTerms, missingTerms, missingNice, matchSummary, referenceOnly, nicePartial, evidence, downgradeHits }) => (
-                <div key={`${vendor}-${product.part_number}`} className="p-4 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#1e6ef0] hover:shadow-[0_0_16px_rgba(30,110,240,0.1)] transition-all group">
-                  {/* Part number + vendor + score */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="font-mono font-bold text-[#58a6ff] group-hover:text-white transition-colors text-sm truncate max-w-[65%]">
-                      {product.part_number}
-                    </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e6ef0]/15 text-[#8b949e] whitespace-nowrap">
-                      {vendorName} · {matchSummary || score.toFixed(1)}
-                    </span>
-                  </div>
-
-                  {/* Category tag from _features (more reliable than _section) */}
-                  {(() => {
-                    const categoryTag = getCategoryBadge(product);
-                    const isCanonicalCategory = CATEGORY_BADGE_SET.has(categoryTag);
-                    return categoryTag ? (
-                      <div className={`mb-2 text-xs px-2 py-0.5 rounded inline-block ${isCanonicalCategory ? "text-[#3fb950] bg-[#3fb950]/10" : "text-[#8b949e] bg-[#8b949e]/10"}`}>
-                        {categoryTag}
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* Match quality badge + 霆宝优选 */}
-                  {matchSummary ? (
-                    <div className="mb-2 flex flex-wrap items-center gap-1">
-                      {preferredPns.has(product.part_number?.toUpperCase() || '') && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-[#f0883e]/20 text-[#f0883e] font-medium">霆宝优选</span>
-                      )}
-                      <span className={`text-[10px] px-1 py-0.5 rounded ${referenceOnly ? "bg-[#d29922]/20 text-[#d29922]" : nicePartial ? "bg-[#1e6ef0]/15 text-[#58a6ff]" : downgradeHits && Object.keys(downgradeHits).length > 0 ? "bg-[#1e6ef0]/15 text-[#58a6ff]" : "bg-[#3fb950]/20 text-[#3fb950]"}`}>
-                        {referenceOnly ? "参考料" : nicePartial ? `部分匹配（缺少${(missingNice || []).join('、')}）` : downgradeHits && Object.keys(downgradeHits).length > 0 ? `降级兼容 (${Object.values(downgradeHits).join('、')})` : "完全匹配"}
-                      </span>
-                      {missingTerms && missingTerms.length > 0 && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-[#f85149]/10 text-[#ff7b72]">
-                          缺少 {missingTerms.slice(0, 2).join('、')}
-                        </span>
-                      )}
-                    </div>
-                  ) : score >= 30 ? (
-                    <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[#3fb950]/20 text-[#3fb950]">精确匹配</span>
-                  ) : score >= 10 ? (
-                    <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-[#d29922]/20 text-[#d29922]">接近匹配</span>
-                  ) : null}
-
-                  {/* Params */}
-                  <div className="space-y-1">
-                    {getDisplayParams(product).map(([key, val]) => (
-                      <div key={key} className="flex items-baseline gap-1 text-xs">
-                        <span className="text-[#484f58] min-w-[55px] truncate">{key}:</span>
-                        <span className="text-[#e6edf3] truncate">{val}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Matched terms highlight with evidence source */}
-                  {matchedTerms.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {matchedTerms.slice(0, 4).map(t => {
-                        const ev = evidence?.find(e => e.term === t);
-                        return (
-                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[#d29922]/15 text-[#d29922]">
-                          ✓ {t}{ev?.source && ev.source !== '产品标签' ? <span className="text-[#8b949e] ml-0.5">({ev.source})</span> : null}
-                        </span>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => toggleCompare(product.part_number)}
-                    className={`mt-3 text-xs px-2 py-1 rounded transition-all ${
-                      compareList.includes(product.part_number)
-                        ? "bg-[#3fb950]/20 text-[#3fb950] border border-[#3fb950]/30"
-                        : "text-[#1e6ef0] hover:text-[#58a6ff]"
-                    }`}
-                  >
-                    {compareList.includes(product.part_number) ? "✓ 已加入对比" : "+ 加入对比"}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {displayResults.length > 200 && (
-              <div className="text-center py-8 text-[#8b949e] text-sm">显示前 200 个 · 请缩小搜索范围</div>
-            )}
-
-            {displayResults.length === 0 && search.trim() && (
-              <div className="text-center py-12 text-[#8b949e]">
-                {visibleSuggestions.length > 0 ? (
-                  <div className="max-w-xl mx-auto text-left space-y-3">
-                    <div className="text-2xl mb-2">💡 建议</div>
-                    {visibleSuggestions.map((s, i) => (
-                      <div key={i} className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                        <p className="text-[#e6edf3] text-sm leading-relaxed">{s.text}</p>
-                        {s.query && s.query !== search && (
-                          <button
-                            onClick={() => applySuggestion(s.query)}
-                            className="mt-3 text-xs px-2.5 py-1 rounded border border-[#1e6ef0]/30 text-[#58a6ff] hover:bg-[#1e6ef0]/10 transition-colors"
-                          >
-                            查看这组结果
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-4xl mb-4">🔍</div>
-                    <p>未找到匹配 &quot;{search}&quot; 的芯片</p>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-20 text-[#8b949e]">
-            <div className="text-5xl mb-4">🔎</div>
-            <p className="text-lg">输入型号、参数或需求开始搜索</p>
-            <p className="text-sm mt-2">试试：CAN-FD · 小封装 · 车规隔离</p>
-          </div>
-        )}
-      </main>
-
-      {/* Compare Panel */}
-      {compareList.length > 0 && (() => {
-        const selected = allProducts.filter((ap) =>
-          compareList.includes(ap.product.part_number)
-        );
-
-        // Parse a product's _params into key:value lines
-        const parseParams = (p: Product): [string, string][] => {
-          const raw = p._params || "";
-          if (!raw) return [];
-          return raw.split(" | ").map((pair): [string, string] => {
-            const idx = pair.indexOf(": ");
-            if (idx > 0) return [pair.slice(0, idx), pair.slice(idx + 2)] as [string, string];
-            return ["参数", pair] as [string, string];
-          }).filter(([, v]) => v);
-        };
-
-        // Get extra fields (not _params, part_number, vendor_section)
-        const getExtra = (p: Product): [string, string][] => {
-          const prio = ["_section", "_features", "_application", "_category", "category"];
-          const extras: [string, string][] = [];
-          for (const key of prio) {
-            if (p[key]) extras.push([key.replace(/_/g, " "), p[key]]);
-          }
-          return extras;
-        };
-
-        const exportCSV = () => {
-          const allKeys = new Set<string>();
-          const rows: Record<string, string>[] = [];
-          for (const { product, vendorName } of selected) {
-            const row: Record<string, string> = { "型号": product.part_number, "厂商": vendorName };
-            for (const [k, v] of parseParams(product)) { row[k] = v; allKeys.add(k); }
-            for (const [k, v] of getExtra(product)) { row[k] = v; allKeys.add(k); }
-            rows.push(row);
-          }
-          const header = ["型号", "厂商", ...allKeys];
-          const csvRows = rows.map(r => header.map(h => `"${(r[h]||"").replace(/"/g, '""')}"`).join(","));
-          const csv = [header.map(h => `"${h}"`).join(","), ...csvRows].join("\n");
-          const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = "teampo_compare.csv"; a.click();
-          URL.revokeObjectURL(url);
-        };
-
-        return (
-          <div className="sticky bottom-0 z-40 bg-[#0d1117]/95 backdrop-blur-xl border-t-2 border-[#1e6ef0] shadow-[0_-8px_32px_rgba(0,0,0,0.5)]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-white font-bold text-sm">📊 产品对比 ({selected.length} 个)</h3>
-                  <button onClick={() => setCompareList([])} className="text-xs text-[#8b949e] hover:text-white">清除</button>
-                </div>
-                <button onClick={exportCSV} className="px-3 py-1.5 rounded-lg bg-[#3fb950]/15 border border-[#3fb950]/30 text-[#3fb950] text-xs font-medium hover:bg-[#3fb950]/25 transition-all">
-                  📥 导出 CSV
-                </button>
-              </div>
-
-              {/* Product cards — each as a vertical column */}
-              <div className={`grid gap-3 max-h-[50vh] overflow-y-auto ${selected.length <= 2 ? "grid-cols-1 sm:grid-cols-2" : selected.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"}`}>
-                {selected.map(({ product, vendorName }) => {
-                  const params = parseParams(product);
-                  const extras = getExtra(product);
-                  return (
-                    <div key={product.part_number} className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden">
-                      {/* Header */}
-                      <div className="px-3 py-2 bg-[#1c2333] border-b border-[#30363d] flex items-center justify-between">
-                        <div>
-                          <div className="font-mono font-bold text-[#58a6ff] text-sm">{product.part_number}</div>
-                          <div className="text-[10px] text-[#8b949e]">{vendorName}</div>
-                        </div>
-                        <button onClick={() => toggleCompare(product.part_number)} className="text-[#8b949e] hover:text-white text-lg leading-none">×</button>
-                      </div>
-                      {/* Params */}
-                      <div className="px-3 py-2 space-y-1 max-h-[40vh] overflow-y-auto">
-                        {/* Section tag */}
-                        {product._section && (
-                          <div className="text-[10px] px-1.5 py-0.5 rounded bg-[#3fb950]/10 text-[#3fb950] inline-block mb-1">
-                            {product._section}
-                          </div>
-                        )}
-                        {/* Feature tags */}
-                        {product._features && (
-                          <div className="flex flex-wrap gap-1 mb-1">
-                            {product._features.split(" ").filter(Boolean).map(f => (
-                              <span key={f} className="text-[9px] px-1 py-0.5 rounded bg-[#d29922]/10 text-[#d29922]">{f}</span>
-                            ))}
-                          </div>
-                        )}
-                        {/* Document params */}
-                        {params.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-[#30363d]">
-                            <div className="text-[10px] text-[#484f58] mb-1 font-medium">📋 原始文档参数</div>
-                            {params.map(([k, v]) => (
-                              <div key={k} className="flex items-baseline gap-1 text-[11px] py-0.5">
-                                <span className="text-[#8b949e] min-w-[60px] shrink-0">{k}</span>
-                                <span className="text-[#e6edf3] break-all">{v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {/* Extra fields */}
-                        {extras.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-[#30363d]">
-                            {extras.map(([k, v]) => (
-                              <div key={k} className="flex items-baseline gap-1 text-[11px] py-0.5">
-                                <span className="text-[#8b949e] min-w-[60px] shrink-0">{k}</span>
-                                <span className="text-[#e6edf3] break-all">{v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      <ComparePanel
+        compareList={compareList}
+        allProducts={allProducts}
+        onToggleCompare={toggleCompare}
+        onClear={() => setCompareList([])}
+      />
 
       <footer className="border-t border-[#30363d] py-6 text-center text-xs text-[#484f58]">
         Teampo · {totalProducts} products · {vendors.length} vendors · 智能语义搜索
