@@ -1,6 +1,6 @@
 # Warehouse 芯片选型搜索平台 — 架构文档
 
-> 最后更新: 2026-07-04  
+> 最后更新: 2026-07-05  
 > 部署: Vercel (https://tw.zhouyixi.xyz) | 项目ID: prj_NYtRAuhHd4WroZtz0VE33VlOYwI7
 
 ---
@@ -104,9 +104,9 @@ must/mustMeta:   约束化输出         — 硬约束维度标注
 - 多品类共存: `break→continue` + `seenHints`，允许不同 category_hint 标签同时存在  
 - 品类维度判定: CATEGORY_TAG_NAMES 从 CATEGORY_RULES 动态导出
 
-### 3.2 route.ts (编排层) — 990 行
+### 3.2 route.ts (编排层) — 1035 行（2026-07-05 优化后，原 1106 行）
 
-**职责**: 协调 Parser + LLM，组装 final must/nice，调用约束层。
+**职责**: 协调 Parser + LLM，组装 final must/nice，调约束层。
 
 **LLM 调用的三段式**:
 1. `needsLLM=false` → 纯 Parser 结果，跳过 LLM（低延迟）
@@ -117,19 +117,20 @@ must/mustMeta:   约束化输出         — 硬约束维度标注
 - Parser must → 权威结构化输出
 - LLM nice_features → 哪些标签放松为 nice
 - LLM features → Parser 遗漏的新标签补充
-- CATEGORY_HIERARCHY → 子类存在时删父类（隔离栅极驱动→删栅极驱动/驱动/隔离）
-- CATEGORY_HINT_MAP → 动态泛品类剔除（DCDC hint=电源 → 删电源）
+- 数据驱动 promotion: nice 标签检查真实产品数据 → 匹配则升级 must
+- **约束谓词 POC**: LLM 直接生成匹配谓词（`constraint_predicates`），搜索层不再硬编码字段映射
+- `resolveHierarchy()` → 子类存在时删父类（隔离栅极驱动→删栅极驱动/驱动/隔离）
+- `resolveDynamicUmbrella()` → 泛品类剔除（DCDC hint=电源 → 删电源）
+- `safePredicate()` → 安全执行 LLM 谓词
+- `syncMustMeta()` → 同步 mustMeta 与 must
 
-**SYSTEM_PROMPT** (74-181行):
-- 四大领域知识: 电源管理 / 信号链 / 接口隔离 / 传感器驱动
-- Few-shot 示例: 标准查询格式示范
-- 品类层级规则: 子类/父类关系声明
-- 精确数值要求: 给定具体数字→输出精确标签
+**SYSTEM_PROMPT** (含 4 个 predicate few-shot: DFN/SOP8/MSL/Industrial)
 
 **Debug 支持**:
 ```json
-_debug: { llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures, residualQuery }
+_debug: { requestId, timings:{parse,llm,total}, llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures, residualQuery }
 ```
+2026-07-05 修复: `_debug` 现已在所有 return 路径注入（之前 3 个缺失）。
 
 ### 3.3 constraint-match.ts (约束匹配层) — 943 行
 
@@ -140,10 +141,11 @@ _debug: { llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures, res
   - 品类/等级: 查 section → params → features（含连字符标准化 + 品类同义词）
   - 规格数值: 查 _features token 精确匹配 + 向下兼容
   - 通用回退: 查 _params + _detail_intro + _detail_features
+  - ⚠️ 封装匹配已移除 (2026-07-05) — 现由 route.ts 的 LLM predicate 接管
 - `scoreByConstraints(products, must, nice, mustMeta, sortKey)` — 完整评分
-  - must 全中 → tier 1; nice 加持 → 加分
-  - 维度感知降级: category/grade → 可就近放松; media → 硬约束
 - `applyConstraints()` — 硬过滤 + 排序
+
+**前端约束重跑陷阱** ⚠️: 当 API 返回 `results` (tier=1 exact match) 时，前端 page.tsx 跳过 `constraintView`，直接用 API 结果构建 displayResults。否则 predicate 匹配只在后端有效，前端 `tagSatisfied` 无法处理已移除的封装逻辑。
 
 **约束维度**:
 | 维度 | 说明 | 降级策略 |
