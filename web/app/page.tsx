@@ -426,6 +426,30 @@ export default function Home() {
           matchedTerms: [`可替代 ${crossRef.target}`, h.matchType === 'exact' ? '精确对标' : '系列对标'],
         };
       })
+    // When API returned exact matches (tier=1), use them directly — no need to re-run constraints
+    : ((llmResult as any)?.results || []).filter((r: any) => r.tier === 1).length > 0
+    ? (() => {
+        const apiResults = (llmResult as any).results.filter((r: any) => r.tier === 1);
+        const mustTags = llmResult?.must || [];
+        return apiResults.map((r: any) => {
+          const ap = allProducts.find(a => a.product.part_number === r.pn);
+          if (!ap) return null;
+          return {
+            vendor: ap.vendor,
+            vendorName: ap.vendorName,
+            product: ap.product,
+            score: 10,
+            matchedTerms: mustTags,
+            missingTerms: [],
+            missingNice: [],
+            matchSummary: `${mustTags.length}/${mustTags.length} 条件`,
+            referenceOnly: false,
+            nicePartial: false,
+            evidence: [],
+            downgradeHits: {} as Record<string, string>,
+          };
+        }).filter(Boolean) as SearchResult[];
+      })()
     : constraintView
     ? (() => {
         const base = constraintView.items.map((s: ConstraintScore) => {

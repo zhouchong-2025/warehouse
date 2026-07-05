@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, type ParseResult, buildPromptTagList } from './query_parser';
+import { parseQuery, CATEGORY_HINT_MAP, CATEGORY_TAG_NAMES, getAllKnownTags, type ParseResult, buildPromptTagList } from './query_parser';
 import { tagSatisfied } from './constraint-match';
 import { findProductByPN, loadAllVendors, loadVendor } from './data-loader';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
@@ -82,6 +82,31 @@ function safePredicate(fnBody: string, p: Record<string, any>): boolean {
   } catch {
     return false;
   }
+}
+
+/** Remove umbrella parent tags when subclass exists. e.g. "隔离栅极驱动" → delete "驱动"+"隔离". */
+function resolveHierarchy(tags: string[]): string[] {
+  const set = new Set(tags);
+  for (const [subclass, parents] of Object.entries(CATEGORY_HIERARCHY)) {
+    if (set.has(subclass)) for (const p of parents) set.delete(p);
+  }
+  return [...set];
+}
+
+/** Remove umbrella hints via CATEGORY_HINT_MAP. e.g. DCDC(hint="电源")+电源 → remove 电源. */
+function resolveDynamicUmbrella(tags: string[]): string[] {
+  const set = new Set(tags);
+  for (const tag of tags) {
+    const hint = CATEGORY_HINT_MAP[tag];
+    if (hint && hint !== tag && set.has(hint)) set.delete(hint);
+  }
+  return [...set];
+}
+
+/** Filter mustMeta to only contain entries for tags still in must. */
+function syncMustMeta(meta: any[] | undefined, must: string[]): any[] | undefined {
+  if (!meta) return meta;
+  return meta.filter((m: any) => must.includes(m.tag));
 }
 
 const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理、信号链、接口隔离、传感器驱动四大领域。根据用户描述推断芯片品类和关键参数，输出JSON特征标签。
@@ -254,14 +279,14 @@ export async function POST(req: NextRequest) {
     query = body.query;
     const vendor = body.vendor || null;
     if (!query || !DEEPSEEK_API_KEY) {
-      return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM未配置", confidence: "low", suggestions: [] });
+      return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "LLM未配置", confidence: "low", suggestions: [], _debug: { requestId, timings: { total: Date.now() - t0 }, llmCalled: false, reason: !query ? 'no_query' : 'no_api_key' } });
     }
 
     // PN detection: use pn_lookup index (65KB) instead of loading all 5.7MB
     try {
       const match = findProductByPN(query);
       if (match) {
-        return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "PN exact match", confidence: "high", suggestions: [] });
+        return NextResponse.json({ features: [], vendor: null, category_hint: null, explanation: "PN exact match", confidence: "high", suggestions: [], _debug: { requestId, timings: { total: Date.now() - t0 }, llmCalled: false, reason: 'pn_exact_match' } });
       }
     } catch {} // If data file missing, fall through to LLM
 
@@ -334,17 +359,8 @@ export async function POST(req: NextRequest) {
     tLlm = Date.now() - t0 - tParse;
 
     // Resolve category hierarchy: when a subclass is present, remove umbrella parent.
-    // Runs for BOTH paths (parser-only and LLM) to ensure consistency.
     if (llmResult.features && llmResult.features.length > 0) {
-      const featureSet = new Set(llmResult.features);
-      for (const [subclass, parents] of Object.entries(CATEGORY_HIERARCHY)) {
-        if (featureSet.has(subclass)) {
-          for (const parent of parents) {
-            featureSet.delete(parent);
-          }
-        }
-      }
-      llmResult.features = [...featureSet];
+      llmResult.features = resolveHierarchy(llmResult.features);
     }
 
     const result = llmResult;
@@ -444,38 +460,10 @@ export async function POST(req: NextRequest) {
     }
     // Apply category hierarchy to must tags (resolve subclass/parent conflicts)
     if (result.must && result.must.length > 0) {
-      const mustSet = new Set(result.must);
-      for (const [subclass, parents] of Object.entries(CATEGORY_HIERARCHY)) {
-        if (mustSet.has(subclass)) {
-          for (const parent of parents) {
-            mustSet.delete(parent);
-          }
-        }
-      }
-      result.must = [...mustSet];
-      if (result.mustMeta) {
-        result.mustMeta = result.mustMeta.filter((m: any) => result.must.includes(m.tag));
-      }
-    }
-    // Dynamic umbrella removal: if must has tag A (hint=X) AND tag X, remove X.
-    // e.g. "DCDC"(hint="电源") + "电源" → remove "电源"
-    // Derived from CATEGORY_RULES category_hint, no manual mapping needed.
-    if (result.must && result.must.length > 0) {
-      const mustSet = new Set(result.must);
-      let changed = false;
-      for (const tag of result.must) {
-        const hint = CATEGORY_HINT_MAP[tag];
-        if (hint && hint !== tag && mustSet.has(hint)) {
-          mustSet.delete(hint);
-          changed = true;
-        }
-      }
-      if (changed) {
-        result.must = [...mustSet];
-        if (result.mustMeta) {
-          result.mustMeta = result.mustMeta.filter((m: any) => result.must.includes(m.tag));
-        }
-      }
+      result.must = resolveHierarchy(result.must);
+      // Dynamic umbrella removal via CATEGORY_HINT_MAP
+      result.must = resolveDynamicUmbrella(result.must);
+      result.mustMeta = syncMustMeta(result.mustMeta, result.must);
     }
     // ── 透传排序意图 sortKey(高/低 + 参数 → 数值排序) ──
     // 独立于 must: 排序意图对所有品类有效(高PSRR的LDO / 大电流的DCDC等), 不门控以太网.
@@ -494,10 +482,6 @@ export async function POST(req: NextRequest) {
       result.intent = 'spec_search';
     }
     const fixConf = () => { if (result.confidence === "medium") result.confidence = "high"; };
-
-    // Post-process: channel count
-    const chM = query.match(/(\d+)\s*[通道路]/);
-    if (chM) { const t = chM[1] + "通道"; if (!result.features.includes(t)) { result.features.push(t); fixConf(); } }
 
     // Post-process: current
     // ※ parser 的 PARAM_RULES(A/mA 规则)已正确生成 Iout_ 累积标签并透传进 must。
@@ -578,16 +562,6 @@ export async function POST(req: NextRequest) {
       fixConf();
     }
 
-    // Post-process: X发Y收 → XTYR tag (safety net for LLM)
-    const txrMatch = query.match(/(\d+)\s*发\s*(\d+)\s*收/);
-    if (txrMatch) {
-      const txrTag = txrMatch[1] + 'T' + txrMatch[2] + 'R';
-      if (!result.features.includes(txrTag)) {
-        result.features = result.features.filter((f: string) => !/\d+T\d+R/.test(f));
-        result.features.push(txrTag);
-      }
-    }
-
     // Post-process: XA / X安 → Iout_XA
     const ampMatch = query.match(/(\d+\.?\d*)\s*[Aa安]/);
     if (ampMatch) {
@@ -616,36 +590,6 @@ export async function POST(req: NextRequest) {
       result.explanation = '价格导向不是稳定参数约束，建议改用品类+关键参数搜索';
     }
 
-    // Post-process: 半双工/全双工 from query
-    if (/半双工/.test(query) && !result.features.includes('半双工') && !/非隔离/.test(query)) {
-      result.features = result.features.filter((f: string) => f !== '全双工');
-      result.features.push('半双工');
-    }
-    if (/全双工/.test(query) && !result.features.includes('全双工')) {
-      result.features = result.features.filter((f: string) => f !== '半双工');
-      result.features.push('全双工');
-    }
-
-    // Post-process: force new category tags from query keywords
-    const forceCat: Record<string, string> = {
-      "仪表放大": "仪表放大器", "差动放大": "差动放大器", "对数放大": "对数放大器",
-      "匹配电阻": "匹配电阻", "电阻网络": "匹配电阻",
-      "视频滤波": "视频滤波", "音频线路": "音频功放", "音频驱动": "音频功放",
-      "线性充电": "线性充电", "高边驱动": "高边驱动", "高边开关": "高边驱动",
-      "电子保险丝": "电子保险丝", "efuse": "电子保险丝",
-      "电源时序": "电源时序", "逻辑门": "逻辑门", "与门": "逻辑门",
-      "BMS": "BMS", "电池保护": "BMS", "电池管理": "BMS", "电池均衡": "BMS",
-      "磁阻角度编码器": "磁阻角度编码器", "霍尔角度编码器": "霍尔角度编码器", "线性位置传感器": "线性位置传感器",
-      "磁阻开关": "磁阻开关/锁存器", "霍尔开关": "霍尔开关/锁存器",
-    };
-    for (const [keyword, tag] of Object.entries(forceCat)) {
-      if (query.includes(keyword) && !result.features.includes(tag)) {
-        result.features.push(tag);
-        fixConf();
-        break;
-      }
-    }
-
     // Post-process: 非隔离 / 不隔离 → strip isolation tags + handle gate drivers
     if (/非隔离|不隔离|无隔离/.test(query)) {
       // 1. Strip isolation-related tags
@@ -659,14 +603,8 @@ export async function POST(req: NextRequest) {
       if (/栅极|驱动/.test(query) && !result.features.includes("非隔离栅极驱动")) {
         if (!result.features.includes("栅极驱动")) result.features.push("栅极驱动");
       }
-      // 3. Universal fallback: ensure category tag wasn't lost by LLM
-      //    「非隔离 X」→ X must be present even if LLM forgot
-      const CATEGORY_TAGS = ['RS-485','RS-232','CAN-FD','LIN','I2C','隔离I2C','隔离CAN','隔离RS485','集成隔离电源的隔离CAN','集成隔离电源的隔离RS485','栅极驱动','非隔离栅极驱动',
-        '隔离栅极驱动','电流传感器','运放','放大器','隔离放大器',
-        '模拟开关','电平转换','马达驱动','DCDC','LDO',
-        'ADC','DAC','比较器','电压基准','数字隔离器'];
-      const hasCategoryTag = result.features.some((f: string) => CATEGORY_TAGS.includes(f));
-      if (!hasCategoryTag) {
+      // 3. Universal fallback: category tag not lost — use parser's tag registry
+      if (!result.features.some((f: string) => CATEGORY_TAG_NAMES.has(f))) {
         if (/485|rs-?485/i.test(query)) result.features.push('RS-485');
         else if (/232|rs-?232/i.test(query)) result.features.push('RS-232');
         else if (/can|can[ -]?fd/i.test(query)) result.features.push('CAN-FD');
@@ -702,20 +640,18 @@ export async function POST(req: NextRequest) {
     );
 
     // ═══ Whitelist filter: strip any tag not in valid vocabulary ═══
-    const VALID_TAGS = new Set([
-      "低功耗(≤50µA)","低功耗唤醒","CAN-FD","特定帧唤醒","VIO","高耐压","LIN",
-      "轨到轨","高速(≥50MHz)","中速(≥10MHz)","超低功耗(≤1µA)","精密(≤1mV)","车规AEC-Q100","高压(≥30V)",
-      "工业级","消费级","千兆","2.5G","百兆","100FX","100Base-TX","T1-PHY","SGMII","RGMII","QSGMII","交换机","网卡",
-      "以太网","以太网供电","Pin-to-Pin兼容","5kVrms隔离","3kVrms隔离","隔离电源","隔离CAN","隔离RS485","集成隔离电源的隔离CAN","集成隔离电源的隔离RS485","隔离I2C","I2C","RS-485","RS-232","MLVDS",
-      "LDO","DCDC","ADC","DAC","比较器","电压基准","运放","放大器","隔离放大器","栅极驱动","非隔离栅极驱动",
-      "隔离栅极驱动","数字隔离器","复位芯片","IO扩展","模拟开关","负载开关","马达驱动","隔离","电流传感器",
-      "温度传感器","压力传感器","位置传感器","速度传感器","降压","升压","SBC","电平转换","PMIC","DrMOS","LED驱动","MCU/DSP","低导通电阻","理想二极管",
-      "串联型电压基准","并联型电压基准","直流马达驱动","步进马达驱动",
-      "TVS/ESD","EMI滤波器","BMS","电子保险丝","电源时序","视频滤波","音频功放","音频总线","匹配电阻",
-      "逻辑门","电池监控","传感器接口","仪表放大器","差动放大器","对数放大器","线性充电","高边驱动",
-      "低边驱动","氮化镓功率芯片","零漂运算放大器","高压运算放大器","低压运算放大器","隔离ADC",
-      "高速数据复用器","电压基准放大器","半双工","全双工","非管理型","低噪声","高PSRR","霍尔","磁阻","TMR","AMR","SIC","SiC","低漂移","迟滞","过流保护",
-    ]);
+    // Tags auto-derived from parser rules; supplemental list covers prompt-only terms.
+    const KNOWN_TAGS = getAllKnownTags();
+    for (const t of ['千兆','2.5G','百兆','100FX','100Base-TX','T1-PHY','SGMII','RGMII','QSGMII',
+      '交换机','网卡','以太网','以太网供电','隔离电源','隔离CAN','隔离RS485','集成隔离电源的隔离CAN',
+      '集成隔离电源的隔离RS485','隔离I2C','I2C','隔离ADC','5kVrms隔离','3kVrms隔离',
+      '高压(≥30V)','低功耗(≤50µA)','超低功耗(≤1µA)','中速(≥10MHz)','高速(≥50MHz)',
+      'VIO','高耐压','低导通电阻','MCU/DSP','PMIC','DrMOS','LED驱动','TVS/ESD','EMI滤波器',
+      'SIC','SiC','TMR','AMR','低漂移','迟滞','过流保护','氮化镓功率芯片','复位芯片',
+      '直流马达驱动','步进马达驱动','串联型电压基准','并联型电压基准','电压基准放大器',
+      '高速数据复用器','隔离栅极驱动器','隔离式栅极驱动器','隔离式栅极驱动',
+      '非隔离栅极驱动器','非隔离式栅极驱动','零漂运算放大器','高压运算放大器','低压运算放大器',
+    ]) KNOWN_TAGS.add(t);
     const VALID_PATTERNS = [
       /^Vin_[\d.]+V$/, /^Vout_[\d.]+V$/, /^Iout_[\d.]+A$/,
       /^\d+Mbps$/, /^\d+通道$/, /^\d+T\d+R$/, /^\d+:\d+$/,
@@ -723,7 +659,7 @@ export async function POST(req: NextRequest) {
     ];
     const strippedTags: string[] = [];
     result.features = result.features.filter((f: string) => {
-      if (VALID_TAGS.has(f)) return true;
+      if (KNOWN_TAGS.has(f)) return true;
       if (VALID_PATTERNS.some(p => p.test(f))) return true;
       strippedTags.push(f);
       return false;
@@ -762,12 +698,6 @@ export async function POST(req: NextRequest) {
           if (!result.features.includes(tag)) { result.features.push(tag); fixConf(); }
         }
       }
-    }
-
-    // Post-process: ADC/DAC: extract bit count from query
-    if ((result.features.includes("ADC") || result.features.includes("DAC")) && !result.features.some((f: string) => /^\d+bit$/.test(f))) {
-      const bm = query.match(/(\d+)\s*(?:bit|位)/i);
-      if (bm) { result.features.push(bm[1] + "bit"); fixConf(); }
     }
 
     // Post-process: fix common LLM tag mistakes
@@ -915,7 +845,9 @@ export async function POST(req: NextRequest) {
         // Do not recommend a "closest" PN merely because prose/params contain a loose word.
         return tokenHit(p.ft, feature);
       };
-      if (requestedTags.length < 1) return NextResponse.json(result);
+      if (requestedTags.length < 1) { result._debug.timings.total = Date.now() - t0; return NextResponse.json(result); }
+      // Set total timing once; all early returns below inherit it
+      result._debug.timings.total = Date.now() - t0;
       const exactMatches = all.filter(p => requestedTags.every(f => semanticHit(p, f)));
       const hasHardConstraints = Array.isArray(result.must) && result.must.length > 0;
       if (exactMatches.length > 0 && exactMatches.length <= 10) {
@@ -987,12 +919,11 @@ export async function POST(req: NextRequest) {
       const best = scored[0];
       const total = features.length;
 
-      const extractBestParams = (params: string, currentQuery: string): string[] => {
-        const hits: string[] = [];
-        const pushOnce = (text: string) => {
-          if (text && !hits.includes(text)) hits.push(text);
-        };
-        const paramLines = params.split(" | ");
+/** Extract up to 2 most relevant param key:value pairs for suggestion display. */
+function extractBestParams(params: string, query: string): string[] {
+  const hits: string[] = [];
+  const pushOnce = (text: string) => { if (text && !hits.includes(text)) hits.push(text); };
+  const paramLines = params.split(" | ");
         for (const line of paramLines) {
           const idx = line.indexOf(":");
           if (idx < 0) continue;
@@ -1000,11 +931,11 @@ export async function POST(req: NextRequest) {
           const val = line.slice(idx + 1).trim();
           if (!key || !val || key.length > 40 || val.length > 40) continue;
           const lowerKey = key.toLowerCase();
-          if ((/电流|[aA]|安/.test(currentQuery)) && (lowerKey.includes("current") || lowerKey.includes("peak") || lowerKey.includes("驱动"))) pushOnce(`${key}: ${val}`);
-          if ((currentQuery.includes("精度") || currentQuery.includes("误差")) && (lowerKey.includes("精度") || lowerKey.includes("accuracy") || lowerKey.includes("error") || lowerKey.includes("gain") || lowerKey.includes("offset") || lowerKey.includes("线性")) && !lowerKey.includes("temperature") && !lowerKey.includes("temp range")) pushOnce(`${key}: ${val}`);
-          if ((currentQuery.includes("通道") || currentQuery.includes("路")) && (lowerKey.includes("channel") || lowerKey.includes("通道") || lowerKey.includes("ch"))) pushOnce(`${key}: ${val}`);
-          if ((/速率|速度|[Mm]bps|[Gg]bps|[Kk]bps|高速/.test(currentQuery) || currentQuery.includes("速率")) && (lowerKey.includes("data rate") || lowerKey.includes("speed") || lowerKey.includes("带宽") || lowerKey.includes("速率"))) pushOnce(`${key}: ${val}`);
-          if ((currentQuery.includes("隔离") || currentQuery.includes("kV")) && (lowerKey.includes("isolation") || lowerKey.includes("耐压") || lowerKey.includes("vrms"))) pushOnce(`${key}: ${val}`);
+          if ((/电流|[aA]|安/.test(query)) && (lowerKey.includes("current") || lowerKey.includes("peak") || lowerKey.includes("驱动"))) pushOnce(`${key}: ${val}`);
+          if ((query.includes("精度") || query.includes("误差")) && (lowerKey.includes("精度") || lowerKey.includes("accuracy") || lowerKey.includes("error") || lowerKey.includes("gain") || lowerKey.includes("offset") || lowerKey.includes("线性")) && !lowerKey.includes("temperature") && !lowerKey.includes("temp range")) pushOnce(`${key}: ${val}`);
+          if ((query.includes("通道") || query.includes("路")) && (lowerKey.includes("channel") || lowerKey.includes("通道") || lowerKey.includes("ch"))) pushOnce(`${key}: ${val}`);
+          if ((/速率|速度|[Mm]bps|[Gg]bps|[Kk]bps|高速/.test(query) || query.includes("速率")) && (lowerKey.includes("data rate") || lowerKey.includes("speed") || lowerKey.includes("带宽") || lowerKey.includes("速率"))) pushOnce(`${key}: ${val}`);
+          if ((query.includes("隔离") || query.includes("kV")) && (lowerKey.includes("isolation") || lowerKey.includes("耐压") || lowerKey.includes("vrms"))) pushOnce(`${key}: ${val}`);
           if (hits.length >= 2) return hits.slice(0, 2);
         }
         const allKeys = [

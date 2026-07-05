@@ -212,6 +212,14 @@ export const CATEGORY_SYNONYMS: Record<string, string[]> = {
   'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
 };
 
+/** All known tags from rule tables — used by route.ts whitelist to strip LLM hallucinations. */
+export function getAllKnownTags(): Set<string> {
+  const tags = new Set<string>();
+  for (const r of CATEGORY_RULES) tags.add(r.tag);
+  for (const r of MODIFIER_RULES) { if (r.tag) tags.add(r.tag); }
+  return tags;
+}
+
 // ── Dynamic prompt tag list ──
 // Built from rule tables — guarantees SYSTEM_PROMPT stays in sync with parser.
 export function buildPromptTagList(): string {
