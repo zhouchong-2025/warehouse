@@ -75,6 +75,15 @@ const CATEGORY_HIERARCHY: Record<string, string[]> = {
 
 const PROMPT_TAGS = buildPromptTagList();
 
+/** Safely execute a LLM-generated predicate function body. Returns false on any error. */
+function safePredicate(fnBody: string, p: Record<string, any>): boolean {
+  try {
+    return new Function('p', fnBody)(p);
+  } catch {
+    return false;
+  }
+}
+
 const SYSTEM_PROMPT = `你是资深半导体应用工程师，精通电源管理、信号链、接口隔离、传感器驱动四大领域。根据用户描述推断芯片品类和关键参数，输出JSON特征标签。
 
 == 可用标签 ==
@@ -195,6 +204,23 @@ A: {"features":["隔离放大器"],"nice_features":[],"vendor":null,"category_hi
 Q: 有没有电流传感器 m7内核的mcu 支持can
 A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor":null,"category_hint":"传感器","explanation":"用户同时在找电流传感器和带CAN的M7 MCU","confidence":"medium"}
 
+Q: rs485 dfn封装
+A: {"features":["RS-485"],"nice_features":["DFN封装"],"constraint_predicates":{"DFN封装":"return /Package\\s*[:：]\\s*[^|]*DFN/i.test(p._params || '')"},"vendor":null,"category_hint":"接口","explanation":"RS-485收发器，DFN封装从_params的Package字段匹配","confidence":"high"}
+
+Q: DCDC sop8封装
+A: {"features":["DCDC"],"nice_features":["SOP8封装"],"constraint_predicates":{"SOP8封装":"return /Package\\s*[:：]\\s*[^|]*SOP-?8/i.test(p._params || '')"},"vendor":null,"category_hint":"电源","explanation":"DCDC电源芯片，SOP8封装从_params的Package字段匹配","confidence":"high"}
+
+Q: LDO msl1
+A: {"features":["LDO"],"nice_features":["MSL1"],"constraint_predicates":{"MSL1":"return /MSL\\s*[:：]\\s*1\\b/i.test(p._params || '')"},"vendor":null,"category_hint":"电源","explanation":"LDO稳压器，MSL 1级防潮，从_params的MSL字段匹配","confidence":"high"}
+
+Q: 运放 工业级温度
+A: {"features":["运放"],"nice_features":["工业级"],"constraint_predicates":{"工业级":"return /Rating\\s*[:：]\\s*Industrial/i.test(p._params || '')"},"vendor":null,"category_hint":"放大器","explanation":"运放，偏好工业级温度范围，从_params的Rating字段匹配","confidence":"high"}
+
+== 约束谓词(constraint_predicates) ==
+当 nice_features 中的标签需要结构化的参数匹配（不只是简单 token），在 constraint_predicates 中提供 JavaScript 谓词函数体。
+产品 p 的字段: p._params("Key:Val|Key:Val"格式), p._section(品类), p._features(token), p._detail_intro, p._detail_features
+谓词用 RegExp 匹配 _params 中对应的 Key 字段即可。不提供的 nice_feature 回退到文本匹配。
+
 == features vs nice_features 判定规则 ==
 放入 features (硬需求—缺了就不是用户要的东西):
 - 品类标签(隔离CAN, LDO, DCDC, 运放, 隔离放大器, 栅极驱动...)
@@ -206,7 +232,7 @@ A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor
 - 质量/可靠性等级(车规AEC-Q100, 工业级, 消费级)
 - 纯性能修饰(低噪声, 高PSRR, 高速(≥50MHz))
 - 速度描述词当品类已明确时(千兆→以太网已有, 百兆→以太网已有。例外: 用户只说\"千兆phy\"无其他约束时千兆进features)
-- 封装/温度范围等(用户没明确要求的不加)
+- 封装/MSL/温度范围等(用户明确指定时放入nice_features，系统自动根据实际数据匹配决定是否升级为硬约束)
 
 如果拿不准，优先放 features。
 
@@ -215,7 +241,7 @@ A: {"features":["电流传感器","MCU/DSP","CAN-FD"],"nice_features":[],"vendor
 - 仅当用户明确在"用某竞品型号找国产替代/pin-to-pin/兼容料"时 intent="cross_ref", 并把竞品型号填入 cross_ref_target(大写)。例: "把我现在用的那颗TI双通道隔离换成国产"→intent="cross_ref"(若有明确型号则填, 没有则留空走品类搜索)。
 - 注意: 大多数"型号+替代"查询已被规则层拦截, LLM 只需兜底口语化、没明说型号的模糊表达。拿不准就用 spec_search, 不要乱标 cross_ref。
 
-仅输出JSON: {"primary_category":"","features":[],"nice_features":[],"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
+仅输出JSON: {"primary_category":"","features":[],"nice_features":[],"constraint_predicates":{},"vendor":null,"category_hint":"","explanation":"","confidence":"high|medium|low","intent":"spec_search|cross_ref","cross_ref_target":""}`;
 
 export async function POST(req: NextRequest) {
   const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
@@ -322,6 +348,9 @@ export async function POST(req: NextRequest) {
     }
 
     const result = llmResult;
+    // Store LLM-generated constraint predicates for downstream matching
+    result._predicates = (llmResult.constraint_predicates || {}) as Record<string, string>;
+    delete (result as any).constraint_predicates; // move to internal key
     result.suggestions = [];
     result._debug = { requestId, timings: { parse: tParse, llm: tLlm }, llmCalled, llmSucceeded, llmError, llmRawFeatures, parserFeatures: parsed.features, residualQuery: parsed.residualQuery || '' };
     // ── LLM-driven must/nice assembly ──
@@ -392,6 +421,15 @@ export async function POST(req: NextRequest) {
             else if (vinFM) result.mustMeta.push({ tag: f, dimension: 'spec', family: 'Vin', value: parseFloat(vinFM[1]) });
             else result.mustMeta.push({ tag: f, dimension: CATEGORY_TAG_NAMES.has(f) ? 'category' : 'spec' });
           }
+        }
+      }
+      // Carry forward LLM nice_features that parser didn't produce — these were previously
+      // dropped. LLM's nice classification is respected (they stay in nice), but the tags
+      // must reach the data-driven promotion step below rather than being silently discarded.
+      for (const f of (llmResult.nice_features || [])) {
+        if (!parserKnown.has(f) && !result.features.includes(f)) {
+          if (!result.nice) result.nice = [];
+          if (!result.nice.includes(f)) result.nice.push(f);
         }
       }
       result.nice = [...new Set([...(result.nice || []), ...(parsed.nice || [])])];
@@ -790,9 +828,60 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Data-driven must promotion: nice tags that match real product data → must.
+      // Priority: LLM-generated constraint predicate → text-based fallback.
+      const parserMustSet = new Set([...(parsed.must || [])]);
+      const parserNiceSet = new Set([...(parsed.nice || [])]);
+      const llmOnlyNice = (result.nice || []).filter((t: string) => !parserMustSet.has(t) && !parserNiceSet.has(t));
+
+      if (llmOnlyNice.length > 0) {
+        const predicates = (result._predicates || {}) as Record<string, string>;
+        const dataTexts = all.map(p =>
+          [p._section, p.ft, p.params, p.detailIntro, p.detailFeatures]
+            .filter(Boolean).join(' ').toLowerCase()
+        );
+        const promoted: string[] = [];
+        const stillNice: string[] = [];
+
+        for (const tag of llmOnlyNice) {
+          let hasMatch: boolean;
+          const pred = predicates[tag];
+          if (pred) {
+            // LLM wrote a predicate — execute on all products (POC)
+            hasMatch = all.some(p => safePredicate(pred, {
+              _params: p.params || '',
+              _section: p._section || '',
+              _features: p.ft || '',
+              _detail_intro: p.detailIntro || '',
+              _detail_features: p.detailFeatures || '',
+            }));
+          } else {
+            // Fallback: text-based matching
+            const tagLower = tag.toLowerCase();
+            const searchTerm = tagLower.replace(/(?:封装|package)$/i, '').trim();
+            hasMatch = searchTerm && dataTexts.some(text => text.includes(searchTerm));
+          }
+          if (hasMatch) {
+            promoted.push(tag);
+          } else {
+            stillNice.push(tag);
+          }
+        }
+
+        if (promoted.length > 0) {
+          result.must = [...result.must, ...promoted];
+          result.mustMeta = [...(result.mustMeta || []), ...promoted.map(t => ({
+            tag: t, dimension: 'spec' as const
+          }))];
+        }
+        // Keep unmatched in nice for soft filtering
+        result.nice = [...new Set([...(parsed.nice || []), ...stillNice])];
+      }
+
       const features: string[] = result.features || [];
-      const requestedTags: string[] = [...new Set([...features, ...(result.nice || [])])];
+      const requestedTags: string[] = [...new Set([...features, ...(result.nice || []), ...(result.must || [])])];
       const mustMetaByTag = new Map(((result.mustMeta || []) as any[]).map((m) => [m.tag, m]));
+      const predicates = (result._predicates || {}) as Record<string, string>;
       const tokenHit = (ft: string, feature: string) => {
         const tokens = ft.split(/\s+/);
         if (tokens.includes(feature.toLowerCase())) return true;
@@ -801,6 +890,17 @@ export async function POST(req: NextRequest) {
         return false;
       };
       const semanticHit = (p: { ft: string; params?: string; detailIntro?: string; detailFeatures?: string; _section?: string }, feature: string) => {
+        // Predicate from LLM takes priority — no hardcoded rule needed
+        const pred = predicates[feature];
+        if (pred) {
+          return safePredicate(pred, {
+            _params: p.params || '',
+            _section: p._section || '',
+            _features: p.ft || '',
+            _detail_intro: p.detailIntro || '',
+            _detail_features: p.detailFeatures || '',
+          });
+        }
         const meta = mustMetaByTag.get(feature);
         if (meta) {
           return tagSatisfied({

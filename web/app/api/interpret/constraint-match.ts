@@ -387,6 +387,9 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     if (t === '升压') return tokens.includes('升压') || /升压|boost|step[ -]?up/i.test(allEvidenceText);
   }
 
+  // Package/structural constraints now handled by LLM-generated constraint_predicates.
+  // See route.ts safePredicate() — no more hardcoded regex here.
+
   // Downgradable specs
   if (meta?.downgradable && meta.value != null && (meta.family === '端口' || meta.family === '通道')) {
     if (meta.family === '端口') {
