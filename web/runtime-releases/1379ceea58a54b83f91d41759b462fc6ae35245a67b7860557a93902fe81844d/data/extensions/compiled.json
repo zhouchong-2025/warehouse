@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "vendors": [
+    {
+      "slug": "3peak-updates",
+      "name": "思瑞浦·原厂增量资料",
+      "manufacturerId": "3peak",
+      "productCount": 1,
+      "dependencyHash": "1d21831192bab492d4a96c1a3f101b9f5f7dee11fa3a87e26e33ed45efdfdcdd",
+      "products": [
+        {
+          "part_number": "TPS42Q20",
+          "_section": "高边开关",
+          "_params": "Rating: Industrial | Status: Production | High-Side Switches: 40-V 160-mΩ 4-Channel High-Side Power Switch",
+          "_source_facts": [
+            {
+              "id": "3peak-updates:TPS42Q20:rating_cell:0",
+              "vendor": "3peak-updates",
+              "model": "TPS42Q20",
+              "field": "rating_cell",
+              "scope": "self",
+              "rating": "unspecified",
+              "publishedHeader": "Rating",
+              "publishedValue": "Industrial",
+              "evidence": {
+                "physicalPage": 1,
+                "sourceUrl": "https://www.3peak.com/high-side-switches/product-selector",
+                "heading": "High-Side Switches",
+                "originalHeader": "Rating",
+                "originalValue": "Industrial"
+              },
+              "source": {
+                "factId": "3peak-updates:TPS42Q20:rating_cell:0",
+                "document": "3peak-high-side-selector-20261123.html",
+                "documentSha256": "14e4cc8e5a2be4824fff294b92b9833a2ba988dab93472d5b48e7b0ab773c834",
+                "factsSha256": "1d21831192bab492d4a96c1a3f101b9f5f7dee11fa3a87e26e33ed45efdfdcdd",
+                "wikiFactPage": "wiki/facts/extensions/3peak-updates.md",
+                "page": 1,
+                "locator": "TPS42Q20",
+                "originalHeader": "Rating",
+                "originalValue": "Industrial",
+                "scope": "catalog_model",
+                "rating": "unspecified"
+              }
+            },
+            {
+              "id": "3peak-updates:TPS42Q20:status_cell:1",
+              "vendor": "3peak-updates",
+              "model": "TPS42Q20",
+              "field": "status_cell",
+              "scope": "self",
+              "rating": "unspecified",
+              "publishedHeader": "Status",
+              "publishedValue": "Production",
+              "evidence": {
+                "physicalPage": 1,
+                "sourceUrl": "https://www.3peak.com/high-side-switches/product-selector",
+                "heading": "High-Side Switches",
+                "originalHeader": "Status",
+                "originalValue": "Production"
+              },
+              "source": {
+                "factId": "3peak-updates:TPS42Q20:status_cell:1",
+                "document": "3peak-high-side-selector-20261123.html",
+                "documentSha256": "14e4cc8e5a2be4824fff294b92b9833a2ba988dab93472d5b48e7b0ab773c834",
+                "factsSha256": "1d21831192bab492d4a96c1a3f101b9f5f7dee11fa3a87e26e33ed45efdfdcdd",
+                "wikiFactPage": "wiki/facts/extensions/3peak-updates.md",
+                "page": 1,
+                "locator": "TPS42Q20",
+                "originalHeader": "Status",
+                "originalValue": "Production",
+                "scope": "catalog_model",
+                "rating": "unspecified"
+              }
+            },
+            {
+              "id": "3peak-updates:TPS42Q20:description_cell:2",
+              "vendor": "3peak-updates",
+              "model": "TPS42Q20",
+              "field": "description_cell",
+              "scope": "self",
+              "rating": "unspecified",
+              "publishedHeader": "High-Side Switches",
+              "publishedValue": "40-V 160-mΩ 4-Channel High-Side Power Switch",
+              "evidence": {
+                "physicalPage": 1,
+                "sourceUrl": "https://www.3peak.com/high-side-switches/product-selector",
+                "heading": "High-Side Switches",
+                "originalHeader": "High-Side Switches",
+                "originalValue": "40-V 160-mΩ 4-Channel High-Side Power Switch"
+              },
+              "source": {
+                "factId": "3peak-updates:TPS42Q20:description_cell:2",
+                "document": "3peak-high-side-selector-20261123.html",
+                "documentSha256": "14e4cc8e5a2be4824fff294b92b9833a2ba988dab93472d5b48e7b0ab773c834",
+                "factsSha256": "1d21831192bab492d4a96c1a3f101b9f5f7dee11fa3a87e26e33ed45efdfdcdd",
+                "wikiFactPage": "wiki/facts/extensions/3peak-updates.md",
+                "page": 1,
+                "locator": "TPS42Q20",
+                "originalHeader": "High-Side Switches",
+                "originalValue": "40-V 160-mΩ 4-Channel High-Side Power Switch",
+                "scope": "catalog_model",
+                "rating": "unspecified"
+              }
+            }
+          ]
+        }
+      ],
+      "documents": [
+        {
+          "id": "3peak-high-side-selector-20261123",
+          "path": "raw/vendor-updates/3peak-high-side-selector-20261123.html",
+          "sha256": "14e4cc8e5a2be4824fff294b92b9833a2ba988dab93472d5b48e7b0ab773c834",
+          "url": "https://www.3peak.com/high-side-switches/product-selector"
+        },
+        {
+          "id": "3peak-tps42q20-20260101",
+          "path": "raw/vendor-updates/TPS42Q20-DA20260101A1.pdf",
+          "sha256": "52063fe942d9a1dc454d98895aa0bedc60d7c3e4b43861c561cdd1d8a647b692",
+          "url": "https://static.3peak.com/res/doc/ds/Datasheet_TPS42Q20.pdf"
+        }
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "3peak-high-side-selector-20261123",
+      "path": "raw/vendor-updates/3peak-high-side-selector-20261123.html",
+      "sha256": "14e4cc8e5a2be4824fff294b92b9833a2ba988dab93472d5b48e7b0ab773c834",
+      "url": "https://www.3peak.com/high-side-switches/product-selector"
+    },
+    {
+      "id": "3peak-tps42q20-20260101",
+      "path": "raw/vendor-updates/TPS42Q20-DA20260101A1.pdf",
+      "sha256": "52063fe942d9a1dc454d98895aa0bedc60d7c3e4b43861c561cdd1d8a647b692",
+      "url": "https://static.3peak.com/res/doc/ds/Datasheet_TPS42Q20.pdf"
+    }
+  ]
+}

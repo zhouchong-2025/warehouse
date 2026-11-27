@@ -1,0 +1,104 @@
+# 纳芯微选型指南：已核对的工业级型号行
+
+来源：纳芯微产品选型指南 2025-10。此表由已逐行核对的 93 条旧事实迁入，另补入 NSI6602UB-Q1SPNR 的原表型号行。今后作为这组事实的可编辑 Wiki MD 输入。原 PDF 仅用于逐格比对与追溯。
+
+PDF SHA-256: `5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c`
+
+范围：仅覆盖下表明确写有工业级的目录型号；未列型号及车规、温度、订购配置均不由此推断。
+
+| 型号 | 等级表头 | 等级原值 | 物理页 | 表索引 | 行索引 | 列索引 |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| NSD2621A-DQAGR | 产品等级 | 工业级 | 294 | 1 | 1 | 10 |
+| NSD2621C-DQAGR | 产品等级 | 工业级 | 294 | 1 | 2 | 10 |
+| NSD2622N-DQAER | 产品等级 | 工业级 | 294 | 1 | 3 | 10 |
+| NSG65N15K-DQAFR | 产品等级 | 工业级 | 294 | 0 | 1 | 7 |
+| NSI6601AEB-DSPR | 产品等级 | 工业级 | 271 | 0 | 37 | 10 |
+| NSI6601AEB-DSWVR | 产品等级 | 工业级 | 271 | 0 | 39 | 10 |
+| NSI6601AEC-DSPR | 产品等级 | 工业级 | 271 | 0 | 38 | 10 |
+| NSI6601AEC-DSWVR | 产品等级 | 工业级 | 271 | 0 | 40 | 10 |
+| NSI6601B-DSPR | 产品等级 | 工业级 | 271 | 0 | 3 | 10 |
+| NSI6601B-DSWVR | 产品等级 | 工业级 | 271 | 0 | 5 | 10 |
+| NSI6601C-DSPR | 产品等级 | 工业级 | 271 | 0 | 4 | 10 |
+| NSI6601C-DSWVR | 产品等级 | 工业级 | 271 | 0 | 6 | 10 |
+| NSI6601EB-DSPR | 产品等级 | 工业级 | 271 | 0 | 29 | 10 |
+| NSI6601EC-DSPR | 产品等级 | 工业级 | 271 | 0 | 30 | 10 |
+| NSI6601MB-DSPR | 产品等级 | 工业级 | 271 | 0 | 7 | 10 |
+| NSI6601MB-DSWVR | 产品等级 | 工业级 | 271 | 0 | 9 | 10 |
+| NSI6601MC-DSPR | 产品等级 | 工业级 | 271 | 0 | 8 | 10 |
+| NSI6601MC-DSWVR | 产品等级 | 工业级 | 271 | 0 | 10 | 10 |
+| NSI6601MEB-DSPR | 产品等级 | 工业级 | 271 | 0 | 31 | 10 |
+| NSI6601MEB-DSWVR | 产品等级 | 工业级 | 271 | 0 | 34 | 10 |
+| NSI6601MEC-DSPR | 产品等级 | 工业级 | 271 | 0 | 32 | 10 |
+| NSI6601MEC-DSWVR | 产品等级 | 工业级 | 271 | 0 | 35 | 10 |
+| NSI6601MED-DSPR | 产品等级 | 工业级 | 271 | 0 | 33 | 10 |
+| NSI6601MED-DSWVR | 产品等级 | 工业级 | 271 | 0 | 36 | 10 |
+| NSI6601WC-DSWVR | 产品等级 | 工业级 | 271 | 0 | 11 | 10 |
+| NSI6602UB-Q1SPNR | 产品 等级 | 工业级 | 265 | 0 | 24 | 10 |
+| NSI6611ASC-DSWR | 产品等级 | 工业级 | 279 | 0 | 1 | 10 |
+| NSI6631ASC-DSWR | 产品等级 | 工业级 | 279 | 0 | 4 | 10 |
+| NSI6651ALC-DSWR | 产品等级 | 工业级 | 279 | 0 | 3 | 10 |
+| NSI6651ASC-DSWR | 产品等级 | 工业级 | 279 | 0 | 2 | 10 |
+| NSI6801B-DSPR | 产品等级 | 工业级 | 271 | 0 | 1 | 10 |
+| NSI6801C-DSPR | 产品等级 | 工业级 | 271 | 0 | 2 | 10 |
+| NSI6801EB-DSWER | 产品等级 | 工业级 | 271 | 0 | 25 | 10 |
+| NSI6801EB-DSWFR | 产品等级 | 工业级 | 271 | 0 | 21 | 10 |
+| NSI6801EC-DSWER | 产品等级 | 工业级 | 271 | 0 | 26 | 10 |
+| NSI6801EC-DSWFR | 产品等级 | 工业级 | 271 | 0 | 22 | 10 |
+| NSI6801ETB-DDBR | 产品等级 | 工业级 | 271 | 0 | 23 | 10 |
+| NSI6801ETC-DDBR | 产品等级 | 工业级 | 271 | 0 | 24 | 10 |
+| NSI6801MB-DSWVR | 产品等级 | 工业级 | 271 | 0 | 19 | 10 |
+| NSI6801MC-DSWVR | 产品等级 | 工业级 | 271 | 0 | 20 | 10 |
+| NSI68515AC-DSWR | 产品等级 | 工业级 | 279 | 0 | 11 | 10 |
+| NSI68515LC-DSWR | 产品等级 | 工业级 | 279 | 0 | 9 | 10 |
+| NSI68515RC-DSWR | 产品等级 | 工业级 | 279 | 0 | 12 | 10 |
+| NSI68515UC-DSWR | 产品等级 | 工业级 | 279 | 0 | 10 | 10 |
+| NSI8200-DSPR | 产品等级 | Industrial | 189 | 0 | 1 | 8 |
+| NSI8200-DSWR | 产品等级 | Industrial | 189 | 0 | 2 | 8 |
+| NSI8200-DSWWAR | 产品等级 | Industrial | 189 | 0 | 3 | 8 |
+| NSI84085-DSSR | 产品等级 | Industrial | 182 | 0 | 2 | 10 |
+| NSI84085-DSWR | 产品等级 | Industrial | 182 | 0 | 1 | 10 |
+| NSIP9042-DSWR | 产品等级 | Industrial | 229 | 0 | 2 | 9 |
+| NSIP9042-DSWTR | 产品等级 | Industrial | 229 | 0 | 1 | 9 |
+| NSIP9042V-DSWR | 产品等级 | Industrial | 229 | 0 | 3 | 9 |
+| NSIP93086C-DSWR | 产品等级 | Industrial | 227 | 0 | 2 | 10 |
+| NSIP93086C-DSWTR | 产品等级 | Industrial | 227 | 0 | 1 | 10 |
+| NSIP93086H-DSWR | 产品等级 | Industrial | 227 | 0 | 3 | 10 |
+| NSIP93086HV-DSWR | 产品等级 | Industrial | 227 | 0 | 4 | 10 |
+| NSIP9540W0-DSWR | 产品等级 | Industrial | 223 | 0 | 21 | 8 |
+| NSIP9540W1-DSWR | 产品等级 | Industrial | 223 | 0 | 22 | 8 |
+| NSIP9541W0-DSWR | 产品等级 | Industrial | 223 | 0 | 23 | 8 |
+| NSIP9541W1-DSWR | 产品等级 | Industrial | 223 | 0 | 24 | 8 |
+| NSIP9542W0-DSWR | 产品等级 | Industrial | 223 | 0 | 25 | 8 |
+| NSIP9542W1-DSWR | 产品等级 | Industrial | 223 | 0 | 26 | 8 |
+| NSIP9543W0-DSWR | 产品等级 | Industrial | 223 | 0 | 27 | 8 |
+| NSIP9543W1-DSWR | 产品等级 | Industrial | 223 | 0 | 28 | 8 |
+| NSIP9544W0-DSWR | 产品等级 | Industrial | 223 | 0 | 29 | 8 |
+| NSIP9544W1-DSWR | 产品等级 | Industrial | 223 | 0 | 30 | 8 |
+| NSIP9840W0-DSWR | 产品等级 | Industrial | 223 | 0 | 1 | 8 |
+| NSIP9840W0-DSWWR | 产品等级 | Industrial | 223 | 0 | 11 | 8 |
+| NSIP9840W1-DSWR | 产品等级 | Industrial | 223 | 0 | 2 | 8 |
+| NSIP9840W1-DSWWR | 产品等级 | Industrial | 223 | 0 | 12 | 8 |
+| NSIP9841W0-DSWR | 产品等级 | Industrial | 223 | 0 | 3 | 8 |
+| NSIP9841W0-DSWWR | 产品等级 | Industrial | 223 | 0 | 13 | 8 |
+| NSIP9841W1-DSWR | 产品等级 | Industrial | 223 | 0 | 4 | 8 |
+| NSIP9841W1-DSWWR | 产品等级 | Industrial | 223 | 0 | 14 | 8 |
+| NSIP9842W0-DSWR | 产品等级 | Industrial | 223 | 0 | 5 | 8 |
+| NSIP9842W0-DSWWR | 产品等级 | Industrial | 223 | 0 | 15 | 8 |
+| NSIP9842W1-DSWR | 产品等级 | Industrial | 223 | 0 | 6 | 8 |
+| NSIP9842W1-DSWWR | 产品等级 | Industrial | 223 | 0 | 16 | 8 |
+| NSIP9843W0-DSWR | 产品等级 | Industrial | 223 | 0 | 7 | 8 |
+| NSIP9843W0-DSWWR | 产品等级 | Industrial | 223 | 0 | 17 | 8 |
+| NSIP9843W1-DSWR | 产品等级 | Industrial | 223 | 0 | 8 | 8 |
+| NSIP9843W1-DSWWR | 产品等级 | Industrial | 223 | 0 | 18 | 8 |
+| NSIP9844W0-DSWR | 产品等级 | Industrial | 223 | 0 | 9 | 8 |
+| NSIP9844W0-DSWWR | 产品等级 | Industrial | 223 | 0 | 19 | 8 |
+| NSIP9844W1-DSWR | 产品等级 | Industrial | 223 | 0 | 10 | 8 |
+| NSIP9844W1-DSWWR | 产品等级 | Industrial | 223 | 0 | 20 | 8 |
+| NSR2842-DSPR | Rating | Industrial | 351 | 0 | 9 | 1 |
+| NSR2843-DSPR | Rating | Industrial | 351 | 0 | 10 | 1 |
+| NSR2844-DSPR | Rating | Industrial | 351 | 0 | 11 | 1 |
+| NSR2845-DSPR | Rating | Industrial | 351 | 0 | 12 | 1 |
+| NSR28C42-DSPR | Rating | Industrial | 351 | 0 | 13 | 1 |
+| NSR28C43-DSPR | Rating | Industrial | 351 | 0 | 14 | 1 |
+| NSR28C44-DSPR | Rating | Industrial | 351 | 0 | 15 | 1 |
+| NSR28C45-DSPR | Rating | Industrial | 351 | 0 | 16 | 1 |
