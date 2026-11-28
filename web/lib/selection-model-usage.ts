@@ -29,9 +29,29 @@ const count=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:0;
 
 /** Per-request counters only. Never retains prompts, API keys, or reasoning text. */
 type UsageOptions={releaseId?:string;queryHash?:string;maxCalls?:number;maxPeakCny?:number;ledgerPath?:string};
+type QueryDenial = 'query_calls' | 'query_estimated_cost';
+
+export function selectionModelLimitNotice({
+  providerFailureStatuses, budget,
+}: {
+  providerFailureStatuses: readonly number[];
+  budget: { sharedDenials: readonly BudgetDenial[]; queryDenials: readonly QueryDenial[] };
+}): string | undefined {
+  const { sharedDenials, queryDenials } = budget;
+  if (providerFailureStatuses.includes(402)) return '模型账户余额不足，已暂停选型核验。请联系管理员。';
+  if (sharedDenials.includes('shared_store_unavailable')) return '模型额度检查暂不可用，已暂停选型核验。请稍后重试。';
+  if (sharedDenials.includes('shared_calls')) return '当前时段的模型调用额度已用完。请稍后重试。';
+  if (sharedDenials.includes('shared_estimated_cost')) return '当前时段没有足够的可用模型费用额度。请稍后重试。';
+  if (queryDenials.includes('query_calls')) return '本次搜索已达到模型调用次数上限。可缩小选型范围后重试。';
+  if (queryDenials.includes('query_estimated_cost')) return '本次搜索没有足够的可用模型费用额度。可缩小选型范围后重试。';
+  if (sharedDenials.includes('concurrency')) return '同时进行的选型核验已达上限。请稍后重试。';
+  if (providerFailureStatuses.includes(429)) return '模型服务商限制了请求频率。请稍后重试。';
+}
+
 export function selectionModelUsage(fetcher:typeof fetch,options:UsageOptions={}){
   const rows:UsageRow[]=[];const requestId=randomUUID();let blocked=0,ledgerErrors=0,pendingAdmissions=0;
   const sharedDenials = new Set<BudgetDenial>();
+  const queryDenials = new Set<QueryDenial>();
   const configured=(value:unknown):number|undefined=>{const n=Number(value);return Number.isFinite(n)&&n>0?n:undefined;};
   const maxCalls=Math.floor(configured(options.maxCalls??process.env.DEEPSEEK_MAX_CALLS_PER_SEARCH)??24);
   const maxPeakCny=configured(options.maxPeakCny??process.env.DEEPSEEK_MAX_PEAK_CNY_PER_SEARCH);
@@ -45,12 +65,20 @@ export function selectionModelUsage(fetcher:typeof fetch,options:UsageOptions={}
   const tracked:typeof fetch=async(input,init)=>{
     const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
     if(new URL(url).hostname!=='api.deepseek.com')return fetcher(input,init);
+    if (rows.some(row => row.status === 402)) {
+      blocked++;
+      return Response.json({error:{message:'Model provider balance exhausted'}},{status:402});
+    }
     // This is a stop-before-next-call guard, not a provider-side billing cap.
     // An in-flight call can exceed the remaining estimate. Unknown usage stops
     // subsequent calls when a monetary guard is configured.
     const spent=rows.reduce((n,r)=>n+(price(r)?.peak||0),0);
-    if(rows.length+pendingAdmissions>=maxCalls||maxPeakCny!==undefined&&(spent>=maxPeakCny||pendingAdmissions>0||rows.some(r=>!price(r)))){
-      blocked++;return Response.json({error:{message:'Local model budget exhausted'}},{status:503,headers:{'x-local-model-budget':'exhausted'}});
+    const callLimit = rows.length + pendingAdmissions >= maxCalls;
+    const costLimit = maxPeakCny !== undefined && (spent >= maxPeakCny || pendingAdmissions > 0 || rows.some(r => !price(r)));
+    if(callLimit || costLimit){
+      blocked++;
+      queryDenials.add(callLimit ? 'query_calls' : 'query_estimated_cost');
+      return Response.json({error:{message:'Local model budget exhausted'}},{status:503,headers:{'x-local-model-budget':'exhausted'}});
     }
     pendingAdmissions++;
     let shared;
@@ -90,7 +118,9 @@ export function selectionModelUsage(fetcher:typeof fetch,options:UsageOptions={}
       persist(row);return response;
     } finally {
       const row = rows[reservationIndex];
-      await shared.finish(row ? price(row)?.peak : undefined);
+      // A provider rejected a 402 request before inference. Release the monetary
+      // reservation without marking the whole shared window as unmetered.
+      await shared.finish(row?.status === 402 ? 0 : row ? price(row)?.peak : undefined);
     }
   };
   return {fetch:tracked,snapshot:()=>{
@@ -106,7 +136,8 @@ export function selectionModelUsage(fetcher:typeof fetch,options:UsageOptions={}
       inputTokens:rows.reduce((n,r)=>n+r.inputTokens,0),outputTokens:rows.reduce((n,r)=>n+r.outputTokens,0),
       cacheHitTokens:rows.reduce((n,r)=>n+r.cacheHitTokens,0),reasoningTokens:rows.reduce((n,r)=>n+r.reasoningTokens,0),
       failedCalls:rows.filter(r=>r.status===undefined||r.status>=400).length,stages,
+      providerFailureStatuses:[...new Set(rows.flatMap(r=>r.status && r.status>=400?[r.status]:[]))],
       estimatedCny:{offPeak,peak,pricedCalls,complete:pricedCalls===rows.length,estimateOnly:true,priceDate:'2026-11-15'},
-      budget:{maxCalls,maxPeakCny,blocked,sharedDenials:[...sharedDenials],mode:'stop_before_next_call',estimateOnly:true},ledger:{enabled:!!ledgerPath,writeErrors:ledgerErrors},requestId,reused:false};
+      budget:{maxCalls,maxPeakCny,blocked,sharedDenials:[...sharedDenials],queryDenials:[...queryDenials],mode:'stop_before_next_call',estimateOnly:true},ledger:{enabled:!!ledgerPath,writeErrors:ledgerErrors},requestId,reused:false};
   }};
 }

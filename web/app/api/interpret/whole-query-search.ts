@@ -13,7 +13,7 @@ import type { WholeQueryPlan } from './whole-query-plan';
 import {loadProductKnowledge,searchProductKnowledge,packetSummary,packetFacts} from './product-knowledge';
 import { auditRequirementExecution,reusableEngineeringContract,pendingNumericScreens } from './execution-contract';
 import { researchConflictChecks } from './research-feedback';
-import {selectionModelUsage} from '../../../lib/selection-model-usage';
+import {selectionModelLimitNotice,selectionModelUsage} from '../../../lib/selection-model-usage';
 import {reuseSelection,selectionReuseKey} from '../../../lib/selection-result-reuse';
 import {deepSeekRequestOptions} from '../../../lib/deepseek-policy';
 import { ENGINEERING_ADAPTER_PROMPT, adaptEngineeringPlan, engineeringNumericSourceHints } from './engineering-plan-adapter';
@@ -149,11 +149,8 @@ export async function searchWholeQuery(query:string,releaseId:string,vendor:stri
         intents!.set(intentKey,{expires:Date.now()+600000,understanding:structuredClone(understanding),...(plan?{plan:structuredClone(plan)}:{})});finish();
       },executionReuse);
       const modelUsage=usage.snapshot();
-      return {...value,...(modelUsage.budget.blocked?{constraintBanner:modelUsage.budget.sharedDenials.includes('shared_store_unavailable')
-        ? '模型额度服务暂不可用，已暂停后续核验。稍后可重试。'
-        : modelUsage.budget.sharedDenials.includes('concurrency')
-          ? '选型服务当前较忙，已暂停后续模型核验。稍后可重试。'
-          : '已达到模型调用或估算费用上限。已核实的证据仍可查看，待核条件需继续确认。'}:{}),_debug:{...value._debug,understandingReused:!!frozen,executionDecisionReuse:executionReuse.metrics,modelUsage}};
+      const limitNotice = selectionModelLimitNotice(modelUsage);
+      return {...value,...(limitNotice ? { modelLimitNotice: limitNotice } : {}),_debug:{...value._debug,understandingReused:!!frozen,executionDecisionReuse:executionReuse.metrics,modelUsage}};
     }finally{finish();}
   },Date.now,signal);
   if(outcome.status==='miss')return {...outcome.value,_debug:{...outcome.value._debug,responseReuse:outcome.status}};

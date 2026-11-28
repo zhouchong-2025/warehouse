@@ -21,3 +21,12 @@ export function validVoiceWav(buffer: ArrayBuffer): boolean {
     && v.getUint32(28,true) === VOICE_SAMPLE_RATE * 2 && v.getUint16(32,true) === 2 && v.getUint16(34,true) === 16
     && v.getUint32(40,true) === buffer.byteLength - 44 && (buffer.byteLength - 44) % 2 === 0;
 }
+
+/** Detect digital silence in a validated or freshly encoded PCM WAV. */
+export function voiceWavHasSignal(buffer: ArrayBuffer): boolean {
+  const samples = new DataView(buffer, 44);
+  for (let offset = 0; offset < samples.byteLength; offset += 2) {
+    if (Math.abs(samples.getInt16(offset, true)) > 1) return true;
+  }
+  return false;
+}

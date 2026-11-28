@@ -138,6 +138,7 @@ export type LLMInterpretation = {
   modelCheck?: { pn: string; vendor: string; status: 'matched' | 'unmatched' | 'unknown';
     matched: string[]; unmatched: string[]; unknown: string[] };
   constraintBanner?: string;
+  modelLimitNotice?: string;
   solutionDirections?: import('./api/interpret/solution-directions').SolutionDirection[];
   screeningExcluded?: { pn: string; vendor: string; reasons: string[];
     evidence: import("@/app/api/interpret/source-facts").VerifiedSource[] }[];

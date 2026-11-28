@@ -190,13 +190,14 @@ export default function ResultsList({
               <button type="button" aria-pressed={engineeringView} className="rounded border border-[#30363d] px-3 py-2 text-sm aria-pressed:bg-[#1e6ef0] aria-pressed:text-white" onClick={()=>setEngineeringView(true)}>FAE 工程视图</button>
             </div>}
             {copyFeedback && <p role="status" className="mb-2 text-xs text-[#a5e6f5]">{copyFeedback}</p>}
+            {llmResult?.modelLimitNotice && <p role="status" className="mb-4 rounded-lg border border-[#d29922] bg-[#302513] p-3 text-sm text-[#ffe6a4]">{llmResult.modelLimitNotice}</p>}
             {releaseId && originalEvidenceCandidates.length > 0 && <EvidenceBatchPanel
               key={JSON.stringify([releaseId, search, originalEvidenceCandidates])}
               candidates={evidenceCandidates} releaseId={releaseId} searchRequestId={searchRequestId} onEvidence={onEvidence}/>}
             {llmResult?.componentSearch&&<ComponentSearchResults summary={llmResult.componentSearch} engineeringView={engineeringView}/>}
             {llmResult?.retrievalCoverage&&llmResult.retrievalCoverage.eligible>llmResult.retrievalCoverage.retained&&<p className="mb-4 rounded-lg border border-[#30363d] p-3 text-sm text-[#8b949e]">本次检索共召回 {llmResult.retrievalCoverage.eligible} 条资料候选，本轮保留 {llmResult.retrievalCoverage.retained} 条继续核验；其余尚未核验，不表示没有对应产品。可收窄条件重新搜索，或在品牌页点「进一步检索此品牌」。</p>}
 
-            {!llmResult?.componentSearch && Array.isArray(llmResult?.results) && llmResult.constraintBanner && !displayResults.length && (
+            {!llmResult?.modelLimitNotice && !llmResult?.componentSearch && Array.isArray(llmResult?.results) && llmResult.constraintBanner && !displayResults.length && (
               <p className="mb-4 rounded-lg border border-[#30363d] bg-[#161b22] p-3 text-sm text-[#c9d1d9]">{llmResult.constraintBanner}</p>
             )}
             {llmResult?.executionAudit?.status==='partial'&&<section role="status" className="mb-4 rounded-lg border border-[#d29922] bg-[#302513] p-3 text-sm text-[#ffe6a4]">

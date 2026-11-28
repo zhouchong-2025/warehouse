@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { encodeVoiceWav, VOICE_SAMPLE_RATE } from '@/lib/voice-recording';
+import { encodeVoiceWav, VOICE_SAMPLE_RATE, voiceWavHasSignal } from '@/lib/voice-recording';
 
 type Props = { value: string; onChange(value: string): void; onActiveChange(active: boolean): void; disabled: boolean };
 type State = 'idle' | 'starting' | 'recording' | 'transcribing';
@@ -59,12 +59,14 @@ export default function VoiceInput({ value, onChange, onActiveChange, disabled }
           const frames=Math.min(60*VOICE_SAMPLE_RATE,Math.ceil(decoded.duration*VOICE_SAMPLE_RATE));
           const offline=new OfflineAudioContext(1,frames,VOICE_SAMPLE_RATE),source=offline.createBufferSource();source.buffer=decoded;source.connect(offline.destination);source.start();
           const pcm=await offline.startRendering();if(id!==operation.current)return;
-          const wav=encodeVoiceWav(pcm.getChannelData(0)),form=new FormData();form.append('file',new Blob([wav],{type:'audio/wav'}),'speech.wav');
+          const wav=encodeVoiceWav(pcm.getChannelData(0));
+          if(!voiceWavHasSignal(wav))throw new Error('录音没有采集到声音，请检查此站点使用的麦克风和静音状态。');
+          const form=new FormData();form.append('file',new Blob([wav],{type:'audio/wav'}),'speech.wav');
           const controller=new AbortController();upload.current=controller;
           const response=await fetch('/api/transcribe',{method:'POST',body:form,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(55000)])});
           const data=await response.json();if(id!==operation.current)return;
           if(!response.ok)throw new Error(data.error||'语音转写失败，请重试。');
-          if(typeof data.text!=='string'||!data.text.trim())throw new Error('没有识别到清晰语音，请重试。');
+          if(typeof data.text!=='string'||!data.text.trim())throw new Error('转写服务未返回有效文字，请重试。');
           callbacks.current.onChange(base?`${base}\n${data.text}`:data.text);
           setMessage('转写完成，请核对型号、数值和单位，再点击搜索。');
         }catch(error){if(id===operation.current)setMessage(error instanceof Error?error.message:'语音转写未完成，请重试。');}
