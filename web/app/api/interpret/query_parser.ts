@@ -1,7 +1,9 @@
+import { parseParameterRequirements, type QuerySpec, type Requirement } from './selection-spec';
+import { residualFragments } from './query-coverage';
 /**
  * query_parser.ts — Deterministic query-to-feature parser
  *
- * Architecture: Config-driven rule engine. 80% of queries never touch LLM.
+ * Architecture: Rules resolve explicit requests; unresolved text triggers LLM fallback.
  * Adding a new pattern = one line in CATEGORY_RULES / MODIFIER_RULES / PARAM_RULES.
  *
  * Flow: query → category match → modifier apply → param extract → result
@@ -9,10 +11,13 @@
  */
 
 import { PARAM_DEFS } from './param-defs';
+import { explicitVoltageRoles, PACKAGE_QUERY, packageTag, isPackageTag, isExplicitPreference, AEC_DOCUMENT_QUERY } from './query-specs';
+import { buildSemanticParserRules } from '@/lib/semantic-evidence';
 
 // ── Types ──────────────────────────────────────────────────
 
 export interface ParseResult {
+  querySpec?: QuerySpec;
   features: string[];           // final tag list
   exclude_tags: string[];       // tags to exclude from product matching (e.g., ['隔离','kVrms'])
   category_hint: string;        // for LLM fallback / display
@@ -53,6 +58,7 @@ export interface SortIntent {
 //   grade:    等级(车规/工业级), 可放松
 export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade';
 export interface MustConstraint {
+  requirement?: Requirement;
   tag: string;
   dimension: ConstraintDimension;
   family?: string;              // spec 族名(如 '通道'/'端口'/'Vin'), 用于同族就近
@@ -77,6 +83,7 @@ interface ModifierRule {
   pattern: RegExp;
   action: 'add-tag' | 'strip-pattern';
   tag?: string;
+  strength?: string;
   stripPattern?: RegExp;
   /** Tags to exclude from product matching (used by frontend filter) */
   excludeTags?: string[];
@@ -102,15 +109,15 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /隔离.*adc|adc.*隔离/i, tag: '隔离ADC', priority: 110, category_hint: '数据转换' },
   { pattern: /隔离栅极驱动|隔离.*栅极.*驱动|栅极.*隔离.*驱动/i, tag: '隔离栅极驱动', priority: 109, category_hint: '驱动' },
   { pattern: /非隔离栅极驱动|非隔离.*栅极.*驱动/i, tag: '非隔离栅极驱动', priority: 111, category_hint: '驱动' },
-  { pattern: /隔离放大器|隔离.*放大|隔离.*运放|运放.*隔离|隔离.*调制/i, tag: '隔离放大器', priority: 108, category_hint: '隔离放大器' },
+  { pattern: /隔离(?:电流)?放大器|隔离.*放大器?|隔离.*运放|运放.*隔离|隔离.*调制/i, tag: '隔离放大器', priority: 108, category_hint: '隔离放大器' },
   { pattern: /隔离电源/i, tag: '隔离电源', priority: 108, category_hint: '隔离电源' },
-  { pattern: /隔离.*电流传感|电流传感.*隔离/i, tag: '电流传感器', priority: 108, category_hint: '传感器' },
+  { pattern: /隔离.*电流传感(?:器)?|电流传感.*隔离/i, tag: '电流传感器', priority: 108, category_hint: '传感器' },
 
   // Standard interface
   { pattern: /485|rs-?485/i, tag: 'RS-485', priority: 90, category_hint: '接口' },
   { pattern: /232|rs-?232/i, tag: 'RS-232', priority: 90, category_hint: '接口' },
   { pattern: /\bcan[ -]?fd\b|can\s*fd/i, tag: 'CAN-FD', priority: 90, category_hint: '接口' },
-  { pattern: /\bcan\b(?!\s*fd|[a-z])/i, tag: 'CAN-FD', priority: 85, category_hint: '接口' },
+  { pattern: /\bcan\b(?![ -]?fd|[a-z])/i, tag: 'CAN', priority: 85, category_hint: '接口' },
   { pattern: /\blin\b/i, tag: 'LIN', priority: 85, category_hint: '接口' },
   { pattern: /mlvds/i, tag: 'MLVDS', priority: 85, category_hint: '接口' },
   { pattern: /i2c|i²c/i, tag: 'I2C', priority: 85, category_hint: '接口' },
@@ -124,7 +131,7 @@ const CATEGORY_RULES: CategoryRule[] = [
 
   // Power
   { pattern: /\bldo\b|低压差|线性稳压/i, tag: 'LDO', priority: 85, category_hint: '电源' },
-  { pattern: /\bdcdc\b|dc[ -]?dc|降压(?:器|.*变换)|升压(?:器|.*变换)|buck|boost/i, tag: 'DCDC', priority: 85, category_hint: '电源' },
+  { pattern: /\bdcdc\b|dc[ -]?dc|降压(?:器|到|至|.*变换)|升压(?:器|到|至|.*变换)|buck|boost/i, tag: 'DCDC', priority: 85, category_hint: '电源' },
   { pattern: /降压|buck/i, tag: '降压', priority: 80, category_hint: '电源' },
   { pattern: /升压|boost/i, tag: '升压', priority: 80, category_hint: '电源' },
   { pattern: /电源芯片/i, tag: '电源', priority: 83, category_hint: '电源' },
@@ -139,6 +146,7 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /电池监控|电池.*监控|fuel[ -]?gauge/i, tag: '电池监控', priority: 85, category_hint: '电池管理' },
 
   // Signal chain
+  { pattern: /电流(?:检测|采样|传感)放大器|current[ -]?sense[ -]?amplifier/i, tag: '电流检测放大器', priority: 94, category_hint: '放大器' },
   { pattern: /仪表放大|仪表.*运放|in[ -]?amp/i, tag: '仪表放大器', priority: 90, category_hint: '放大器' },
   { pattern: /零漂.*运放|零漂.*放大|零漂移.*运放/i, tag: '零漂运算放大器', priority: 92, category_hint: '放大器' },
   { pattern: /高压.*运放|高压.*放大/i, tag: '高压运算放大器', priority: 92, category_hint: '放大器' },
@@ -157,11 +165,13 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /电压基准|基准电压|vref|reference/i, tag: '电压基准', priority: 115, category_hint: '电压基准', role: 'subordinate' },
   // Sensor prio=87 beats generic I²C/SPI protocol rules (85), preventing I2C from hijacking
   // the category_hint when the user is clearly searching for a sensor (2026-06-24).
-  { pattern: /电流传感|current[ -]?sens|current[ -]?shunt/i, tag: '电流传感器', priority: 87, category_hint: '传感器' },
-  { pattern: /温度传感|temp[ -]?sens/i, tag: '温度传感器', priority: 87, category_hint: '传感器' },
-  { pattern: /位置传感|position[ -]?sens/i, tag: '位置传感器', priority: 87, category_hint: '传感器' },
-  { pattern: /线性位置传感|linear[ -]?position/i, tag: '线性位置传感器', priority: 88, category_hint: '传感器' },
-  { pattern: /速度传感|speed[ -]?sens/i, tag: '速度传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /数字(?:式)?(?:电流[／/]?)?功率(?:检测|监测)器|digital power monitor/i, tag: '数字功率监测器', priority: 95, category_hint: '数字式电流/功率检测器' },
+  { pattern: /电流传感(?:器)?|current[ -]?sens|current[ -]?shunt/i, tag: '电流传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /线性(?:霍尔)?电流传感(?:器)?|linear[ -]+current[ -]+sensor/i, tag: '线性电流传感器', priority: 89, category_hint: '传感器' },
+  { pattern: /温度传感(?:器)?|temp[ -]?sens/i, tag: '温度传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /位置传感(?:器)?|position[ -]?sens/i, tag: '位置传感器', priority: 87, category_hint: '传感器' },
+  { pattern: /线性(?:霍尔)?位置传感(?:器)?|linear[ -]?position/i, tag: '线性位置传感器', priority: 88, category_hint: '传感器' },
+  { pattern: /速度传感(?:器)?|speed[ -]?sens/i, tag: '速度传感器', priority: 87, category_hint: '传感器' },
   { pattern: /霍尔.*角度.*编码器|角度.*霍尔.*编码器|hall.*angle.*encoder/i, tag: '霍尔角度编码器', priority: 89, category_hint: '传感器' },
   { pattern: /磁阻.*角度.*编码器|角度.*磁阻.*编码器|tmr.*angle|magnetoresistive.*encoder/i, tag: '磁阻角度编码器', priority: 89, category_hint: '传感器' },
   { pattern: /霍尔.*(?:开关|锁存器)|hall.*(?:switch|latch)/i, tag: '霍尔开关/锁存器', priority: 88, category_hint: '传感器' },
@@ -172,6 +182,8 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /高速.*复用|高速.*解复用|高速数据复用/i, tag: '高速数据复用器', priority: 85, category_hint: '开关' },
 
   // Motor / Level shift
+  { pattern: /(?:微步控制)?步进(?:马达|电机)驱动/i, tag: '步进马达驱动', priority: 93, category_hint: '驱动' },
+  { pattern: /直流(?:有刷)?(?:马达|电机)驱动/i, tag: '直流马达驱动', priority: 92, category_hint: '驱动' },
   { pattern: /马达驱动|电机驱动|motor[ -]?driv/i, tag: '马达驱动', priority: 85, category_hint: '驱动' },
   { pattern: /电平转换|level[ -]?shift|电压转换|voltage[ -]?translat/i, tag: '电平转换', priority: 85, category_hint: '电平转换' },
 
@@ -191,15 +203,22 @@ const CATEGORY_RULES: CategoryRule[] = [
   { pattern: /2\.5g/i, tag: '2.5G', priority: 76, category_hint: '以太网' },
   { pattern: /千兆|ge[ -]?phy|1000base/i, tag: '千兆', priority: 75, category_hint: '以太网' },
   { pattern: /百兆|fe[ -]?phy|100base|100fx/i, tag: '百兆', priority: 74, category_hint: '以太网' },
+  { pattern: /(?:以太网\s*)?\bphy\b|物理层芯片/i, tag: 'PHY', priority: 78, category_hint: '以太网' },
   // 以太网子品类(优先于泛以太网): 交换机/网卡是独立子品类, 产品_features有对应标签
   { pattern: /固态继电器|solid[ -]?state[ -]?relay|ssr\b/i, tag: '固态继电器', priority: 86, category_hint: '固态继电器' },
   { pattern: /poe|以太网供电|power[ -]?over[ -]?ethernet/i, tag: '以太网供电', priority: 75, category_hint: '以太网' },
   { pattern: /交换机|交换芯片|交换|switch/i, tag: '交换机', priority: 73, category_hint: '以太网' },
   { pattern: /网卡|网络适配器|nic\b/i, tag: '网卡', priority: 72, category_hint: '以太网' },
-  { pattern: /t1[ -]?phy|sgmii|rgmii|qsgmii|以太网|phy.*接口/i, tag: '以太网', priority: 70, category_hint: '以太网' },
+  { pattern: /t1[ -]?phy|sgmii|rgmii|qsgmii|以太网|\bphy\b/i, tag: '以太网', priority: 70, category_hint: '以太网' },
 ];
 // Exported for route.ts to classify LLM category tags correctly
 export const CATEGORY_TAG_NAMES = new Set(CATEGORY_RULES.map(r => r.tag));
+/** A category must be anchored in category wording, not a numeric conversion phrase. */
+export function categorySourceMatches(tag: string, source: string): boolean {
+  if (tag === 'DCDC' && /降压|升压/i.test(source)) return true;
+  const rules = CATEGORY_RULES.filter(rule => rule.tag === tag);
+  return !rules.length || rules.some(rule => rule.pattern.test(source));
+}
 // tag → category_hint mapping (highest priority wins). Used for dynamic umbrella removal.
 export const CATEGORY_HINT_MAP: Record<string, string> = {};
 for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
@@ -209,7 +228,11 @@ for (const r of [...CATEGORY_RULES].sort((a, b) => b.priority - a.priority)) {
 // Category synonyms for constraint matching — e.g. "DCDC" matches "降压"/"buck" etc.
 // Single source: constraint-match.ts imports this instead of defining inline.
 export const CATEGORY_SYNONYMS: Record<string, string[]> = {
+  '马达驱动': ['电机驱动', '电机预驱', 'motor driver'],
+  'mcu/dsp': ['mcu', 'dsp', '微控制器', '单片机'],
   'dcdc': ['降压', '升压', 'buck', 'boost', 'dc-dc', 'dc dc'],
+  '运放': ['运算放大器'],
+  '隔离栅极驱动': ['隔离单管栅极驱动', '隔离半桥栅极驱动', '智能隔离式栅极驱动'],
 };
 
 /** All known tags from rule tables — used by route.ts whitelist to strip LLM hallucinations. */
@@ -286,51 +309,100 @@ export function buildPromptTagList(): string {
 // ═══════════════════════════════════════════════════════════
 
 const MODIFIER_RULES: ModifierRule[] = [
+  { pattern: /米勒\s*钳位|miller[ -]*clamp/i, action: 'add-tag', tag: '米勒钳位', strength: 'must' },
   { pattern: /非隔离|不隔离|无隔离/i, action: 'strip-pattern',
     stripPattern: /隔离|kVrms|5kVrms|3kVrms|隔离栅极驱动|隔离电源|隔离放大器|隔离I2C|隔离CAN|隔离RS485/,
     excludeTags: ['隔离', '5kVrms隔离', '3kVrms隔离', '隔离栅极驱动', '隔离电源', '隔离放大器', '隔离I2C', '隔离CAN', '隔离RS485'] },
-  { pattern: /车规|车载|车用|aec[ -]?q100|汽车级|汽车规格/i, action: 'add-tag', tag: '车规AEC-Q100' },
+  { pattern: /车规|车载|车用|aec[ -]?q100|汽车级|汽车规格|automotive/i, action: 'add-tag', tag: '车规AEC-Q100' },
+  { pattern: AEC_DOCUMENT_QUERY, action: 'add-tag', tag: 'AEC-Q100符合声明' },
+  { pattern: AEC_DOCUMENT_QUERY, action: 'add-tag', tag: 'AEC-Q100认证' },
   { pattern: /局部网络唤醒|局部联网|selective[ -]?wake|partial[ -]?networking/i, action: 'add-tag', tag: '局部网络唤醒' },
   { pattern: /唤醒|wake[ -]?up/i, action: 'add-tag', tag: '唤醒' },
-  { pattern: /待机|standby/i, action: 'add-tag', tag: '待机模式' },
+  { pattern: /待机(?!\s*(?:电流|功耗|功率))|standby(?!\s*(?:current|power))/i, action: 'add-tag', tag: '待机模式' },
   { pattern: /pgood|power[ -]?good|pg\\b|电源好/i, action: 'add-tag', tag: 'PGOOD' },
   { pattern: /使能|enable(\\s*pin)?|en\\b/i, action: 'add-tag', tag: '使能' },
   // ── FAE-level: descriptive features that imply capability ──
   { pattern: /可调输出|adjustable[ -]?output|输出电压.*可调/i, action: 'add-tag', tag: '可调输出' },
+  { pattern: /(?:高侧|高边|high[ -]?side).{0,40}(?:电流检测|电流采样|current[ -]?sense)|(?:电流检测|电流采样|current[ -]?sense).{0,40}(?:高侧|高边|high[ -]?side)/i, action: 'add-tag', tag: '高侧电流检测' },
+  { pattern: /高\s*psrr?\b/i, action: 'add-tag', tag: '高PSRR' },
+  { pattern: /可编程增益|programmable[ -]?gain/i, action: 'add-tag', tag: '可编程增益' },
+  { pattern: /可变增益|variable[ -]?gain/i, action: 'add-tag', tag: '可变增益' },
+  { pattern: /低边检测|低边电流检测|low[ -]?side capable/i, action: 'add-tag', tag: '低边检测' },
+  { pattern: /超高精度|ultra[ -]?precise/i, action: 'add-tag', tag: '超高精度' },
+  { pattern: /带比较器|集成比较器|with comparator|comparator[ -]?(?:integrated|included)/i, action: 'add-tag', tag: '集成比较器' },
+  { pattern: /PWM\s*(?:rejection|抑制|抗干扰)|抑制\s*PWM/i, action: 'add-tag', tag: 'PWM抑制' },
   { pattern: /软启动|soft[ -]?start/i, action: 'add-tag', tag: '软启动' },
   { pattern: /同步整流|synchronous[ -]?rectif/i, action: 'add-tag', tag: '同步整流' },
   { pattern: /扩频|spread[ -]?spectrum|展频/i, action: 'add-tag', tag: '扩频' },
   { pattern: /外部.*(?:同步|时钟)|external[ -]?(?:sync|clock)|ext[ -]?clk/i, action: 'add-tag', tag: '外部同步' },
-  { pattern: /推挽输出|push[ -]?pull|开漏输出|open[ -]?drain/i, action: 'add-tag', tag: '推挽/开漏' },
-  { pattern: /工业级|工业/i, action: 'add-tag', tag: '工业级' },
+  { pattern: /开漏(?:型)?输出|open[ -]?drain(?: output)?/i, action: 'add-tag', tag: '开漏输出' },
+  { pattern: /推挽输出|push[ -]?pull(?: output)?/i, action: 'add-tag', tag: '推挽输出' },
+  { pattern: /工业级|工业|工规/i, action: 'add-tag', tag: '工业级' },
   { pattern: /消费级|消费类/i, action: 'add-tag', tag: '消费级' },
-  { pattern: /半双工/i, action: 'add-tag', tag: '半双工' },
-  { pattern: /全双工/i, action: 'add-tag', tag: '全双工' },
-  { pattern: /精密|高精度|低失调|低漂移|(?:offset.*?(\d+\.?\d*\s*[uμmμMm]?\s*v)|(\d+\.?\d*\s*[uμmμMm]?\s*v).*?offset)/i, action: 'add-tag', tag: '精密(≤1mV)' },
-  { pattern: /低噪声|低噪音|low[ -]?noise/i, action: 'add-tag', tag: '低噪声' },
-  { pattern: /轨到轨|rail[ -]?to[ -]?rail/i, action: 'add-tag', tag: '轨到轨' },
-  { pattern: /高psrr|高电源抑制/i, action: 'add-tag', tag: '高PSRR' },
-  { pattern: /低功耗唤醒/i, action: 'add-tag', tag: '低功耗唤醒' },
-  { pattern: /特定帧唤醒|partial[ -]?networking/i, action: 'add-tag', tag: '特定帧唤醒' },
+  { pattern: /精密|(?<!超)高精度|低失调|低漂移|(?:offset.*?(\d+\.?\d*\s*[uμmμMm]?\s*v)|(\d+\.?\d*\s*[uμmμMm]?\s*v).*?offset)/i, action: 'add-tag', tag: '精密(≤1mV)' },
+  { pattern: /同时采样|同步采样|simultaneous\s+sampl/i, action: 'add-tag', tag: '同时采样' },
+  { pattern: /\bspi\b\s*接口|接口\s*\bspi\b/i, action: 'add-tag', tag: 'SPI' },
+  { pattern: /实时控制(?=\s*(?:mcu|dsp|微控制器|单片机))/i, action: 'add-tag', tag: '实时控制' },
   { pattern: /高速|高速率/i, action: 'add-tag', tag: '高速(≥50MHz)' },
   { pattern: /pin[ -]?to[ -]?pin|兼容/i, action: 'add-tag', tag: 'Pin-to-Pin兼容' },
-  // SIC CAN
-  { pattern: /\bsic\b/i, action: 'add-tag', tag: 'SIC' },
   // Vos ≤1mV explicit
-  { pattern: /1\s*mv|1\s*毫伏|≤\s*1\s*mv|<\s*1\s*mv|小于\s*1\s*mv|以下.*offset|offset.*小于|offset.*以下|offset.*≤.*1/i, action: 'add-tag', tag: 'Vos_<=1mV' },
-  // 非管理型 switch
-  { pattern: /非管理型|非管理|unmanaged/i, action: 'add-tag', tag: '非管理型' },
-  // 霍尔 sensor
-  { pattern: /霍尔|hall/i, action: 'add-tag', tag: '霍尔' },
+  { pattern: /(?<![\d.])1\s*mv|(?<![\d.])1\s*毫伏|≤\s*1\s*mv|<\s*1\s*mv|小于\s*1\s*mv|以下.*offset|offset.*小于|offset.*以下|offset.*≤.*1/i, action: 'add-tag', tag: 'Vos_<=1mV' },
   // 网络接口类型
   // 介质接口(线路侧): tx=100Base-TX双绞线铜口, fx=光纤, t1=单对线车载. 区别于MAC侧RGMII/SGMII(FAE铁律)
+  // 1000BASE-T is a distinct copper Ethernet standard; do not reduce it to the T1 family.
+  { pattern: /\b1000\s*base\s*-\s*t\b(?!\s*1)/i, action: 'add-tag', tag: '1000BASE-T' },
   { pattern: /\btx\b|100base-?tx|双绞线|铜口/i, action: 'add-tag', tag: '100Base-TX' },
   { pattern: /\bfx\b|100fx|光口|光纤/i, action: 'add-tag', tag: '100FX' },
   { pattern: /\bt1\b|100base-?t1|1000base-?t1|单对线|single[ -]?pair/i, action: 'add-tag', tag: 'T1-PHY' },
   { pattern: /rgmii/i, action: 'add-tag', tag: 'RGMII' },
+  { pattern: /rmii/i, action: 'add-tag', tag: 'RMII' },
   { pattern: /sgmii/i, action: 'add-tag', tag: 'SGMII' },
   { pattern: /qsgmii/i, action: 'add-tag', tag: 'QSGMII' },
+  // Canonical semantic triggers come from the shared registry used by matcher
+  // and offline audits. Keep specialized parsing (grades, certification levels,
+  // numeric modifiers, etc.) here only when it carries additional semantics.
+  ...buildSemanticParserRules().map(rule => ({
+    pattern: rule.pattern,
+    action: 'add-tag' as const,
+    tag: rule.tag,
+    strength: rule.strength,
+  })),
 ];
+
+const REGISTERED_SEMANTIC_TAGS = new Set(buildSemanticParserRules().map(rule => rule.tag));
+
+/** Checks only a model-proposed enum/quote equivalence, never a query route. */
+export function featureSourceMatches(tag:string,source:string):boolean{
+  return MODIFIER_RULES.some(rule=>rule.action==='add-tag'&&rule.tag===tag&&rule.pattern.test(source));
+}
+/** Proof-scope guard for an already model-bound joint identity/enum condition.
+ * It never chooses categories or rejects a query. Uncovered qualifiers stay pending.
+ */
+export function atomicJointSourceCovered(identity:string,tags:string[],source:string):boolean{
+  if(!identity||!tags.length)return false;
+  const spans:boolean[]=Array(source.length).fill(false);
+  const cover=(patterns:RegExp[])=>{let found=false;for(const re of patterns){
+    if(/\.\*|\.\+/.test(re.source))continue; // Broad contextual rules cannot certify all intervening words.
+    const flags=re.flags.includes('g')?re.flags:re.flags+'g';
+    for(const m of source.matchAll(new RegExp(re.source,flags))){if(!m[0])continue;found=true;for(let i=m.index!;i<m.index!+m[0].length;i++)spans[i]=true;}
+  }return found;};
+  const literal=(s:string)=>new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+  const identities=[literal(identity),...(CATEGORY_SYNONYMS[identity.toLowerCase()]||[]).map(literal),...CATEGORY_RULES.filter(r=>r.tag===identity).map(r=>r.pattern)];
+  if(!cover(identities))return false;
+  for(const tag of tags)if(!cover([literal(tag),...MODIFIER_RULES.filter(r=>r.action==='add-tag'&&r.tag===tag).map(r=>r.pattern)]))return false;
+  const remaining=[...source].filter((_,i)=>!spans[i]).join('').replace(/芯片|器件|方案|变换器|转换器|并且|以及|需要|要求|一个|一颗|支持|带有|的|且|和|与|及|带/g,'');
+  return /^[\s，,、；;。()（）/+\-]*$/.test(remaining);
+}
+
+export function isCanSicQuery(query: string): boolean {
+  // “SiC” commonly means silicon carbide in power-device queries. Treat the
+  // acronym as CAN SIC only in CAN context; expanded names are unambiguous on
+  // their own, while the conventional mixed-case “SiC MOSFET” stays chemical.
+  if (/signal\s+improvement(?:\s+capability)?|信号改善(?:能力)?/i.test(query)) return true;
+  if (/(^|[^A-Za-z])SiC\s*(?:MOSFET|FET|功率器件|碳化硅)/.test(query)) return false;
+  return /\bSIC\b/i.test(query)
+    && /\bCAN(?:\s*[- ]?\s*FD)?\b|CAN\s*(?:收发器|总线)/i.test(query);
+}
 
 // ═══════════════════════════════════════════════════════════
 //  SORT RULES — 程度修饰词 → 数值排序意图
@@ -354,7 +426,7 @@ const SORT_RULES: SortRule[] = [
   // ── LDO 专属 ──
   // PSRR: 越高越好. "高psr"(单r)/"高psrr"(双r)/"高电源抑制" 都命中
   { pattern: /高\s*psrr?|psrr?\s*高|高电源抑制|电源抑制比?高|高纹波抑制/i, categories: ['LDO'],
-    intent: { param: 'PSRR', paramKeys: ['psrr'], direction: 'high', require: true, label: '按 PSRR 从高到低' } },
+    intent: { param: 'PSRR', paramKeys: ['psrr'], direction: 'high', require: false, label: '按 PSRR 从高到低（有数值优先，缺数值保留）' } },
   // 压差 Dropout: 越低越好 (LDO 专属术语)
   { pattern: /低压差|压差低|低\s*dropout|dropout\s*低/i, categories: ['LDO'],
     intent: { param: 'Dropout', paramKeys: ['dropout'], direction: 'low', require: true, label: '按压差 Dropout 从低到高' } },
@@ -427,6 +499,7 @@ function cumulativeThresholds(value: number, thresholds: number[], unit: string)
 }
 
 const PARAM_RULES: ParamRule[] = [
+  { pattern: /单口|单端口|1\s*口/, extract: () => ['1口'] },
   // ★ 方案甲(2026-06-12): 速率查询发单一真实值标签, 不再梯子展开(cumulativeThresholds).
   //   "50Mbps" → must=[50Mbps] (family=Mbps, downgradable), 产品速率≥50 即满足(constraint-match ≥比较).
   //   旧 cumulativeThresholds 依赖产品侧梯子标签做≥, 现产品侧也改单一真实值, 改由数值比较实现≥.
@@ -450,17 +523,19 @@ const PARAM_RULES: ParamRule[] = [
   { pattern: /(\d+)\s*发\s*(\d+)\s*收/,
     extract: (m) => [`${m[1]}T${m[2]}R`] },
   { pattern: /(\d+\.?\d*)\s*A\b(?!\w)/i,
-    extract: (m) => { const a = parseFloat(m[1]); return a >= 0.5 && a <= 100 ? cumulativeThresholds(a, [12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0.5], 'A').map(t => `Iout_${t}`) : []; } },
-  { pattern: /(\d+)\s*mA\b/i,
-    extract: (m) => { const ma = parseInt(m[1]); return ma <= 10000 && ma >= 50 ? cumulativeThresholds(ma/1000, [12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0.5], 'A').map(t => `Iout_${t}`) : []; } },
+    extract: (m) => { const a = parseFloat(m[1]); return a > 0 && a <= 100 ? [`Iout_${a}A`] : []; } },
+  { pattern: /(\d+(?:\.\d+)?)\s*mA\b/i,
+    extract: (m) => { const ma = parseFloat(m[1]); return ma > 0 && ma <= 100000 ? [`Iout_${ma/1000}A`] : []; } },
   // Voltage: produces Vin_ tags; engine post-processing converts to Vout_ for LDO/output context
   { pattern: /(\d+\.?\d*)\s*V\b(?!\w)/i,
     extract: (m) => { const v = parseFloat(m[1]); if (v >= 0.5 && v <= 600) { const exact = `Vin_${Number.isInteger(v) ? v : v}V`; const ts = [48, 36, 24, 12, 5, 3.3, 2.5, 1.8, 1.2, 1, 0.8, 0.6]; const cumul = ts.filter(t => v >= t).map(t => `Vin_${Number.isInteger(t)?t:t}V`); return [...new Set([exact, ...cumul])]; } return []; } },
   { pattern: /(\d+)\s*通道/,
     extract: (m) => { const n = parseInt(m[1]); return [32, 16, 8, 4, 2, 1].filter(t => n >= t).map(t => `${t}通道`); } },
-  { pattern: /(\d+)\s*路/,
+  { pattern: /(\d+)\s*路(?=\s*(?:通道|channel|ch|运放|比较器|ADC|DAC|IO|I2C|SPI|模拟开关|视频|隔离|传感器|驱动|LDO|DCDC|PHY|收发))/i,
     extract: (m) => { const n = parseInt(m[1]); return [32, 16, 8, 4, 2, 1].filter(t => n >= t).map(t => `${t}通道`); } },
   { pattern: /(\d+)\s*bit\b/i,
+    extract: (m) => { const b = parseInt(m[1]); return [24, 20, 18, 16, 14, 12, 10, 8].filter(t => b >= t && t <= 24).map(t => `${t}bit`); } },
+  { pattern: /(\d+)\s*位(?=\s*(?:ADC|DAC|模数|数模))/i,
     extract: (m) => { const b = parseInt(m[1]); return [24, 20, 18, 16, 14, 12, 10, 8].filter(t => b >= t && t <= 24).map(t => `${t}bit`); } },
   { pattern: /(\d+)\s*:\s*1\b/,
     extract: (m) => [`${m[1]}:1`] },
@@ -483,15 +558,16 @@ const PARAM_RULES: ParamRule[] = [
 //   不做"自家/竞品"前缀判别: 思瑞浦大量沿用行业通用前缀(LM/TPS/TL), 前缀黑名单会误判
 //   (LM2901自家有LM2901A, TPS竞品也有TPS5430). 用户拍板: 反查照做, 结果里标注品牌即可区分.
 const REPLACE_INTENT = /替代|替换|代换|pin\s*to\s*pin|pin2pin|p2p|国产化?替代|兼容|对标|平替|替代料|替代品|cross\s*ref|equivalent|drop[\s-]?in/i;
+export const hasReplacementIntent = (query: string): boolean => REPLACE_INTENT.test(query);
 // 品类/参数意图词: 出现这些说明用户想按品类找(如"类似tja1145的CAN收发器"), 尊重品类意图不走反查.
 //   仅在"无替代词"时作为闸门; 带替代词时一律反查(替代意图最明确).
-const CATEGORY_INTENT = /收发器|运放|放大器|比较器|稳压|LDO|DCDC|转换器|ADC|DAC|基准|隔离器|驱动|传感器|开关|二极管|保险丝|滤波|逻辑|网关|交换机|网卡|PHY|MCU|电源|接口|的[A-Za-z]/i;
+const CATEGORY_INTENT = /收发器|运放|放大器|比较器|稳压|LDO|DCDC|转换器|ADC|DAC|基准|隔离器|驱动|传感器|开关|二极管|保险丝|滤波|逻辑|网关|交换机|网卡|PHY|MCU|电源|接口|VCCA|VCCB|的[A-Za-z]/i;
 // 总线/协议/品类标准名: 形似"字母+数字"但本质是接口品类名, 不是厂商型号(领域知识, 非硬编码).
 //   "高速率rs485"里 RS485 是接口标准, 误抽成竞品型号会错误触发反查(2026-06-12 回归 bug).
 const PROTOCOL_NAMES = new Set([
   'RS485', 'RS232', 'RS422', 'RS-485', 'RS-232', 'RS-422',
   'I2C', 'I2S', 'SPI', 'CAN', 'CANFD', 'CAN-FD', 'LIN', 'MLVDS', 'LVDS',
-  'USB2', 'USB3', 'M2', 'IO500', 'PCIE',
+  'USB2', 'USB3', 'M2', 'IO500', 'PCIE', 'AEC-Q100', 'AECQ100',
 ]);
 export function detectCrossRef(query: string): string | null {
   // 候选型号片段: 从查询里抽出所有"连续的字母数字(可含-)"片段.
@@ -507,7 +583,7 @@ export function detectCrossRef(query: string): string | null {
   }
   if (!competitorPN) return null;
   // 带替代词: 替代意图最明确, 一律反查.
-  if (REPLACE_INTENT.test(query)) return competitorPN;
+  if (hasReplacementIntent(query)) return competitorPN;
   // 无替代词: 纯型号查询也走反查(切断LLM脑补); 但若用户明确带品类/参数意图词, 尊重品类搜索.
   if (CATEGORY_INTENT.test(query)) return null;
   return competitorPN;
@@ -536,6 +612,17 @@ export function parseQuery(query: string): ParseResult {
     };
   }
 
+  const parameterQuery = parseParameterRequirements(query);
+  // An explicitly named UL1577/VISO phrase constrains the test method, not
+  // just the numeric isolation-withstand value. Without a parsed withstand
+  // value, keep the phrase unresolved for interpretation.
+  const ul1577 = /\bUL\s*1577\b/i.exec(query);
+  const ul1577Requirement = parameterQuery.requirements.find(requirement => requirement.field === 'isolationWithstand');
+  if (ul1577 && ul1577Requirement) {
+    ul1577Requirement.testMethod = 'UL1577';
+    parameterQuery.consumed.push({ text: ul1577[0], start: ul1577.index!, end: ul1577.index! + ul1577[0].length, origin: 'rule' });
+  }
+
   // Step 1: Category matching (priority order, first match wins)
   // 例外1: 以太网内部速率(千兆/百兆/2.5G)与子品类(交换机/网卡)是正交维度, 允许共存
   // 例外2: SBC(系统基础芯片)是复合品类 — 集成总线收发器(CAN/LIN/RS-485)+LDO+看门狗+SPI.
@@ -547,13 +634,23 @@ export function parseQuery(query: string): ParseResult {
   let subordinateHint: string | null = null;
   const isSbcQuery = /\bsbc\b/i.test(query);
   // SBC 复合模式下可与 SBC 共存的总线维度标签(集成在 SBC 内的总线收发器)
-  const SBC_BUS_TAGS = new Set(['CAN-FD', 'LIN', 'RS-485', 'RS-232']);
+  const SBC_BUS_TAGS = new Set(['CAN', 'CAN-FD', 'LIN', 'RS-485', 'RS-232']);
   let sbcMatched = false;
   const seenHints = new Set<string>(); // dedup: same category_hint → only first match
+  // A serial data-rate scalar cannot by itself establish an Ethernet class.
+  // Preserve Ethernet's own rate shorthand when the device context says Ethernet.
+  const ethernetContext = /以太网|网卡|网口|交换机|网关|PHY|Ethernet|BASE[- ]?T/i.test(query);
+  const hasNumericRate = parameterQuery.requirements.some(r=>r.field==='dataRate');
   for (const rule of sorted) {
+    if (!ethernetContext && hasNumericRate && ['百兆','千兆'].includes(rule.tag)) continue;
     if (rule.pattern.test(query)) {
       // 非隔离 guard: skip isolation compound tags when query explicitly says 非隔离
       if (/非隔离|不隔离|无隔离/i.test(query) && rule.tag.startsWith('隔离')) continue;
+      // “current-sense amplifier with comparator” asks for an amplifier with
+      // an integrated feature, not a standalone comparator category.
+      if (rule.tag === '比较器'
+        && /电流(?:检测|采样|传感)放大器|current[ -]?sense[ -]?amplifier/i.test(query)
+        && /带比较器|集成比较器|with comparator|comparator[ -]?(?:integrated|included)/i.test(query)) continue;
 
       // subordinate: 此类标签可能只是另一品类的特征。记住但不 break，
       // 继续扫描看有无 primary 品类也命中。只有 primary 也命中时才让位。
@@ -617,6 +714,15 @@ export function parseQuery(query: string): ParseResult {
     categoryHint = subordinateHint!;
     categoryMatched = true;
   }
+  // A requested switching frequency identifies a switching supply when the
+  // user describes only a generic input-to-output power conversion.
+  if (!categoryMatched && parameterQuery.requirements.some(r => r.field === 'switchingFrequency')
+    && /(?:电源|稳压|电压转换)/.test(query) && /(?:转|降到|降至|输出)/.test(query)) {
+    features.push('DCDC');
+    sources.set('DCDC', 'category');
+    categoryHint = '电源';
+    categoryMatched = true;
+  }
 
   // ── Post-category: DCDC + 降压/升压 共存 (same as "降压器"/"升压器" → DCDC + sub-type) ──
   // "降压器" → DCDC rule fires (priority 85), but we also need 降压 tag.
@@ -646,9 +752,9 @@ export function parseQuery(query: string): ParseResult {
   // Products carry individual tokens (隔离, RS-485), not compound category tags.
   const COMPOUND_DECOMPOSE: Record<string, string[]> = {
     '隔离RS485': ['RS-485', '隔离'],
-    '隔离CAN': ['CAN-FD', '隔离'],
+    '隔离CAN': ['CAN', '隔离'],
     '隔离I2C': ['I2C', '隔离'],
-    '集成隔离电源的隔离CAN': ['隔离电源', 'CAN-FD', '隔离'],
+    '集成隔离电源的隔离CAN': ['隔离电源', 'CAN', '隔离'],
     '集成隔离电源的隔离RS485': ['隔离电源', 'RS-485', '隔离'],
   };
   for (const [compound, parts] of Object.entries(COMPOUND_DECOMPOSE)) {
@@ -697,6 +803,7 @@ export function parseQuery(query: string): ParseResult {
   // Step 2: Modifier rules
   const toStrip = new Set<string>();
   for (const rule of MODIFIER_RULES) {
+    if (rule.tag === 'SIC' && !isCanSicQuery(query)) continue;
     if (!rule.pattern.test(query)) continue;
     if (rule.action === 'add-tag' && rule.tag && !features.includes(rule.tag)) {
       features.push(rule.tag);
@@ -734,27 +841,76 @@ export function parseQuery(query: string): ParseResult {
     '五': 5, '六': 6, '七': 7, '八': 8, '九': 9
   };
   // 先处理含"十"的复合数: [一-九]?十[一-九]?  → 数值
-  let normalizedQuery = query.replace(/([一二两三四五六七八九])?十([一二三四五六七八九])?/g, (_m, tens, ones) => {
-    const t = tens ? CN_UNIT[tens] : 1;       // "十"=10, "二十"=20
-    const o = ones ? CN_UNIT[ones] : 0;       // "十五"=15, "二十五"=25
-    return String(t * 10 + o);
-  });
-  // 再处理剩余的个位中文数字
-  for (const [cn, digit] of Object.entries(CN_UNIT)) {
-    normalizedQuery = normalizedQuery.replace(new RegExp(cn, 'g'), String(digit));
-  }
+  const normalizeNumerals = (text:string) => {
+    let normalizedQuery = text.replace(/([一二两三四五六七八九])?十([一二三四五六七八九])?/g, (_m, tens, ones) => {
+      const t = tens ? CN_UNIT[tens] : 1;       // "十"=10, "二十"=20
+      const o = ones ? CN_UNIT[ones] : 0;       // "十五"=15, "二十五"=25
+      return String(t * 10 + o);
+    });
+    // 再处理剩余的个位中文数字
+    for (const [cn, digit] of Object.entries(CN_UNIT)) {
+      normalizedQuery = normalizedQuery.replace(new RegExp(cn, 'g'), String(digit));
+    }
+    return normalizedQuery;
+  };
+  const normalizedQuery = normalizeNumerals(query);
 
   // Step 3: Param extraction
   for (const rule of PARAM_RULES) {
     const matches = [...(normalizedQuery.matchAll(new RegExp(rule.pattern.source, rule.pattern.flags.includes('g') ? rule.pattern.flags : rule.pattern.flags + 'g')))];
     for (const match of matches) {
+      if (match.index! > 0 && /[\d.]/.test(normalizedQuery[match.index! - 1])) continue;
+      const signedCurrentRange = parameterQuery.requirements.some(requirement => requirement.field === 'currentRange')
+        && /(?:正负|±)\s*$/.test(normalizedQuery.slice(0, match.index!));
       for (const tag of rule.extract(match)) {
+        if (signedCurrentRange && /^Iout_/.test(tag)) continue;
+        // A gate driver's source/sink peak current is not a regulator Iout
+        // capacity. Leave it for model/context interpretation until a
+        // dedicated drive-current fact dimension is available.
+        if (/^Iout_/.test(tag) && /栅极驱动|gate\s+driver/i.test(query)) continue;
         if (!features.includes(tag)) {
           features.push(tag);
           sources.set(tag, 'param');
         }
       }
     }
+  }
+
+  // Strict discrete comparisons must advance to the next representable count.
+  // The legacy bit/port tags are still backed by row-specific resolution and
+  // port extractors in constraint-match, so normalize the requested boundary
+  // before those tags are converted into hard numeric constraints.
+  const discreteThreshold = (operator: string, value: number) =>
+    operator === '大于' || operator === '>' ? value + 1
+      : operator === '小于' || operator === '<' ? value - 1 : value;
+  const adcResolution = /(?:ADC\s*(?:精度|分辨率)|(?:精度|分辨率)\s*(?:ADC)?)\s*(大于等于|大于|不小于|至少|不超过|小于等于|小于|<=|>=|≥|≤|>|<|=)\s*(\d+)\s*(?:bit|位)/i.exec(query);
+  if (features.includes('ADC') && adcResolution) {
+    const value = Number(adcResolution[2]);
+    const threshold = discreteThreshold(adcResolution[1], value);
+    for (let i = features.length - 1; i >= 0; i--) if (/^\d+bit$/i.test(features[i])) features.splice(i, 1);
+    if (threshold > 0) {
+      const tag = `${threshold}bit`;
+      if (!features.includes(tag)) features.push(tag);
+      sources.set(tag, 'param');
+    }
+  }
+  const portCount = /端口(?:数|数量)?\s*(大于等于|大于|不小于|至少|不超过|小于等于|小于|<=|>=|≥|≤|>|<|=)\s*(\d+)\s*(?:口|个)?/i.exec(query);
+  if (features.includes('交换机') && portCount) {
+    const value = discreteThreshold(portCount[1], Number(portCount[2]));
+    for (let i = features.length - 1; i >= 0; i--) if (/^\d+口$/.test(features[i])) features.splice(i, 1);
+    if (value > 0) {
+      const tag = `${value}口`;
+      if (!features.includes(tag)) features.push(tag);
+      sources.set(tag, 'param');
+    }
+  }
+  const resolvedDiscreteComparisons = [adcResolution?.[0], portCount?.[0]].filter((value): value is string => Boolean(value));
+
+  const voltageRoles = explicitVoltageRoles(normalizedQuery);
+  for (const match of normalizedQuery.matchAll(PACKAGE_QUERY)) {
+    const tag = packageTag(match[0]);
+    if (!features.includes(tag)) features.push(tag);
+    sources.set(tag, 'param');
   }
 
   // ── Post-param: Vin/Vout direction correction for "X转Y" / "X输入Y输出" patterns ──
@@ -801,6 +957,24 @@ export function parseQuery(query: string): ParseResult {
     }
   }
 
+  // Explicit input/output language overrides category-based defaults.
+  if (voltageRoles.tags.length) {
+    const explicitValues = new Set(voltageRoles.tags.map(tag => tag.split('_')[1]));
+    for (let i = features.length - 1; i >= 0; i--) {
+      if (/^(Vin|Vout)_/.test(features[i]) && explicitValues.has(features[i].split('_')[1])) features.splice(i, 1);
+    }
+    // Generic voltage extraction emits cumulative thresholds; rebuild voltage tags
+    // from explicit roles when every voltage mention has a role.
+    const voltages = [...normalizedQuery.matchAll(/(\d+(?:\.\d+)?)\s*v\b/gi)];
+    if (voltages.every(m => explicitValues.has(`${Number(m[1])}V`))) {
+      for (let i = features.length - 1; i >= 0; i--) if (/^(Vin|Vout)_/.test(features[i])) features.splice(i, 1);
+    }
+    for (const tag of voltageRoles.tags) {
+      if (!features.includes(tag)) features.push(tag);
+      sources.set(tag, 'param');
+    }
+  }
+
   // ── Universal safety guard: strip param tags that conflict with query ──
   // e.g., "1mv" should not produce "1Mbps" — the 'v' suffix means volts, not bps
   const queryLower = query.toLowerCase();
@@ -823,6 +997,25 @@ export function parseQuery(query: string): ParseResult {
     }
   }
   
+  // Structured parameters replace the legacy tag guesses for the same role.
+  const ownedFields = new Set(parameterQuery.requirements.map(r => r.field));
+  const ownsVoltage = ['vin', 'vcca', 'vccb', 'vout', 'transientVin', 'commonModeVoltage'].some(field => ownedFields.has(field as import('./selection-spec').ParameterId)) || parameterQuery.unresolved.length > 0;
+  for (let i = features.length - 1; i >= 0; i--) {
+    const tag = features[i];
+    if ((ownsVoltage && /^(Vin|Vout)_/.test(tag))
+      || ((ownedFields.has('iout') || ownedFields.has('iq') || ownedFields.has('currentRange')) && /^Iout_/.test(tag))
+      || (ownedFields.has('dataRate') && /^[\d.]+Mbps$/.test(tag))
+      // An explicit UL1577/VISO requirement owns the same numeric span as
+      // the legacy generic kVrms tag. Do not double-count it as both a generic
+      // isolation voltage and a standard-specific withstand test.
+      || ((ownedFields.has('isolation') || ownedFields.has('isolationWithstand')) && /kVrms隔离$/.test(tag))
+      || (ownedFields.has('vos') && /^Vos_/.test(tag))) features.splice(i, 1);
+  }
+  for (const requirement of parameterQuery.requirements) {
+    if (!features.includes(requirement.tag)) features.push(requirement.tag);
+    sources.set(requirement.tag, 'param');
+  }
+
   // Step 4: Build explanation
   const catTags = features.filter(f => sources.get(f) === 'category').join(', ');
   const modTags = features.filter(f => sources.get(f) === 'modifier').join(', ');
@@ -847,14 +1040,14 @@ export function parseQuery(query: string): ParseResult {
   // must = 品类(category) + 规格(param) + 物理层介质(TX/T1/FX 虽是modifier但物理层错=产品错)
   // nice = 其余 modifier(车规/工业级/低功耗/速率修饰等), 满足更好
   //
-  // ★累积阈值归约: 通道/Vin/Iout/bit/Mbps 这类参数会扩展成累积列表(4通道→[4,2,1通道]),
+  // ★累积阈值归约: 通道/Vin/Iout/bit/Mbps 这类查询参数可能扩展成阈值列表,
   //   语义是"≥N"的向下兼容. must全满足语义下不能要求同时满足全部阈值, 只取最强(数值最大)的一个.
-  //   产品侧标签仍保留累积列表(表示其覆盖能力), 查询侧 must 只需验证最高门槛.
+  //   产品侧只存来源中的实际值；约束层读取参数数值并做容量比较，不需要复制较低阈值标签。
   const PHY_MEDIA = new Set(['100Base-TX', '100FX', 'T1-PHY']);
 
   // Tags that should be elevated to must (grade/spec level modifiers)
-  const GRADE_TAGS = new Set(['车规AEC-Q100', '工业级', '消费级']);
-  const MUST_MODIFIER_TAGS = new Set(['全双工', '半双工', '轨到轨', 'Vos_<=1mV', '霍尔', '非管理型', '唤醒', '局部网络唤醒', '待机模式', 'PGOOD', '使能', '可调输出', '软启动', '同步整流', '扩频', '外部同步', '推挽/开漏']);
+  const GRADE_TAGS = new Set(['车规AEC-Q100', 'AEC-Q100符合声明', 'AEC-Q100认证', '工业级', '消费级']);
+  const MUST_MODIFIER_TAGS = new Set(['全双工', '半双工', '轨到轨', 'Vos_<=1mV', '霍尔', '磁阻', '非管理型', '唤醒', '局部网络唤醒', '待机模式', 'PGOOD', '使能', '可调输出', '高侧电流检测', '低边检测', '可变增益', '可编程增益', '超高精度', '集成比较器', 'PWM抑制', '软启动', '同步整流', '扩频', '外部同步', '开漏输出', '推挽输出', 'RGMII', 'RMII', 'SGMII', 'QSGMII', '1000BASE-T', '同时采样', '实时控制', 'SPI', ...MODIFIER_RULES.filter(rule => rule.action === 'add-tag' && rule.strength === 'must' && rule.tag).map(rule => rule.tag!)]);
 
   // 识别参数族 + 提取数值, 用于"同族取最强"
   const paramFamily = (tag: string): { family: string; value: number } | null => {
@@ -870,6 +1063,7 @@ export function parseQuery(query: string): ParseResult {
   // 每个累积族只保留数值最强的标签进 must, 其余同族标签丢弃(不进must也不进nice, 避免噪声)
   const strongestByFamily = new Map<string, string>();
   for (const f of features) {
+    if (isExplicitPreference(query, f)) continue;
     const pf = paramFamily(f);
     if (!pf) continue;
     const cur = strongestByFamily.get(pf.family);
@@ -892,6 +1086,17 @@ export function parseQuery(query: string): ParseResult {
   };
 
   for (const f of features) {
+    const requirement = parameterQuery.requirements.find(r => r.tag === f);
+    if (requirement) {
+      if (requirement.strength === 'nice') nice.push(f);
+      else {
+        must.push(f);
+        const family = ({ vin: 'Vin', vout: 'Vout', iout: 'Iout', dataRate: 'Mbps', isolation: 'kVrms' } as Record<string, string>)[requirement.field!] || requirement.field;
+        mustMeta.push({ tag: f, dimension: 'spec', family, requirement });
+      }
+      continue;
+    }
+    if (isExplicitPreference(query, f)) { nice.push(f); continue; }
     const pf = paramFamily(f);
     if (pf) {
       // 累积族: 只有最强的进 must, 其余同族标签跳过
@@ -905,7 +1110,7 @@ export function parseQuery(query: string): ParseResult {
     const port = portFamily(f);
     if (port) {
       must.push(f);
-      mustMeta.push({ tag: f, dimension: 'spec', family: '端口', value: port.value, downgradable: true });
+      mustMeta.push({ tag: f, dimension: 'spec', family: '端口', value: port.value, downgradable: false });
       continue;
     }
     const src = sources.get(f);
@@ -933,12 +1138,19 @@ export function parseQuery(query: string): ParseResult {
     } else if (PHY_MEDIA.has(f)) {
       must.push(f);
       mustMeta.push({ tag: f, dimension: 'media' });
+    } else if (f === 'ADC' && features.some(tag => /^\d+bit$/i.test(tag))) {
+      // In a phrase such as “sensor conditioner with 24-bit ADC”, ADC is a
+      // required capability of the chosen product, not the product category.
+      // Keep the bit depth and ADC capability as specs so products in another
+      // category can satisfy them only when their own evidence says so.
+      must.push(f);
+      mustMeta.push({ tag: f, dimension: 'spec' });
     } else if (src === 'category') {
       must.push(f);
       mustMeta.push({ tag: f, dimension: 'category' });
     } else if (src === 'param') {
       must.push(f);
-      mustMeta.push({ tag: f, dimension: 'spec', family: f });
+      mustMeta.push({ tag: f, dimension: 'spec', family: isPackageTag(f) ? 'Package' : f });
     } else {
       nice.push(f);
     }
@@ -960,27 +1172,97 @@ export function parseQuery(query: string): ParseResult {
     break;
   }
 
-  // Compute residual (parts of query not consumed)
-  let residual = query;
-  for (const pat of [...CATEGORY_RULES.map(r => r.pattern), ...MODIFIER_RULES.map(r => r.pattern), ...PARAM_RULES.map(r => r.pattern)]) {
-    residual = residual.replace(pat, ' ').replace(/\s+/g, ' ').trim();
+  // Only successful parameter extraction consumes text; invalid values stay unresolved.
+  let uncovered = query;
+  for (const span of [...parameterQuery.consumed].sort((a,b)=>b.start-a.start)) {
+    uncovered = uncovered.slice(0,span.start)+' '.repeat(span.end-span.start)+uncovered.slice(span.end);
+  }
+  let residual = normalizeNumerals(uncovered).replace(/(?:找|选)(?:颗|款)/g,' ');
+  for (const phrase of resolvedDiscreteComparisons) residual = residual.replace(phrase, ' ');
+  // Consume the exact copper standard before the broader speed/category patterns
+  // below replace the speed prefix and leave a misleading dash/“-T” fragment behind.
+  if (features.includes('1000BASE-T')) residual = residual.replace(/\b1000\s*base\s*-\s*t\b(?!\s*1)/ig, ' ');
+  if (features.includes('T1-PHY')) residual = residual.replace(/\b(?:10|100|1000)\s*base\s*-\s*t1\b/ig, ' ');
+  if (features.includes('100Base-TX')) residual = residual.replace(/\b100\s*base\s*-\s*tx\b/ig, ' ');
+  // Consume the canonical compound before the generic "唤醒" modifier below;
+  // otherwise that shorter token leaves the already-understood "特定帧" residue.
+  if (features.includes('特定帧唤醒')) residual = residual.replace(/特定帧唤醒/g, ' ');
+  for (const text of voltageRoles.consumed) residual = residual.replace(text, ' ');
+  residual = residual.replace(PACKAGE_QUERY, ' ');
+  for (const pat of [...[...CATEGORY_RULES].sort((a, b) => b.priority - a.priority).map(r => r.pattern), ...MODIFIER_RULES.filter(r => r.tag !== 'SIC' || isCanSicQuery(normalizedQuery)).map(r => r.pattern)]) {
+    residual = residual.replace(new RegExp(pat.source, pat.flags.includes('g') ? pat.flags : pat.flags + 'g'), ' ');
+  }
+  const gateDriveCurrentIsResidual = /栅极驱动|gate\s+driver/i.test(query)
+    && /(?:驱动|拉|灌)(?:峰值)?电流|(?:peak\s+)?(?:drive|source|sink)\s+current/i.test(query);
+  for (const rule of PARAM_RULES) {
+    const pattern = new RegExp(rule.pattern.source, rule.pattern.flags.includes('g') ? rule.pattern.flags : rule.pattern.flags + 'g');
+    residual = residual.replace(pattern, (...args) => {
+      const offset = args[typeof args.at(-1) === 'object' ? args.length - 3 : args.length - 2] as number;
+      if (offset > 0 && /[\d.]/.test(residual[offset - 1])) return args[0];
+      if (gateDriveCurrentIsResidual && /^\d/.test(args[0])) return args[0];
+      return rule.extract(args as unknown as RegExpMatchArray).length ? ' ' : args[0];
+    });
+  }
+  // These direction words are consumed only when a current was actually extracted.
+  if (features.some(f => f.startsWith('Iout_'))) residual = residual.replace(/输出(?:电流)?|output(?:\s+current)?/gi, ' ');
+  // Category and grade words are often split across several parser rules.
+  // Consume their harmless suffixes only after the corresponding requirement was recognized.
+  if (features.includes('RS-485') || features.includes('RS-232') || features.includes('CAN-FD')) residual = residual.replace(/收发器/g, ' ');
+  if (features.includes('实时控制')) residual = residual.replace(/实时控制/g, ' ');
+  if (features.includes('MCU/DSP') && features.includes('CAN-FD')) residual = residual.replace(/带(?=\s|$)/g, ' ');
+  if (features.includes('MCU/DSP') && features.includes('ADC')) residual = residual.replace(/带(?=\s|$)/g, ' ');
+  if (features.includes('MCU/DSP')) residual = residual.replace(/控制器(?=\s|$)/g, ' ');
+  residual = residual.replace(/带(?=\s|$)/g, ' ');
+  if (features.some(f => ['RS-485', 'RS-232', 'CAN-FD', 'LIN', 'MLVDS'].includes(f))) residual = residual.replace(/收发器/g, ' ');
+  if (features.some(f => ['RGMII', 'RMII', 'SGMII', 'QSGMII', 'I2C', 'LIN', 'MLVDS', 'RS-485', 'RS-232', 'CAN-FD'].includes(f))) residual = residual.replace(/接口/g, ' ');
+  if (features.some(isPackageTag)) residual = residual.replace(/封装/g, ' ');
+  if (parameterQuery.requirements.filter(r => r.kind === 'parameter').length >= 2) residual = residual.replace(/(?<=\s)和(?=\s)/g, ' ');
+  if (features.includes('车规AEC-Q100') && /AEC[ -]?Q100/i.test(query)) residual = residual.replace(/认证/g, ' ');
+  if (features.includes('隔离放大器')) residual = residual.replace(/放大器/g, ' ');
+  if (features.includes('ADC') || features.includes('DAC')) residual = residual.replace(/(\d+)\s*位/g, (text, bits) => features.includes(`${bits}bit`) ? ' ' : text);
+  if (features.some(f => ['RGMII', 'RMII', 'SGMII', 'QSGMII'].includes(f))) residual = residual.replace(/接口/g, ' ');
+  if (parameterQuery.requirements.some(r => r.field === 'vin')) residual = residual.replace(/持续(?=\s|$)/g, ' ');
+  if (features.includes('DCDC') && parameterQuery.requirements.some(r => r.field === 'switchingFrequency')) residual = residual.replace(/电源/g, ' ');
+  residual = residual.replace(/不限封装/g, ' ');
+  if (parameterQuery.requirements.some(r => r.strength === 'nice') || features.some(f => isExplicitPreference(query, f))) residual = residual.replace(/优先|最好|尽量|偏好|更好|prefer(?:red)?/gi, ' ');
+  const residualClean = residual
+    .replace(/推荐|需要|请问|帮我|帮忙|支持|有没有|想要|找|一款|一个|一颗|一下|个|的|请/g, ' ')
+    .replace(/\b(?:please|find|a|an|with|for)\b/gi, ' ')
+    .replace(/[\s，,。;；:：、]+/g, ' ').trim();
+  const residualTooLong = /[\p{L}\p{N}]/u.test(residualClean);
+
+  const querySpec: QuerySpec = {
+    version: 1, text: query, requirements: [...parameterQuery.requirements], unresolved: parameterQuery.unresolved,
+    fragments: [
+      ...residualFragments(query, residualTooLong ? residualClean : ''),
+      ...parameterQuery.unresolved.map(item => ({ id: `needs-user-${item.source.start}-${item.source.end}`, source: item.source, state: 'needs_user' as const, verifiable: true })),
+    ],
+  };
+  for (const [strength, tags] of [['must', must], ['nice', nice]] as const) {
+    for (const tag of tags) if (!querySpec.requirements.some(r => r.tag === tag)) {
+      const start = query.toLowerCase().indexOf(tag.toLowerCase());
+      querySpec.requirements.push({ id: `legacy-${tag}`, tag, kind: 'tag', strength,
+        source: start >= 0 ? { text: query.slice(start, start + tag.length), start, end: start + tag.length, origin: 'legacy' } : null });
+    }
+  }
+  for (const item of parameterQuery.unresolved) {
+    const tag = `待确认：${item.source.text}用途`;
+    const requirement: Requirement = { id: `unresolved-${item.source.start}`, tag, kind: 'unresolved', strength: 'must', source: item.source, reason: item.reason };
+    querySpec.requirements.push(requirement);
+    must.push(tag);
+    mustMeta.push({ tag, dimension: 'spec', requirement });
   }
 
-  // Cleaned residual: strip noise particles to detect real unconsumed content
-  const NOISE_RE = /\b(的|了|吗|个|是|有|我|你|帮|推荐|推荐一|需要|请问|找|一下|款|颗|个|能|可以|有没有|想要|什么|帮忙|求|可否|是否|怎么|如何|哪|几|给|用|做|要|搞|弄|弄个)\b/gi;
-  const residualClean = residual.replace(NOISE_RE, '').replace(/\s+/g, ' ').trim();
-  // Any meaningful residual → parser didn't fully understand → escalate to LLM.
-  const hasMeaningful = /[\u4e00-\u9fff\d]/.test(residualClean);
-  const residualTooLong = residualClean.length > 0 && hasMeaningful;
-
   return {
+    querySpec,
     features,
     exclude_tags,
     category_hint: categoryHint,
     explanation,
-    confidence: categoryMatched && !residualTooLong ? 'high' : 'low',
-    needsLLM: !categoryMatched || residualTooLong,  // LLM only when parser can't fully digest the query
-    residualQuery: residual,
+    confidence: (categoryMatched || [...must, ...nice].some(tag => REGISTERED_SEMANTIC_TAGS.has(tag)) || parameterQuery.requirements.length > 0)
+      && !residualTooLong && !parameterQuery.unresolved.length ? 'high' : 'low',
+    needsLLM: (!categoryMatched && ![...must, ...nice].some(tag => REGISTERED_SEMANTIC_TAGS.has(tag)) && parameterQuery.requirements.length === 0) || residualTooLong,
+    residualQuery: residualClean,
     must,
     nice,
     mustMeta,

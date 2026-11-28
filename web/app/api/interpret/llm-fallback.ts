@@ -1,3 +1,4 @@
+import {deepSeekRequestOptions} from '../../../lib/deepseek-policy';
 // ── LLM Numeric Fallback ──
 // When regex extractors fail but _params contains family-related keywords,
 // batch-fallback to LLM for numeric extraction. One LLM call per family per request.
@@ -79,7 +80,7 @@ export async function batchLlmExtract(
     const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0, max_tokens: 500 }),
+      body: JSON.stringify({ ...deepSeekRequestOptions(), messages: [{ role: 'user', content: prompt }], temperature: 0, max_tokens: 500 }),
       signal: ctrl.signal,
     });
     clearTimeout(to);

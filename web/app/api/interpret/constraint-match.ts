@@ -1,13 +1,18 @@
+import { catalogProvesPrimaryClass } from './device-identity';
+import { isMcuProduct, matchesMainDeviceIdentity } from './resource-context';
+import { evaluateRequirement, parseParameterRequirements, readParameterFacts, toCanonical, unitInfo, type Requirement, type RequirementResult } from './selection-spec';
+import { catalogAssessment, orderablePackageMatches, reviewedAdjustableOrderables, reviewedOrderableConfigurations,
+  type SelectionAssessment } from './selection-assessment';
+import { reviewed4T0RSources, reviewedCanFdSource, reviewedDigitalIsolatorSources, reviewedI2cSource, reviewedIsolationSource, reviewedNovosenseGrade, reviewedYutaiEthernetSource, reviewedYutaiGrade, reviewedYutaiSpeedSource, sourceFactsForProduct, railCapabilityEvidence, sourceForObservedField, sourcesForMatchedTag, type VerifiedSource } from './source-facts';
 // constraint-match.ts
 // must/nice 约束匹配 + 维度感知的三级降级兜底
 
-import { CATEGORY_SYNONYMS } from './query_parser';
-import { buildSemanticAliasMap } from '@/lib/semantic-evidence';
-
-// Module-level semantic alias map — built once from generated evidence rules
-const SEMANTIC_ALIASES: Record<string, string[]> = buildSemanticAliasMap();
+import { CATEGORY_SYNONYMS, CATEGORY_TAG_NAMES } from './query_parser';
+import { isPackageTag, packageMatches } from './query-specs';
+import { semanticRulesForTag } from '@/lib/semantic-evidence';
 export type ConstraintDimension = 'category' | 'media' | 'spec' | 'grade' | 'technology';
 export interface MustConstraint {
+  requirement?: Requirement;
   tag: string;
   dimension: ConstraintDimension;
   family?: string;
@@ -44,11 +49,16 @@ export function sortValueOf(product: ConstraintProduct, sk: SortIntent): number 
   for (const [key, val] of Object.entries(pn)) {
     const kl = key.toLowerCase();
     if (!sk.paramKeys.some((pk) => kl.includes(pk))) continue;
-    const v = val as { value?: unknown; min?: unknown; max?: unknown } | null;
+    const v = val as { value?: unknown; min?: unknown; max?: unknown; unit?: string } | null;
     let num: number | null = null;
     if (v && typeof v.value === 'number') num = v.value;
     else if (v && typeof v.max === 'number') num = v.max as number;
     if (num == null || Number.isNaN(num)) continue;
+    if (!v?.unit || !unitInfo(v.unit)) continue;
+    const expected = ({ psrr: 'dB', dropout: 'V', gbw: 'Hz', vos: 'V', '传播延迟': 's', '采样率': 'sps', '数据速率': 'bps', esd: 'V', '开关频率': 'Hz', iq: 'A', '噪声': 'V/√Hz', '输出电流': 'A' } as Record<string, string>)[sk.param.toLowerCase()];
+    if (!expected) continue;
+    num = toCanonical(num, v.unit, expected);
+    if (num == null) continue;
     if (best == null) best = num;
     else best = sk.direction === 'high' ? Math.max(best, num) : Math.min(best, num);
   }
@@ -82,7 +92,10 @@ function normalizeCurrentToA(key: string, v: { value?: unknown; unit?: unknown; 
   const raw = String(v.raw || '').toLowerCase();
   const kl = key.toLowerCase();
   let num = v.value;
-  if (unit === 'ma' || raw.includes('ma') || kl.includes('__ma_')) num /= 1000;
+  if (unit === 'ma') num /= 1000;
+  else if (['μa', 'µa', 'ua'].includes(unit)) num /= 1e6;
+  else if (unit === 'na') num /= 1e9;
+  else if (unit !== 'a' && (raw.includes('ma') || kl.includes('__ma_'))) num /= 1000;
   return num;
 }
 
@@ -119,6 +132,7 @@ function vinRangeOf(product: ConstraintProduct, tokens: string[]): [number, numb
       const kl = key.toLowerCase();
       const v = rawVal as { value?: unknown; is_range?: boolean; min?: number; max?: number } | null;
       if (!v) continue;
+      if (/absolute|transient|surge|rating|瞬态|绝对|耐压/.test(kl)) continue;
       if (kl.includes('output') || kl.includes('vout') || kl.includes('输出') || kl.includes('vcc_vee')) continue;
       const isSupplyVin = (
         kl.includes('supply_voltage') || kl.includes('供电电压') || kl.includes('工作电压') ||
@@ -153,6 +167,7 @@ function vinRangeOf(product: ConstraintProduct, tokens: string[]): [number, numb
     if (minVin != null) return [minVin, Number.POSITIVE_INFINITY];
     if (maxVin != null) return [0, maxVin];
   }
+  if (/absolute|transient|瞬态|绝对/.test(JSON.stringify(product._params_numeric || {}))) return null;
   const vals = parseTaggedValues(tokens, 'vin_', 'v');
   if (vals.length >= 2) return [Math.min(...vals), Math.max(...vals)];
   if (vals.length === 1) return [0, vals[0]];
@@ -185,6 +200,8 @@ function ioutMaxOf(product: ConstraintProduct, tokens: string[]): number | null 
 }
 
 function dataRateMaxMbpsOf(product: ConstraintProduct, tokens: string[]): number | null {
+  const conditionalRate = product._conditional_rate_resolution as { status?: unknown; header?: unknown } | undefined;
+  if (conditionalRate?.status === 'orderable_specific_only' && conditionalRate.header === '最大码流 (Mbps)') return null;
   let best: number | null = null;
   for (const tk of tokens) {
     const m = tk.match(/^(\d+\.?\d*)mbps$/);
@@ -211,7 +228,65 @@ function dataRateMaxMbpsOf(product: ConstraintProduct, tokens: string[]): number
   return best;
 }
 
+function modelDetailAdcBits(product: ConstraintProduct): number | null {
+  const source = product._detail_adc_resolution_source as {
+    bits?: unknown; model?: unknown; scope?: unknown; documentId?: unknown;
+    documentSha256?: unknown; page?: unknown; quote?: unknown; selectionUse?: unknown;
+  } | undefined;
+  if (!source) return null;
+  return product.__vendor === 'novosense' && source.model === product.part_number
+    && source.scope === 'self' && source.documentId === 'novosense-selection-guide-202510'
+    && typeof source.documentSha256 === 'string' && /^[0-9a-f]{64}$/.test(source.documentSha256)
+    && Number.isInteger(source.page) && typeof source.quote === 'string'
+    && source.selectionUse === 'adc_resolution'
+    && Number.isInteger(source.bits) && Number(source.bits) > 0
+    ? Number(source.bits) : null;
+}
+
 function bitResolutionOf(product: ConstraintProduct, tokens: string[]): number | null {
+  // Source conflicts stay unknown unless a current, document-bound human
+  // adjudication explicitly resolves this model's published feature cell.
+  const resolutionSource = product._resolution_source as {
+    selectionTableConflict?: boolean; documentSha256?: string;
+  } | undefined;
+  if (resolutionSource?.selectionTableConflict) {
+    const decision = ((product._published_corrections || product._manual_adjudications) as Record<string, {
+      actor?: string; reviewed?: boolean; documentSha256?: string; confirmedValue?: string;
+    }> | undefined)?.['特征'];
+    const currentFeature = String(product._params || '').match(/(?:^|\|)\s*特征\s*[:：]\s*([^|]+)/)?.[1] || '';
+    const confirmedResolution = decision?.confirmedValue?.match(/(\d+)\s*位\s*ADC/i)?.[1];
+    if (!(decision?.reviewed === true || decision?.actor === 'human_user')
+        || !resolutionSource.documentSha256
+        || decision.documentSha256 !== resolutionSource.documentSha256
+        || !confirmedResolution
+        || currentFeature.trim() !== decision.confirmedValue?.trim()) return null;
+    return Number(confirmedResolution);
+  }
+  if (product.__vendor === '3peak-analog') {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*Resolution\s*[:：]\s*([^|]+)/i)?.[1]?.trim();
+    return raw && /^\d+$/.test(raw) && sourceForObservedField(product, 'Resolution', raw)
+      ? Number(raw) : null;
+  }
+  if (product.__vendor === '3peak-auto') {
+    if (!/ADC/i.test(product._section || '')) return null;
+    const raw = String(product._params || '').match(/(?:^|\|)\s*产品描述\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    const bits = raw?.match(/\b(\d+)\s*bit\b[^|]*\bADC\b/i)?.[1];
+    return bits && sourceForObservedField(product, '产品描述', raw!) ? Number(bits) : null;
+  }
+  if (product.__vendor === 'novosense' && /模数转换器\s*ADC/i.test(product._section || '')) {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*特征\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    const bits = raw?.match(/(\d+)\s*位\s*ADC/i)?.[1];
+    return bits && sourceForObservedField(product, '特征', raw!) ? Number(bits) : null;
+  }
+  if (product.__vendor === 'novosense' && /位置传感器专用芯片/.test(product._section || '')) {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*分辨率\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    const bits = raw?.match(/^(\d+)\s*位$/)?.[1];
+    return bits && sourceForObservedField(product, '分辨率', raw!) ? Number(bits) : null;
+  }
+  // PWM output width and absolute-angle resolution are separate specifications.
+  if (product.__vendor === 'novosense' && /磁阻角度编码器/.test(product._section || '')) return null;
+  const detailAdc = modelDetailAdcBits(product);
+  if (detailAdc !== null) return detailAdc;
   let best: number | null = null;
   for (const tk of tokens) {
     const m = tk.match(/^(\d+)bit$/);
@@ -221,6 +296,23 @@ function bitResolutionOf(product: ConstraintProduct, tokens: string[]): number |
 }
 
 function channelCountOf(product: ConstraintProduct, tokens: string[]): number | null {
+  if (product.__vendor === '3peak-analog') {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*Number of Channels\s*[:：]\s*([^|]+)/i)?.[1]?.trim();
+    return raw && /^\d+$/.test(raw) && sourceForObservedField(product, 'Number of Channels', raw)
+      ? Number(raw) : null;
+  }
+  if (product.__vendor === 'novosense' && /模数转换器\s*ADC/i.test(product._section || '')) {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*输入通道\s*数量\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    return raw && /^\d+$/.test(raw) && sourceForObservedField(product, '输入通道 数量', raw)
+      ? Number(raw) : null;
+  }
+  if (product.__vendor === 'novosense' && /(?:IO\s*扩展器|I2C\s*开关)/i.test(product._section || '')) {
+    const match = String(product._params || '').match(/(?:^|\|)\s*(通道数|通道)\s*[:：]\s*([^|]+)/);
+    const header = match?.[1];
+    const raw = match?.[2]?.trim();
+    return header && raw && /^\d+$/.test(raw) && sourceForObservedField(product, header, raw)
+      ? Number(raw) : null;
+  }
   let best: number | null = null;
   // Extract from _params raw text (precise regex, no false positives from _params_numeric key matching)
   const paramsText = String(product._params || '');
@@ -288,6 +380,11 @@ function voutSpecOf(product: ConstraintProduct, tokens: string[]): { values: num
       if (!hasVoutKey) continue;
       const v = rawVal as { value?: unknown; is_range?: boolean; min?: number; max?: number } | null;
       if (!v) continue;
+      const raw = String((rawVal as { raw?: string }).raw || '');
+      if (/(?:fixed|固定|可选)/i.test(raw) && !/(?:adjustable|可调)/i.test(raw)) {
+        fixedVals.push(...[...raw.matchAll(/\d+(?:\.\d+)?/g)].map(m => Number(m[0])));
+        continue;
+      }
       if (v.is_range && typeof v.min === 'number' && typeof v.max === 'number') {
         rangeLow = v.min; rangeHigh = v.max;
       } else if (typeof v.value === 'number') {
@@ -299,11 +396,10 @@ function voutSpecOf(product: ConstraintProduct, tokens: string[]): { values: num
   }
   const vals = parseTaggedValues(tokens, 'vout_', 'v');
   if (vals.length > 0) return { values: [...new Set(vals)].sort((a, b) => a - b), range: null };
-  // Fallback: "可调输出" / "adjustable output" → treat as wide-range (FAE knows it covers any reasonable Vout)
+  // Adjustable output requires a documented range.
   const paramsText = (product._params || '').toLowerCase();
-  if (/可调输出|adjustable\s*output/i.test(paramsText)) {
-    return { values: [], range: [0, 1000] };
-  }
+  const adjustable = paramsText.match(/(?:可调输出|adjustable\s*output)\s*[:：(（]?\s*([\d.]+)\s*(?:to|~|～|-)\s*([\d.]+)/i);
+  if (adjustable) return { values: [], range: [Number(adjustable[1]), Number(adjustable[2])] };
   return { values: [], range: null };
 }
 
@@ -317,23 +413,376 @@ interface EvidenceRule {
 
 const EVIDENCE_REGISTRY: EvidenceRule[] = [
   { tag: '电压基准', paramsKey: 'voltage_reference', contextSection: /放大器|运放|比较器/ },
-  { tag: '霍尔', detailMatch: /霍尔|hall[ -]?(effect|sensor|switch|latch)/i },
 ];
+
+function semanticEvidenceMatches(product: ConstraintProduct, tag: string): boolean {
+  const rules = semanticRulesForTag(tag);
+  if (!rules.length) return false;
+  const identities = [product._features, product._section, product._params].map(value => String(value || ''));
+  const normalizeContext = (value: string) => value.toLowerCase().replace(/[\s_-]+/g, '');
+  const containsLabel = (label: string) => identities.some(identity => {
+    if (/^[\x00-\x7f]+$/.test(label)) {
+      const words = label.trim().split(/[\s_-]+/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      return words.length > 0 && new RegExp(`(?:^|[^a-z0-9])${words.join('[\\s_-]*')}(?=$|[^a-z0-9])`, 'i').test(identity);
+    }
+    return normalizeContext(identity).includes(normalizeContext(label));
+  });
+
+  for (const rule of rules) {
+    const includes = rule.include || [];
+    const excludes = rule.exclude || [];
+    if (includes.length && !includes.some(containsLabel)) continue;
+    if (excludes.some(containsLabel)) continue;
+    const configuredFields = rule.fields.length ? rule.fields : ['_params', '_detail_intro', '_detail_features'];
+    // Family prose remains retrieval context, not a per-model selector or
+    // ranking signal. Explicitly reviewed model tags may still satisfy soft
+    // preferences; hard requirements keep their independent evidence gate.
+    const familyScope = (product._detail_source as { scope?: string } | undefined)?.scope === 'family';
+    if (familyScope && rule.strength !== 'must'
+      && (product._reviewed_feature_tags as string[] | undefined)?.some(value => value.toLowerCase() === tag.toLowerCase())) {
+      return true;
+    }
+    const fields = familyScope
+      ? configuredFields.filter(field => field !== '_detail_intro' && field !== '_detail_features')
+      : configuredFields;
+    const evidenceText = fields.map(field => String(product[field] || '')).join('\n');
+    const isNegatedAt = (index: number, matchLength = 0) => {
+      const prefix = evidenceText.slice(Math.max(0, index - 32), index);
+      const suffix = evidenceText.slice(index + matchLength, index + matchLength + 32);
+      return /(?:不支持|无|未集成|不具备|不含|没有|未提供|不带|no|without|not(?:\s+supported)?|does\s+not\s+support)\s*(?:(?:built[ -]?in)\s*)?[:：,，;；-]*\s*$/i.test(prefix)
+        || /^\s*(?:(?:is\s+)?not\s+(?:supported|available|integrated|included)|不支持|不具备|未集成|不含|无)/i.test(suffix);
+    };
+    for (const alias of rule.aliases) {
+      const escaped = alias.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (!escaped) continue;
+      const flexible = escaped.replace(/\\ /g, '[\\s_-]+');
+      const pattern = /^[a-z0-9]/i.test(alias)
+        ? new RegExp(`\\b${flexible}\\b`, 'i')
+        : null;
+      const match = pattern ? pattern.exec(evidenceText) : (() => {
+        const index = evidenceText.toLowerCase().indexOf(alias.toLowerCase());
+        return index < 0 ? null : Object.assign([alias] as unknown as RegExpExecArray, { index });
+      })();
+      if (match && !isNegatedAt(match.index, alias.length)) return true;
+    }
+    if (rule.regex) {
+      try {
+        const regex = new RegExp(rule.regex, 'ig');
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(evidenceText)) !== null) {
+          if (!isNegatedAt(match.index, match[0].length)) return true;
+          if (match[0].length === 0) regex.lastIndex++;
+        }
+      } catch {
+        // Invalid registry rules are surfaced by the registry compiler/tests;
+        // a malformed expression must not create a runtime match.
+      }
+    }
+  }
+  return false;
+}
 
 function isIoExpanderProduct(product: ConstraintProduct, tokens: string[]): boolean {
   const section = String(product._section || '').toLowerCase().replace(/\s+/g, '');
   return tokens.includes('io扩展器') || section.includes('io扩展器') || section.includes('i/o扩展器');
 }
 
+function sourced3PeakGrade(product: ConstraintProduct): { rating: 'industrial' | 'automotive' | null; aecQualified: boolean } {
+  if (product.__vendor !== '3peak-analog') return { rating: null, aecQualified: false };
+  const ratingCell = String(product._params || '').match(/(?:^|\|)\s*Rating\s*[:：]\s*([^|]+)/i)?.[1]?.trim();
+  const rating = ratingCell && sourceForObservedField(product, 'Rating', ratingCell)
+    ? /^(?:Industrial|Automotive)$/i.test(ratingCell) ? ratingCell.toLowerCase() as 'industrial' | 'automotive' : null
+    : null;
+  const featuresCell = String(product._params || '').match(/(?:^|\|)\s*Features\s*[:：]\s*([^|]+)/i)?.[1]?.trim();
+  const aecQualified = !!featuresCell && /\bAEC\s*[- ]?Q\s*[- ]?100\s+Qualified\b/i.test(featuresCell)
+    && !!sourceForObservedField(product, 'Features', featuresCell);
+  return { rating, aecQualified };
+}
+
+
+function explicitNegativeCapability(product: ConstraintProduct, tag: string): boolean {
+  const label = tag.replace(/[\s_-]/g, '').toLowerCase();
+  const hasNegativeCell = String(product._params || '').split('|').some(cell => {
+    const at=cell.search(/[:：]/);return at>=0 && cell.slice(0,at).replace(/[\s_-]/g,'').toLowerCase()===label
+      && /^(?:no|false|否|不支持)$/i.test(cell.slice(at+1).trim());
+  });
+  if (!hasNegativeCell) return false;
+  return sourceFactsForProduct(product).some(f => String(f.publishedHeader || '').replace(/[\s_-]/g, '').toLowerCase() === label
+    && /^(?:no|false|否|不支持)$/i.test(f.publishedValue || ''));
+}
+
+export function constraintStatus(product: ConstraintProduct, tag: string, meta?: MustConstraint): 'matched' | 'unmatched' | 'unknown' {
+  if(tag==='2.5G'&&/PHY/i.test(String(product._section||''))){
+    const rates=readParameterFacts(product).filter(f=>f.field==='dataRate'&&f.source.verified).flatMap(f=>f.values);
+    if(rates.length&&Math.max(...rates)<2.5e9)return 'unmatched';
+  }
+  if (explicitNegativeCapability(product, tag)) return 'unmatched';
+  if (tag === '轨到轨') { const rail=railCapabilityEvidence(product,meta?.requirement?.source?.text||tag); if(rail.sources.length||rail.specific)return rail.status; }
+  if (meta?.requirement && meta.requirement.kind !== 'tag') return evaluateRequirement(product, meta.requirement).status;
+  if (tagSatisfied(product, tag, meta)) return 'matched';
+  if (product.__vendor === '3peak-analog' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    return sourced3PeakGrade(product).rating === null ? 'unknown' : 'unmatched';
+  }
+  if (product.__vendor === 'novosense' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    const grade = reviewedNovosenseGrade(product);
+    return grade.industrial.length || grade.automotive.length || grade.aecStatement.length ? 'unmatched' : 'unknown';
+  }
+  if (product.__vendor === '3peak-auto' && (tag === '车规AEC-Q100' || tag === '工业级')) return 'unknown';
+  if (product.__vendor === 'yutai' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    const grade = reviewedYutaiGrade(product);
+    return grade.industrial.length || grade.automotive.length || grade.consumer.length || grade.aecStatement.length
+      ? 'unmatched' : 'unknown';
+  }
+  if (tag.toLowerCase() === 'can-fd' && ['3peak-auto', '3peak-analog', 'novosense'].includes(String(product.__vendor || ''))
+    && /(?:CAN\s*收发器|隔离CAN|SBC)/i.test(String(product._section || ''))) return 'unknown';
+  if (product.__vendor === 'yutai' && tag === '以太网') return 'unknown';
+  if (tag === 'I2C' && ((product.__vendor === '3peak-analog'
+      && /(?:IO\s*扩展器|电平转换器)/i.test(String(product._section || '')))
+      || (product.__vendor === 'novosense' && /IO\s*扩展器/i.test(String(product._section || ''))))) return 'unknown';
+  if (tag === '隔离' && ((product.__vendor === 'novosense'
+      && /集成式电流传感器/.test(String(product._section || '')))
+      || (['3peak-analog', '3peak-auto'].includes(String(product.__vendor || ''))
+        && /(?:变换器|马达驱动)/.test(String(product._section || ''))))) return 'unknown';
+  if (product.__vendor === 'novosense' && tag === '降压' && product._topology_source) return 'unknown';
+  if (product.__vendor === 'yutai' && (tag === '百兆' || tag === '千兆')) return 'unknown';
+  if (product.__vendor === '3peak-analog' && tag === 'ADC' && /传感器接口/.test(String(product._section || ''))) return 'unknown';
+  if (product.__vendor === 'novosense' && tag === '数字隔离器' && /隔离\s*I2C/i.test(String(product._section || ''))) return 'unknown';
+  if (product.__vendor === 'novosense' && tag === 'DCDC' && /位置传感器专用芯片/.test(String(product._section || ''))) {
+    const type = String(product._params || '').match(/(?:^|\|)\s*类型\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    return type && sourceForObservedField(product, '类型', type) ? 'unmatched' : 'unknown';
+  }
+  if (product.__vendor === 'novosense' && tag === '温度传感器' && /温湿度传感器/.test(String(product._section || ''))) return 'unknown';
+  if (product.__vendor === '3peak-analog' && tag === '4T0R' && /RS-485\s*收发器/.test(String(product._section || ''))) return 'unknown';
+  if ((product._detail_source as { scope?: string } | undefined)?.scope === 'family'
+    && (semanticRulesForTag(tag).some(rule => rule.strength === 'must')
+      ? semanticEvidenceMatches({ ...product, _detail_source: undefined }, tag)
+      : tagSatisfied({ ...product, _detail_source: undefined }, tag, meta))) return 'unknown';
+  // Absence of model evidence for a source-backed capability is uncertainty
+  // within its declared product class, even after legacy prose is removed.
+  if (semanticRulesForTag(tag).some(rule => rule.strength === 'must'
+    && rule.storage === 'source_evidence'
+    && rule.include.some(label => String(product._section || '').includes(label)))) return 'unknown';
+  if (meta?.family === 'bit'
+    && (product._resolution_source as { selectionTableConflict?: boolean } | undefined)?.selectionTableConflict) return 'unknown';
+  if (meta?.family === 'bit' && bitResolutionOf(product, (product._features || '').toLowerCase().split(/\s+/)) == null) return 'unknown';
+  if (meta?.family === '通道' && channelCountOf(product, (product._features || '').toLowerCase().split(/\s+/)) == null) return 'unknown';
+  if (tag === 'AEC-Q100符合声明' || tag === 'AEC-Q100认证') return 'unknown';
+  if (tag === '车规AEC-Q100' && /mcu|dsp/i.test(product._section || '')
+    && /(?:提供工业级和汽车级产品|符合\s*aec\s*[- ]?q\s*[- ]?100\s*grade\s*1\s*设计)/i.test(`${product._detail_intro || ''} ${product._detail_features || ''}`)) {
+    return 'unknown';
+  }
+  if (tag.toLowerCase() === 'can-fd' && /mcu|dsp/i.test(product._section || '')
+    && !/(?:^|\|)\s*CAN\s*\/\s*CAN-FD\s*[:：]\s*\d+\s*\/\s*\d+(?=\s*(?:\||$))/i.test(product._params || '')) return 'unknown';
+  if (tag.toLowerCase() === 'can' && /mcu|dsp/i.test(product._section || '')
+    && !/(?:^|\|)\s*CAN\s*\/\s*CAN-FD\s*[:：]\s*\d+\s*\/\s*\d+(?=\s*(?:\||$))/i.test(product._params || '')) return 'unknown';
+  if (tag.toUpperCase() === 'SPI' && /(?:ADC|模数转换器)/i.test(product._section || '')
+    && !/(?:^|\|)\s*(?:Digital Interface|数字接口|通信接口)\s*[:：]/i.test(product._params || '')) return 'unknown';
+  const tokens = (product._features || '').toLowerCase().split(/\s+/);
+  if (isPackageTag(tag) && packageMatches(product._params || '', tag) == null
+    && !(product.part_number === 'NSR33xxx' && [
+      ...reviewedOrderableConfigurations(product), ...reviewedAdjustableOrderables(product),
+    ].some(config => orderablePackageMatches(config, tag)))) return 'unknown';
+  if (meta?.family === 'Vin' && vinRangeOf(product, tokens) == null) return 'unknown';
+  if (meta?.family === 'Iout' && ioutMaxOf(product, tokens) == null) return 'unknown';
+  if (meta?.family === 'Vout') {
+    const spec = voutSpecOf(product, tokens);
+    if (!spec.values.length && !spec.range) return 'unknown';
+  }
+  if (meta?.requirement?.kind === 'tag' && meta.requirement.source?.origin === 'model'
+    && meta.dimension === 'spec' && !meta.family && !isPackageTag(tag)) {
+    return 'unknown';
+  }
+  return 'unmatched';
+}
+
 // ── Core: tagSatisfied ──
 export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: MustConstraint): boolean {
+  if(tag==='米勒钳位')return sourcesForMatchedTag(product,tag).length>0;
+  if(tag==='2.5G'&&/PHY/i.test(String(product._section||''))){
+    const rates=readParameterFacts(product).filter(f=>f.field==='dataRate'&&f.source.verified).flatMap(f=>f.values);
+    if(rates.length&&Math.max(...rates)<2.5e9)return false;
+  }
+  if (explicitNegativeCapability(product, tag)) return false;
+  // A regulator's internal LDO or an application mention does not make it an LDO product.
+  if (tag.toLowerCase() === 'ldo') return product._section
+    ? /LDO|线性稳压/i.test(String(product._section))
+    : String(product._features || '').split(/\s+/).some(token => token.toLowerCase() === 'ldo');
+  if (meta?.requirement && meta.requirement.kind !== 'tag') return evaluateRequirement(product, meta.requirement).status === 'matched';
+  if(tag==='工业级'&&sourcesForMatchedTag(product,tag).some(s=>s.originalHeader==='Rating'&&s.originalValue==='Industrial'))return true;
+  if (product.__vendor === '3peak-analog' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    const grade = sourced3PeakGrade(product);
+    return tag === '工业级' ? grade.rating === 'industrial'
+      : grade.rating === 'automotive' || grade.aecQualified;
+  }
+  if (product.__vendor === 'novosense' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    const grade = reviewedNovosenseGrade(product);
+    return tag === '工业级' ? grade.industrial.length > 0
+      : grade.automotive.length > 0 || grade.aecStatement.length > 0;
+  }
+  if (product.__vendor === '3peak-auto' && (tag === '车规AEC-Q100' || tag === '工业级')) return false;
+  if (product.__vendor === 'yutai' && (tag === '车规AEC-Q100' || tag === '工业级')) {
+    const grade = reviewedYutaiGrade(product);
+    return tag === '工业级' ? grade.industrial.length > 0
+      : grade.automotive.length > 0 || grade.aecStatement.length > 0;
+  }
+  if (product.__vendor === 'yutai' && tag === 'AEC-Q100符合声明') {
+    return reviewedYutaiGrade(product).aecStatement.length > 0;
+  }
+  if (tag.toLowerCase() === 'can-fd' && ['3peak-auto', '3peak-analog', 'novosense'].includes(String(product.__vendor || ''))
+    && /(?:CAN\s*收发器|隔离CAN|SBC)/i.test(String(product._section || ''))) {
+    return reviewedCanFdSource(product) !== null;
+  }
+  if (product.__vendor === 'yutai' && tag === '以太网') {
+    return reviewedYutaiEthernetSource(product) !== null;
+  }
+  if (product.__vendor === 'novosense' && tag === '降压' && /DC-DC\s*开关变换器/.test(String(product._section || ''))
+    && (product._topology_source || sourceFactsForProduct(product).some(fact => fact.field === 'topology'))) {
+    return sourceFactsForProduct(product).some(fact => fact.field === 'topology' && fact.publishedFeature === '降压');
+  }
+  if (product.__vendor === 'yutai' && (tag === '百兆' || tag === '千兆')) {
+    return reviewedYutaiSpeedSource(product, tag) !== null;
+  }
+  if (product.__vendor === '3peak-analog' && tag === 'ADC' && /传感器接口/.test(String(product._section || ''))) {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*Description\s*[:：]\s*([^|]+)/i)?.[1]?.trim();
+    return !!raw && /\bADC\b/i.test(raw) && !!sourceForObservedField(product, 'Description', raw);
+  }
+  if (product.__vendor === 'novosense' && tag === '数字隔离器' && /隔离\s*I2C/i.test(String(product._section || ''))) {
+    return reviewedDigitalIsolatorSources(product).length === 2;
+  }
+  if (product.__vendor === 'novosense' && tag === 'DCDC' && /位置传感器专用芯片/.test(String(product._section || ''))) {
+    return false;
+  }
+  if (product.__vendor === 'novosense' && tag === '温度传感器' && /温湿度传感器/.test(String(product._section || ''))) {
+    const raw = String(product._params || '').match(/(?:^|\|)\s*产品描述\s*[:：]\s*([^|]+)/)?.[1]?.trim();
+    return !!raw && /温湿度传感器/.test(raw) && !!sourceForObservedField(product, '产品描述', raw);
+  }
+  if (product.__vendor === '3peak-analog' && tag === '4T0R' && /RS-485\s*收发器/.test(String(product._section || ''))) {
+    return reviewed4T0RSources(product).length === 2;
+  }
+  if (tag === 'I2C' && ((product.__vendor === '3peak-analog'
+      && /(?:IO\s*扩展器|电平转换器)/i.test(String(product._section || '')))
+      || (product.__vendor === 'novosense' && /IO\s*扩展器/i.test(String(product._section || ''))))) {
+    return reviewedI2cSource(product) !== null;
+  }
+  if (tag === '隔离' && ((product.__vendor === 'novosense'
+      && /集成式电流传感器/.test(String(product._section || '')))
+      || (['3peak-analog', '3peak-auto'].includes(String(product.__vendor || ''))
+        && /(?:变换器|马达驱动)/.test(String(product._section || ''))))) {
+    return reviewedIsolationSource(product) !== null;
+  }
+  if (product.__vendor === '3peak-analog' && tag === 'AEC-Q100符合声明') {
+    return sourced3PeakGrade(product).aecQualified;
+  }
+  if (tag === 'AEC-Q100符合声明' || tag === 'AEC-Q100认证') return sourceFactsForProduct(product).some(fact =>
+    fact.field === 'grade'
+    && /AEC\s*[- ]?\s*Q\s*[- ]?\s*100/i.test(fact.evidence.originalValue)
+    && (tag !== 'AEC-Q100认证' || /认证|证书|certified|certificate/i.test(fact.evidence.originalValue)));
   const feats = (product._features || "").toLowerCase();
   const tokens = feats.split(/\s+/).filter(Boolean);
   const t = tag.toLowerCase();
   const paramsText = (product._params || "").toLowerCase();
   const sectionText = (product._section || "").toLowerCase();
-  const detailTextRaw = ((product._detail_intro || "") + " " + (product._detail_features || "")).toLowerCase();
+  // Family prose describes a series, not an orderable model. Keep it out of
+  // every hard-match fallback, including tags absent from the semantic registry.
+  const detailTextRaw = (product._detail_source as { scope?: string } | undefined)?.scope === 'family'
+    ? ''
+    : ((product._detail_intro || "") + " " + (product._detail_features || "")).toLowerCase();
   const allEvidenceText = `${paramsText} ${detailTextRaw} ${sectionText}`;
+
+  // The selection guide uses “隔离电流放大器” as the table category while
+  // queries commonly shorten it to “隔离放大器”. Require the category row
+  // itself as evidence; a generic amplifier plus an isolation rating is not
+  // enough to establish the product class.
+  if (t === '隔离放大器' && /隔离.{0,8}(?:电流)?放大器|(?:电流)?放大器.{0,8}隔离/.test(sectionText)) return true;
+  if (t === '线性电流传感器' && /线性电流传感器/.test(sectionText)) return true;
+
+  if (t === '高侧电流检测') {
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /电流信号检测放大器|电流检测放大器|current[ -]?sense/i.test(sectionText)
+      && /(?:high[ -]?side.{0,40}current[ -]?sense|current[ -]?sense.{0,40}high[ -]?side|高侧.{0,12}(?:电流检测|电流采样))/.test(featureCell.toLowerCase());
+  }
+  if (t === '可变增益') {
+    const gainOption = String(product._params || '').match(/(?:^|\|)\s*(?:Gain Option|增益选项)\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /^(?:variable|可变|可编程)$/i.test(gainOption.trim())
+      || /variable[ -]?gain|可变增益/i.test(featureCell);
+  }
+  if (t === '可编程增益') {
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /programmable[ -]?gain|可编程增益/i.test(featureCell);
+  }
+  if (t === '超高精度') {
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /ultra[ -]?precise|超高精度/i.test(featureCell);
+  }
+  if (t === '低边检测') {
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /low[ -]?side\s+(?:capable|sensing)|低边(?:电流)?检测|低侧(?:电流)?检测/i.test(featureCell)
+      || tokens.includes('低边检测');
+  }
+  if (t === '集成比较器') {
+    const comparatorCell = String(product._params || '').match(/(?:^|\|)\s*(?:Compa\s*rator|Comparator|比较器)\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    const featureCell = String(product._params || '').match(/(?:^|\|)\s*Features?\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    if (/^(?:0|no|否|无)$/i.test(comparatorCell.trim())) return false;
+    return /^(?:1|yes|是|有)$/i.test(comparatorCell.trim())
+      || /with comparator|带比较器|集成比较器/i.test(featureCell);
+  }
+  if (t === 'pwm抑制') {
+    const pwmRejection = String(product._params || '').match(/(?:^|\|)\s*PWM\s*Rejection\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /^(?:yes|是|有|supported)$/i.test(pwmRejection.trim());
+  }
+
+  // Comparator output topology is an explicit table field. Keep open-drain
+  // and push-pull as separate hard constraints; a combined legacy tag can
+  // incorrectly match either output type.
+  if (t === '开漏输出' || t === '推挽输出') {
+    const outputType = String(product._params || '').match(/(?:^|\|)\s*(?:Output Type|Output type|输出类型)\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    const wanted = t === '开漏输出' ? /open[ -]?drain|开漏/i : /push[ -]?pull|推挽/i;
+    return wanted.test(outputType) || tokens.includes(t);
+  }
+
+  // A current-sense amplifier or power monitor can be used with a sensor, but
+  // does not itself satisfy a request for a current sensor. Catalog application
+  // text and stale feature tags must not override the product category.
+  if (t === '电流传感器' && (
+    /电流信号检测放大器|数字式电流\/功率检测器|电流检测放大器|电流功率检测器/.test(sectionText)
+    || (sectionText === 'afe' && /current and power monitor/i.test(paramsText))
+  )) return false;
+  if (t === '电流检测放大器') return /电流(?:信号检测|检测|采样|传感)放大器|current[ -]?sense[ -]?amplifier/i.test(sectionText);
+  // Motor subtypes are table categories. Generic feature tokens or application
+  // prose cannot turn a stepper row into a DC motor driver, or vice versa.
+  if (t === '直流马达驱动') return /直流马达驱动|直流有刷电机驱动/.test(sectionText);
+  if (t === '步进马达驱动') return /步进马达驱动|步进电机驱动/.test(sectionText);
+  // These are different physical-layer standards; a stale RS-485 token must
+  // not turn an MLVDS row into an RS-485 recommendation.
+  if (t === 'rs-485' && sectionText.includes('mlvds')) return false;
+  if (t === 'adc' && /mcu|dsp/i.test(sectionText)) return /(?:^|\|)\s*ADC\s*[:：]\s*[^|]*\d+\s*bit/i.test(product._params || '');
+  if (t === 'adc' && modelDetailAdcBits(product) !== null) return true;
+  if (t === 'spi') {
+    const interfaceCell = String(product._params || '').match(/(?:^|\|)\s*(?:Digital Interface|数字接口|通信接口)\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /\bSPI\b/i.test(interfaceCell)
+      || (/adc/i.test(sectionText) && /\bSPI\s*接口/i.test(detailTextRaw));
+  }
+  if (t === 'mcu/dsp') return isMcuProduct(product);
+  if (t === '实时控制') return /实时控制\s*mcu\s*\/\s*dsp/.test(sectionText);
+  if (t === 'can' && /mcu|dsp/i.test(sectionText)) {
+    // The first count is classic CAN; CAN-FD is a separate second count.
+    const cell = String(product._params || '').match(/(?:^|\|)\s*CAN\s*\/\s*CAN-FD\s*[:：]\s*([^|]+)/i)?.[1];
+    const counts = cell?.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
+    return !!counts && Number(counts[1]) > 0;
+  }
+  if (t === 'can-fd' && /mcu|dsp/i.test(sectionText)) {
+    // This table prints "CAN/ CAN-FD" in every row, including 1/0 parts.
+    // The second count is the actual CAN FD capability.
+    const cell = String(product._params || '').match(/(?:^|\|)\s*CAN\s*\/\s*CAN-FD\s*[:：]\s*([^|]+)/i)?.[1];
+    const counts = cell?.match(/^\s*(\d+)\s*\/\s*(\d+)\s*$/);
+    return !!counts && Number(counts[2]) > 0;
+  }
+
+  if (isPackageTag(tag)) return packageMatches(product._params || '', tag) === true
+    || (product.part_number === 'NSR33xxx' && [
+      ...reviewedOrderableConfigurations(product), ...reviewedAdjustableOrderables(product),
+    ].some(config => orderablePackageMatches(config, tag)));
 
   // Duplex evidence from params/detail
   if (t === '半双工' || t === '全双工') {
@@ -357,13 +806,27 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
 
   // Op-amp rail-to-rail
   if (t === '轨到轨') {
-    if (tokens.includes(t) || /\brrio\b|轨到轨/.test(allEvidenceText)) return true;
-    const inYes = /rail[-\s]?rail\s*in\s*[:：]\s*(yes|是)/.test(allEvidenceText);
-    const outYes = /rail[-\s]?rail\s*out\s*[:：]\s*(yes|是)/.test(allEvidenceText);
-    return inYes && outYes;
+    const rail=railCapabilityEvidence(product,meta?.requirement?.source?.text||tag);
+    if(rail.sources.length||rail.specific)return rail.status==='matched';
+    return semanticEvidenceMatches(product, t);
   }
 
   // Ethernet media
+  if (t === '同时采样') {
+    const configuration = String(product._params || '').match(/(?:^|\|)\s*(?:multichannel configuration|多通道配置|采样方式)\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /\bsimultaneous\b|同时|同步/i.test(configuration);
+  }
+  if (t === 'phy') return !/交换机|switch/.test(sectionText)
+    && (/phy|物理层/.test(sectionText) || /(?:^|\|)\s*简介\s*[:：]\s*(?:fe|ge|2\.5ge?)\s+phy\b/i.test(product._params || ''));
+  if (['rgmii', 'rmii', 'sgmii', 'qsgmii'].includes(t)) {
+    const interfaceFields = [...String(product._params || '').matchAll(/(?:^|\|)\s*(?:扩展接口|接口)\s*[:：]\s*([^|]+)/gi)]
+      .map(match => match[1].toLowerCase());
+    return interfaceFields.some(value => new RegExp(`\\b${t}\\b`, 'i').test(value));
+  }
+  if (t === '1000base-t') {
+    // Exact standard matching: 1000BASE-T1 is not a substitute for 1000BASE-T.
+    return /(?:^|[^a-z0-9])1000\s*base\s*-\s*t(?:$|[^a-z0-9])/i.test(allEvidenceText);
+  }
   if (t === 't1-phy') return /(?:10|100|1000)base-t1|802\.3bw/.test(paramsText);
   if (t === '100base-tx') {
     if (/(?:10|100|1000)base-t1|802\.3bw/.test(paramsText)) return false;
@@ -371,6 +834,10 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   }
   if (t === '百兆') {
     return /百兆|100base-(?:tx|t1|fx)|\bfe\s+phy\b|\b1fe\b|802\.3bw/.test(paramsText) || tokens.includes(t);
+  }
+  if (t === '千兆' && /phy|交换机|以太网/i.test(sectionText)) {
+    const ports = String(product._params || '').match(/(?:^|\|)\s*端口\s*[:：]\s*([^|]+)/i)?.[1] || '';
+    return /\b\d+\s*GE\b/i.test(ports) || tokens.includes(t);
   }
 
   // SBC compound
@@ -387,7 +854,7 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     if (t === '升压') return tokens.includes('升压') || /升压|boost|step[ -]?up/i.test(allEvidenceText);
   }
 
-  // Package/structural constraints now handled by LLM-generated constraint_predicates.
+  // Package/structural constraints are handled by validated parameter_rules in route.ts.
   // See route.ts safePredicate() — no more hardcoded regex here.
 
   // Downgradable specs
@@ -401,6 +868,11 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   }
 
   if (meta?.value != null && meta.family === 'bit') {
+    if (/mcu|dsp/i.test(sectionText)) {
+      const adcCell = String(product._params || '').match(/(?:^|\|)\s*ADC\s*[:：]\s*([^|]+)/i)?.[1] || '';
+      const resolution = adcCell.match(/(\d+)\s*bit/i);
+      return !!resolution && Number(resolution[1]) >= meta.value;
+    }
     const bits = bitResolutionOf(product, tokens);
     return bits != null && bits >= meta.value;
   }
@@ -444,10 +916,7 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   const portMatch = t.match(/^(\d+)口$/);
   if (portMatch) {
     const n = portMatch[1];
-    return tokens.some((tk) => {
-      const m = tk.match(/^(\d+)口/);
-      return m !== null && m[1] === n;
-    });
+    return portCountOf(product, tokens) === Number(n);
   }
 
   // Parent→children closure
@@ -472,6 +941,13 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
   const synonyms = SYNONYM_CLOSURE[t];
   if (synonyms && synonyms.some((syn) => tokens.includes(syn.toLowerCase()))) return true;
 
+  // Registry-backed semantic tags are constrained to their declared context
+  // and evidence fields, including when a stale canonical token exists.
+  const semanticRules = semanticRulesForTag(t);
+  if (semanticRules.some(rule => rule.dimension !== 'category' && rule.dimension !== 'grade')) {
+    return semanticEvidenceMatches(product, t);
+  }
+
   // Evidence registry
   const canUseEvidence = !meta || (meta.dimension !== 'category' && meta.dimension !== 'grade');
   if (canUseEvidence) {
@@ -488,8 +964,7 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
           if (pn && Object.keys(pn).some((k: string) => k.includes(evidenceRule.paramsKey!))) return true;
         }
         if (evidenceRule.detailMatch) {
-          const detail = ((product._detail_intro || '') + ' ' + (product._detail_features || '')).toLowerCase();
-          if (evidenceRule.detailMatch.test(detail)) return true;
+          if (evidenceRule.detailMatch.test(detailTextRaw)) return true;
         }
       }
     }
@@ -530,19 +1005,6 @@ export function tagSatisfied(product: ConstraintProduct, tag: string, meta?: Mus
     }
   }
 
-  // Semantic aliases
-  const evidenceText = allowDetailEvidence ? allEvidenceText : paramsText;
-  const aliases = SEMANTIC_ALIASES[t];
-  if (aliases && evidenceText.length > 5) {
-    for (const alias of aliases) {
-      if (/^[a-z0-9]/i.test(alias)) {
-        const re = new RegExp("\\b" + alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "\\b", "i");
-        if (re.test(evidenceText)) return true;
-      } else {
-        if (evidenceText.includes(alias)) return true;
-      }
-    }
-  }
 
   return false;
 }
@@ -576,8 +1038,12 @@ function exactSpecHit(product: ConstraintProduct, meta: MustConstraint): boolean
 
 export type ConstraintScore = {
   product: ConstraintProduct;
+  assessment: SelectionAssessment;
+  sourceEvidence: Record<string, VerifiedSource[]>;
   mustHit: string[];
   mustMiss: string[];
+  mustUnknown: string[];
+  parameterChecks: Record<string, RequirementResult>;
   niceHit: string[];
   fullMatch: boolean;
   score: number;
@@ -595,6 +1061,16 @@ function alignMeta(must: string[], mustMeta?: MustConstraint[]): MustConstraint[
   return must.map((t) => byTag.get(t) || { tag: t, dimension: 'category' as ConstraintDimension });
 }
 
+/** A protocol tag can cover both the chip class and the protocol. A verified
+ * interface rate can identify a research candidate without proving the protocol. */
+export function partialCanProtocolCandidate(row:ConstraintScore):boolean {
+  return row.mustUnknown.includes('CAN-FD') && /CAN\s*收发器/i.test(String(row.product._section||''))
+    && row.mustMiss.every(tag=>row.mustUnknown.includes(tag))
+    && Object.values(row.parameterChecks).every(check=>check.status==='matched')
+    && Object.values(row.parameterChecks).some(check=>check.status==='matched' &&
+      check.evidence.some(f=>f.field==='dataRate'));
+}
+
 export function scoreByConstraints(
   products: ConstraintProduct[],
   must: string[],
@@ -603,15 +1079,50 @@ export function scoreByConstraints(
   query?: string
 ): ConstraintScore[] {
   const metas = alignMeta(must, mustMeta);
+  const niceRequirements = parseParameterRequirements(query || '').requirements.filter(r => r.strength === 'nice');
+  const mainCategories=metas.filter(m=>m.dimension==='category'&&CATEGORY_TAG_NAMES.has(m.tag)).map(m=>m.tag);
   return products.map((product) => {
+    const identityMatched=matchesMainDeviceIdentity(product,mainCategories);
     const mustHit: string[] = [];
     const mustMiss: string[] = [];
+    const mustUnknown: string[] = [];
+    const parameterChecks: Record<string, RequirementResult> = {};
     const missDims: ConstraintDimension[] = [];
     let exactBonus = 0;
     let criticalSpecHit = 0;
     let directTokenBonus = 0;
+    const withdrawnFields = product._withdrawn_reviewed_fields;
+    const needsFactReview = Array.isArray(withdrawnFields) && withdrawnFields.length > 0;
+    const namedRailAssessment = catalogAssessment(true, product, must);
     for (const meta of metas) {
-      if (tagSatisfied(product, meta.tag, meta)) {
+      if (!identityMatched && meta.dimension === 'category') {
+        mustMiss.push(meta.tag);missDims.push(meta.dimension);continue;
+      }
+      if (needsFactReview) {
+        mustMiss.push(meta.tag);
+        mustUnknown.push(meta.tag);
+        missDims.push(meta.dimension);
+        if (meta.requirement && meta.requirement.kind !== 'tag') {
+          parameterChecks[meta.tag] = { status: 'unknown', reason: '已发布来源撤回，参数需复核', evidence: [] };
+        }
+        continue;
+      }
+      if (meta.requirement?.field === 'vcca' || meta.requirement?.field === 'vccb') {
+        const status = namedRailAssessment.namedRailStatus === 'inside_documented_bounds' ? 'matched'
+          : namedRailAssessment.namedRailStatus === 'outside_documented_bounds' ? 'unmatched' : 'unknown';
+        parameterChecks[meta.tag] = { status, reason: status === 'unknown'
+          ? '缺少另一条电源轨或完整的已审阅联合工作条件'
+          : '按规格书的双电源轨联合工作条件判断', evidence: [] };
+        if (status === 'matched') mustHit.push(meta.tag);
+        else {
+          mustMiss.push(meta.tag);
+          if (status === 'unknown') mustUnknown.push(meta.tag);
+          missDims.push(meta.dimension);
+        }
+        continue;
+      }
+      if (meta.requirement && meta.requirement.kind !== 'tag') parameterChecks[meta.tag] = evaluateRequirement(product, meta.requirement);
+      if (meta.dimension === 'category' && catalogProvesPrimaryClass(product,meta.tag) || tagSatisfied(product, meta.tag, meta)) {
         mustHit.push(meta.tag);
         if (exactSpecHit(product, meta)) exactBonus++;
         if (meta.dimension === 'spec' && !meta.downgradable) criticalSpecHit++;
@@ -619,12 +1130,52 @@ export function scoreByConstraints(
         if (feats.includes(meta.tag.toLowerCase())) directTokenBonus++;
       } else {
         mustMiss.push(meta.tag);
+        if (constraintStatus(product, meta.tag, meta) === 'unknown') mustUnknown.push(meta.tag);
         missDims.push(meta.dimension);
       }
     }
-    const niceHit = nice.filter((n) => tagSatisfied(product, n));
-    const fullMatch = mustMiss.length === 0;
-    const categoryHit = metas.some((m) => m.dimension === 'category' && mustHit.includes(m.tag));
+    const niceHit = nice.filter((n) => {
+      if (needsFactReview) return false;
+      const requirement = niceRequirements.find(r => r.tag === n);
+      return tagSatisfied(product, n, requirement ? { tag: n, dimension: 'spec', requirement } : undefined);
+    });
+    const assessment = catalogAssessment(mustMiss.length === 0, product, must);
+    if (mustMiss.length === 0 && assessment.orderableStatus === 'no_listed_configuration') {
+      mustMiss.push('已收录订购组合');
+      missDims.push('spec');
+      assessment.requirementsStatus = 'incomplete';
+    }
+    if (mustMiss.length === 0 && assessment.orderableStatus === 'unverified'
+      && assessment.adjustableOrderables?.length && assessment.orderableCheckedTags?.some(tag => /^Vout_/.test(tag))) {
+      mustMiss.push('固定输出订购组合待核');
+      mustUnknown.push('固定输出订购组合待核');
+      missDims.push('spec');
+      assessment.requirementsStatus = 'incomplete';
+    }
+    if (mustMiss.length === 0 && assessment.orderableStatus === 'unverified'
+      && !assessment.adjustableOrderables?.length
+      && must.some(tag => /^Vout_\d+(?:\.\d+)?V$/.test(tag))
+      && must.some(isPackageTag)) {
+      // Independent output and package cells on a catalog row do not establish
+      // that one purchasable variant has both properties.
+      mustMiss.push('输出电压与封装订购组合待核');
+      mustUnknown.push('输出电压与封装订购组合待核');
+      missDims.push('spec');
+      assessment.requirementsStatus = 'incomplete';
+    }
+    if (mustMiss.length === 0 && assessment.operatingStatus === 'outside_documented_bounds') {
+      mustMiss.push('已核实工作范围');
+      missDims.push('spec');
+      assessment.requirementsStatus = 'incomplete';
+    }
+    const fullMatch = identityMatched && mustMiss.length === 0;
+    const sourceEvidence = Object.fromEntries([...mustHit, ...niceHit].map(tag => {
+      const refs = [...sourcesForMatchedTag(product, tag),
+        ...(tag==='轨到轨'?railCapabilityEvidence(product,metas.find(m=>m.tag===tag)?.requirement?.source?.text||tag).sources:[]),
+        ...(parameterChecks[tag]?.evidence || []).flatMap(fact => fact.source.verified ? [fact.source.verified] : [])];
+      return [tag, [...new Map(refs.map(ref => [ref.factId, ref])).values()]];
+    }).filter(([, refs]) => refs.length > 0)) as Record<string, VerifiedSource[]>;
+    const categoryHit = identityMatched && metas.some((m) => m.dimension === 'category' && mustHit.includes(m.tag));
     const score = mustHit.length * 10 + (categoryHit ? 5 : 0) + exactBonus * 3 + criticalSpecHit * 2 + directTokenBonus * 5 + niceHit.length;
     // Downgrade detection: satisfied by downgrade but not exact
     const downgradeHits: Record<string, string> = {};
@@ -641,7 +1192,7 @@ export function scoreByConstraints(
         downgradeHits[m.tag] = `${actual}${unit}`;
       }
     }
-    return { product, mustHit, mustMiss, niceHit, fullMatch, score, exactBonus, missDims, categoryHit, directTokenBonus, downgradeHits };
+    return { product, assessment, sourceEvidence, mustHit, mustMiss, mustUnknown, parameterChecks, niceHit, fullMatch, score, exactBonus, missDims, categoryHit, directTokenBonus, downgradeHits };
   });
 }
 
@@ -722,7 +1273,7 @@ export function applyConstraints(
   query?: string
 ): ConstraintResult {
   const metas = alignMeta(must, mustMeta);
-  const scored = scoreByConstraints(products, must, nice, mustMeta);
+  const scored = scoreByConstraints(products, must, nice, mustMeta, query);
 
   const scopedHardTechnologyTags = (() => {
     const catTags = metas.filter((m) => m.dimension === 'category').map((m) => m.tag);
@@ -864,14 +1415,23 @@ export function applyConstraints(
       return { tier: 2, banner, items: atMax };
     }
 
-    hardOk.sort((a, b) => a.mustMiss.length - b.mustMiss.length || b.exactBonus - a.exactBonus || b.niceHit.length - a.niceHit.length || b.score - a.score);
-    const top = diversifyWithinTieGroups(hardOk, (s) => [s.mustMiss.length, s.exactBonus, s.niceHit.length, s.score].join('|')).slice(0, 8);
+    const definiteMisses = (s: ConstraintScore) => s.mustMiss.length - s.mustUnknown.length;
+    const unresolvedEvidence = (s: ConstraintScore) => s.mustUnknown.reduce((count, tag) =>
+      count + (s.parameterChecks[tag]?.evidence.length || 0), 0);
+    hardOk.sort((a, b) => definiteMisses(a) - definiteMisses(b) || a.mustMiss.length - b.mustMiss.length
+      || unresolvedEvidence(b) - unresolvedEvidence(a) || b.exactBonus - a.exactBonus
+      || b.niceHit.length - a.niceHit.length || b.score - a.score);
+    const top = diversifyWithinTieGroups(hardOk, (s) => [definiteMisses(s), s.mustMiss.length,
+      unresolvedEvidence(s), s.exactBonus, s.niceHit.length, s.score].join('|')).slice(0, 8);
     const relaxedDims = [...new Set(top[0].missDims)].map((d) => DIM_LABEL[d]);
     const relaxedTags = [...new Set(top[0].mustMiss)];
     const kept = [...hardTags].join("、");
+    const onlyUnknown = relaxedTags.length > 0 && relaxedTags.every(tag => top[0].mustUnknown.includes(tag));
     const banner = relaxedTags.length
-      ? `没有完全匹配的产品。已保证${kept}一致，放宽了${relaxedDims.join("、")}（${relaxedTags.join("、")}），以下 ${top.length} 款最接近：`
-      : `没有完全匹配的产品，以下 ${top.length} 款最接近：`;
+      ? onlyUnknown
+        ? `没有已核验的完整匹配。${kept}已有证据，${relaxedTags.join("、")}仍需核对具体型号或订购配置；以下 ${top.length} 款仅供复核：`
+        : `没有完全匹配的产品。已保证${kept}一致；首项候选缺少${relaxedDims.join("、")}（${relaxedTags.join("、")}）。以下 ${top.length} 款是参考候选，其他未满足条件请逐项查看：`
+      : `没有完全匹配的产品，以下 ${top.length} 款是参考候选，请逐项查看未满足条件：`;
     return { tier: 2, banner, items: top };
   }
 

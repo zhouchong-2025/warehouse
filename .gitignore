@@ -1,28 +1,6 @@
-# Python
+web/node_modules
+web/.next/
+web/.env*
+.vercel/
 __pycache__/
 *.pyc
-.env
-
-# Large PDFs (use extracted wiki/raw content instead)
-raw/*.pdf
-
-# Node
-web/node_modules/
-web/.next/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Vercel
-.vercel
-
-# Data backups / archived scripts (keep local, don't version)
-web/public/data/*.backup_*.json
-web/public/data/*.bak
-scripts/_archived/
-
-# IDE
-.vscode/
-.idea/
-web/public/wiki

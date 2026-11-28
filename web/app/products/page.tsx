@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { loadReleaseCatalog } from "@/lib/release-catalog";
+import { getCategoryBadge, getDisplayParams } from "@/app/product-utils";
 
 type Product = Record<string, string>;
 
@@ -13,45 +15,6 @@ interface VendorData {
   productCount: number;
 }
 
-const CATEGORY_BADGE_PRIORITY = [
-  "隔离栅极驱动", "非隔离栅极驱动", "栅极驱动", "数字隔离器", "隔离电源", "隔离放大器",
-  "马达驱动", "模拟开关", "电平转换", "IO扩展", "交换机", "网卡", "以太网供电",
-  "CAN-FD", "LIN", "RS-485", "RS-232", "MLVDS", "SBC",
-  "DCDC", "降压", "升压", "LDO", "电压基准", "ADC", "DAC",
-  "比较器", "运放", "放大器",
-  "电流传感器", "温度传感器", "压力传感器", "位置传感器", "速度传感器",
-  "负载开关", "高边开关", "高边驱动", "电源时序", "复位芯片", "电子保险丝", "理想二极管",
-  "电池监控", "BMS", "传感器接口", "匹配电阻", "视频滤波", "音频功放", "音频总线", "逻辑门",
-] as const;
-
-function getCategoryBadge(product: Product): string {
-  const tokens = (product._features || "").split(/\s+/).filter(Boolean);
-  for (const tag of CATEGORY_BADGE_PRIORITY) {
-    if (tokens.includes(tag)) return tag;
-  }
-  return (product._section || "").trim();
-}
-
-function getDisplayParams(p: Product): [string, string][] {
-  const priority = [
-    "package", "封装", "status", "状态", "rating", "channels", "ports",
-    "supply_v_min", "supply_v_max", "temp_range", "工作温度",
-    "description", "产品描述",
-  ];
-  const params: [string, string][] = [];
-  for (const key of priority) {
-    if (p[key] && p[key].length < 60) {
-      params.push([key.replace(/_/g, " "), p[key]]);
-    }
-  }
-  for (const [k, v] of Object.entries(p)) {
-    if (!priority.includes(k) && v && v.length < 40 && !["part_number", "vendor_section", "_features", "_section", "_raw"].includes(k) && !k.startsWith("param_")) {
-      if (params.length < 6) params.push([k.replace(/_/g, " "), v]);
-    }
-  }
-  return params.slice(0, 4);
-}
-
 function ProductContent() {
   const searchParams = useSearchParams();
   const slug = searchParams.get("q") || "";
@@ -59,17 +22,8 @@ function ProductContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/data/vendor_index.json")
-      .then(r => r.json())
-      .then(async (index: { vendors: Record<string, { name: string; productCount: number }> }) => {
-        const data: Record<string, any> = {};
-        await Promise.all(Object.keys(index.vendors).map(async (slug) => {
-          const r = await fetch(`/data/vendors/${slug}.json`);
-          const d = await r.json();
-          data[slug] = { name: d.name, productCount: d.productCount, products: d.products };
-        }));
-        setData(data);
-      })
+    loadReleaseCatalog<VendorData>()
+      .then(({ vendors }) => setData(vendors))
       .finally(() => setLoading(false));
   }, []);
 
@@ -154,7 +108,7 @@ function ProductContent() {
                     )}
 
                     <div className="space-y-1">
-                      {getDisplayParams(item.product).map(([key, val]) => (
+                      {getDisplayParams(item.product).slice(0, 4).map(([key, val]) => (
                         <div key={key} className="flex items-baseline gap-1 text-xs">
                           <span className="text-[#484f58] min-w-[55px] truncate">{key}:</span>
                           <span className="text-[#e6edf3] truncate">{val}</span>

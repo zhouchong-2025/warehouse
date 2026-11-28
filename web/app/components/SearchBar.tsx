@@ -1,7 +1,9 @@
 "use client";
 
-import { expandSearch } from "@/lib/synonyms";
-import type { LLMInterpretation } from "@/app/product-utils";
+import { useRef, useState } from "react";
+import VoiceInput from "./VoiceInput";
+import { displayConstraintTag, type LLMInterpretation } from "@/app/product-utils";
+import { normalizeVoiceTranscript, voiceTranscriptFields } from "@/lib/voice-transcript";
 
 type Props = {
   search: string;
@@ -11,6 +13,7 @@ type Props = {
   llmResult: LLMInterpretation;
   totalProducts: number;
   vendorCount: number;
+  modelAvailable: boolean;
 };
 
 export default function SearchBar({
@@ -21,82 +24,102 @@ export default function SearchBar({
   llmResult,
   totalProducts,
   vendorCount,
+  modelAvailable,
 }: Props) {
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceDraft, setVoiceDraft] = useState<string | null>(null);
+  const draftInput = useRef<HTMLTextAreaElement>(null);
+  const hasVoiceDraft = voiceDraft !== null;
+  const searchDisabled = llmLoading || voiceActive || hasVoiceDraft || !search.trim();
+  const voiceFields = voiceDraft === null ? [] : voiceTranscriptFields(voiceDraft);
+  const acceptVoiceDraft = () => {
+    const utterance = voiceDraft?.trim();
+    if (!utterance) return;
+    onSearchChange([search.trimEnd(), utterance].filter(Boolean).join('\n'));
+    setVoiceDraft(null);
+  };
   return (
     <section className="relative overflow-hidden border-b border-[#30363d]">
       <div className="absolute inset-0 bg-gradient-to-br from-[#1e6ef0]/10 via-transparent to-[#58a6ff]/5" />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
-        <h2 className="text-3xl sm:text-5xl font-bold mb-4">
+      <div className={`relative max-w-7xl mx-auto px-4 sm:px-6 ${llmResult ? 'py-5 sm:py-6' : 'py-12 sm:py-20'} text-center`}>
+        {!llmResult&&<h2 className="text-3xl sm:text-5xl font-bold mb-4">
           <span className="text-gradient">Teampo</span>
           <span className="text-white"> 选型平台</span>
-        </h2>
-        <p className="text-[#8b949e] text-lg max-w-2xl mx-auto mb-8">
+        </h2>}
+        {!llmResult&&<p className="text-[#8b949e] text-lg max-w-2xl mx-auto mb-8">
           纳芯微 · 思瑞浦 · 裕太微 — {totalProducts} 个芯片，智能评分排序
-        </p>
-        <div className="max-w-xl mx-auto relative">
-          <input
-            type="text"
+        </p>}
+        <div className="max-w-3xl mx-auto text-left">
+          <label htmlFor="selection-query" className="sr-only">选型需求</label>
+          <textarea
+            id="selection-query"
+            rows={3}
             value={search}
+            readOnly={voiceActive}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="搜索参数、应用需求，如 CAN-FD 特定帧唤醒..."
-            className="w-full px-5 py-3.5 pr-12 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#484f58] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base transition-all"
-            autoFocus
-            onKeyDown={(e) => { if (e.key === 'Enter' && search.trim()) onSearchSubmit(); }}
+            placeholder="输入或语音描述需求，如：车规 Buck，12V 转 3.3V，输出至少 3A…"
+            aria-describedby="voice-help"
+            className="w-full min-h-28 resize-y px-4 py-3 rounded-xl bg-[#161b22] border border-[#30363d] text-white placeholder-[#6e7681] focus:outline-none focus:border-[#1e6ef0] focus:ring-2 focus:ring-[#1e6ef0]/20 text-base leading-relaxed transition-all"
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !searchDisabled) { e.preventDefault(); onSearchSubmit(); } }}
           />
-          <button
-            onClick={() => {
-              if (search.trim().length >= 3) onSearchSubmit();
-            }}
-            disabled={llmLoading}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-[#1e6ef0]/10 hover:bg-[#1e6ef0]/20 border border-[#1e6ef0]/30 hover:border-[#1e6ef0]/50 transition-all disabled:opacity-50"
-            title="搜索"
-          >
-            {llmLoading ? (
-              <div className="w-4 h-4 border-2 border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4 text-[#58a6ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            )}
-          </button>
-        </div>
-        {/* Synonym hint */}
-        {search.trim() && (() => {
-          const expanded = expandSearch(search.trim());
-          const originalTerms = search.trim().toLowerCase().split(/\s+/);
-          const newTerms = expanded.split(/\s+/).filter(t => !originalTerms.includes(t));
-          if (newTerms.length === 0) return null;
-          return (
-            <div className="mt-2 flex items-center justify-center gap-1 text-xs text-[#484f58]">
-              <span>🔍 智能匹配:</span>
-              {newTerms.slice(0, 5).map(t => (
-                <span key={t} className="px-1.5 py-0.5 rounded bg-[#1e6ef0]/10 text-[#58a6ff]">{t}</span>
-              ))}
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <VoiceInput onTranscript={setVoiceDraft} onActiveChange={setVoiceActive} disabled={llmLoading} reviewPending={hasVoiceDraft} />
+            <button type="button" onClick={onSearchSubmit} disabled={searchDisabled}
+              className="min-h-11 shrink-0 px-5 rounded-lg bg-[#1e6ef0] text-sm font-medium text-white hover:bg-[#388bfd] focus-visible:outline-2 focus-visible:outline-[#58a6ff] disabled:opacity-50">
+              {llmLoading ? '搜索中…' : '搜索'}
+            </button>
+          </div>
+          {voiceDraft !== null && <section aria-label="语音转写核对" className="mt-3 rounded-lg border border-[#31556d] bg-[#10212b] p-3 text-sm text-[#c9d1d9]">
+            <label htmlFor="voice-draft" className="font-medium text-[#a5e6f5]">核对语音转写</label>
+            <p id="voice-draft-help" className="mt-1 text-xs">检查型号、数值和单位，可直接修改。点下方字段可定位原句。</p>
+            <textarea id="voice-draft" ref={draftInput} rows={3} value={voiceDraft} aria-describedby="voice-draft-help"
+              onChange={event => setVoiceDraft(event.target.value)}
+              className="mt-2 w-full rounded border border-[#466071] bg-[#161b22] px-3 py-2 text-base text-white focus-visible:outline-2 focus-visible:outline-[#58a6ff]" />
+            {voiceFields.length > 0 && <div className="mt-1 flex max-h-44 flex-wrap gap-1 overflow-y-auto">
+              {voiceFields.map(field => <button type="button" key={field.start} aria-label={`${field.kind} ${field.text}`}
+                className="min-h-9 max-w-full break-all rounded border border-[#466071] px-2 text-xs text-[#ffe6a4] hover:bg-[#1b3445]"
+                onClick={() => {
+                  draftInput.current?.focus();
+                  draftInput.current?.setSelectionRange(field.start, field.end);
+                }}>{field.text}</button>)}
+            </div>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={acceptVoiceDraft} disabled={!voiceDraft.trim()}
+                className="min-h-11 rounded bg-[#1e6ef0] px-3 font-medium text-white disabled:opacity-50">确认并填入</button>
+              {voiceFields.some(field => field.normalized) && <button type="button"
+                onClick={() => setVoiceDraft(normalizeVoiceTranscript(voiceDraft, voiceFields))}
+                className="min-h-11 px-2 text-[#a5e6f5]">统一数值写法</button>}
+              <button type="button" onClick={() => setVoiceDraft(null)} className="min-h-11 px-2">丢弃</button>
             </div>
-          );
-        })()}
+          </section>}
+          <p className="mt-1 text-xs text-[#8b949e]">Enter 搜索，Shift+Enter 换行。</p>
+        </div>
+        <p className="mt-2 text-xs text-[#8b949e]">点击搜索或按回车，将本次需求及相关资料片段发送给 DeepSeek，由模型理解完整需求后核验候选；输入过程中不调用模型。</p>
+        {!modelAvailable&&<p className="mt-1 text-xs text-[#8b949e]">提交时检查模型服务状态；不可用时提示重试，不切换到规则推荐。</p>}
         {/* LLM interpretation */}
         {llmLoading && (
           <div className="mt-2 flex items-center justify-center gap-2 text-xs text-[#484f58]">
             <div className="w-3 h-3 border border-[#58a6ff] border-t-transparent rounded-full animate-spin" />
-            <span>AI 正在理解您的需求...</span>
+            <span>正在检索与核验…</span>
           </div>
         )}
         {llmResult && !llmLoading && (
-          <div className="mt-2 max-w-xl mx-auto p-3 rounded-lg bg-[#3fb950]/5 border border-[#3fb950]/20 text-left">
+          <details className="mt-2 max-w-xl mx-auto px-3 py-2 rounded-lg border border-[#30363d] text-left">
+            <summary className="cursor-pointer text-xs text-[#8b949e]">查看本次识别的搜索条件</summary>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-[#3fb950] font-medium">🤖 AI 理解:</span>
+              <span className="text-xs text-[#3fb950] font-medium">{llmResult.executionAudit?.status === 'partial' ? '需求已理解 · 必要条件筛选未完成：' : llmResult._debug?.planStatus === 'unavailable' ? '需求理解未完成：' : llmResult._debug?.planStatus === 'component_screening' ? '1. 需求理解'  : llmResult._debug?.planStatus === 'engineering_only' ? '工程需求已理解，待补资料与核验：' : llmResult._debug?.planStatus === 'validated' ? '需求理解与核验：'
+                : llmResult._debug?.llmSucceeded ? llmResult._debug?.planStatus === 'unavailable' ? '模型回复待核验：' : '模型需求理解：' : llmResult._debug?.llmCalled ? '模型请求未完成：' : llmResult._debug?.reason === 'pn_exact_match' ? '目录型号查询：' : '目录查询结果：'}</span>
               <span className="text-xs text-[#8b949e]">置信度 {llmResult.confidence}</span>
             </div>
-            <p className="text-xs text-[#e6edf3]">{llmResult.explanation}</p>
+            {!llmResult.engineeringUnderstanding&&<p className="text-xs text-[#e6edf3]">{llmResult.explanation.replaceAll('车规AEC-Q100', '车规级')}</p>}
             {llmResult.features.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {llmResult.features.map(f => (
-                  <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950]">{f}</span>
+                  <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950]">{displayConstraintTag(f)}</span>
                 ))}
               </div>
             )}
-          </div>
+          </details>
         )}
       </div>
     </section>

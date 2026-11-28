@@ -6,6 +6,7 @@ export type SemanticEvidenceRule = {
   exclude: string[];
   fields: string[];
   auto: boolean;
+  storage: "feature_tag" | "source_evidence";
   aliases: string[];
   regex: string;
   keywords: string;
@@ -36,7 +37,7 @@ export function buildSemanticAliasMap(): Record<string, string[]> {
 }
 
 export function semanticRulesForTag(tag: string): SemanticEvidenceRule[] {
-  return loadSemanticEvidenceRules().filter((r) => r.tag === tag);
+  return loadSemanticEvidenceRules().filter((r) => r.tag.toLowerCase() === tag.toLowerCase());
 }
 
 export function buildSemanticParserRules(): SemanticParserRule[] {

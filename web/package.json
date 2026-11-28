@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "python3 ../scripts/check_runtime_release.py",
     "dev": "next dev",
-    "prebuild": "python3 ../scripts/generate_data.py && python3 ../scripts/compile_semantic_registry.py",
-    "build": "next build",
+    "prebuild": "python3 ../scripts/generate_data.py && python3 ../scripts/compile_semantic_registry.py && python3 ../scripts/check_runtime_release.py",
+    "build": "next build --webpack",
+    "build:deploy": "python3 ../scripts/verify_deploy_bundle.py && next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:api": "node --test tests/api-smoke.mjs",
+    "eval": "node ../eval/run.mjs",
+    "eval:candidates": "node --experimental-strip-types ../eval/run_candidate_recall.mjs",
+    "eval:wiki": "node --experimental-strip-types --test tests/wiki-pdf-eval.test.mjs",
+    "mine:semantic": "python3 ../scripts/mine_semantic_phrases.py"
   },
   "dependencies": {
     "next": "16.2.6",

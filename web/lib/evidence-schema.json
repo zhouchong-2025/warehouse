@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "fields": {
+    "package.bodyStyle": {"kind":"enum","roles":["mechanical"],"values":["wide","narrow"],"description":"原厂定义的宽体/窄体封装类别；不能证明爬电距离、认证或具体尺寸上限"},
+    "logic.translationDomains": {"kind":"voltage_pair","roles":["signal_interface","supply"],"unit":"V","description":"电平转换器支持的两个逻辑电压域；按原厂联合范围及约束核验，不证明速率、负载或任意电源电路"},
+    "io.poweroffIsolation": {"kind":"boolean","roles":["signal_interface","capability"],"description":"规定掉电状态下输出高阻/防反向供电能力；有有限漏电，不等于零电流，不证明未指定上拉电路"},
+    "lifecycle.status": {"kind":"enum","roles":["capability"],"values":["Production"],"description":"原厂在产状态，不表示现货、交期、价格或当前库存"}
+  }
+}

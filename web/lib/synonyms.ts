@@ -58,8 +58,8 @@ export const SALES_SYNONYMS: Record<string, string[]> = {
   "国产替代": ["P2P", "pin-to-pin", "兼容"],
   
   // Application domains
-  "汽车": ["automotive", "AEC", "Q100", "车规"],
-  "车规": ["automotive", "AEC-Q100", "Q1"],
+  "汽车": ["automotive", "车规"],
+  "车规": ["automotive", "汽车级"],
   "工业": ["industrial", "工业级"],
   "消费": ["consumer", "消费级"],
 };

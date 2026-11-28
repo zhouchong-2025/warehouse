@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "vendors": {
+    "yutai": {
+      "manufacturerId": "yutai",
+      "domains": [
+        "motor-comm.com"
+      ],
+      "displayName": "裕太微"
+    },
+    "novosense": {
+      "manufacturerId": "novosense",
+      "domains": [
+        "novosns.com",
+        "novosense.com"
+      ],
+      "displayName": "纳芯微"
+    },
+    "3peak-analog": {
+      "manufacturerId": "3peak",
+      "domains": [
+        "3peak.com"
+      ],
+      "displayName": "思瑞浦"
+    },
+    "3peak-auto": {
+      "manufacturerId": "3peak",
+      "domains": [
+        "3peak.com"
+      ],
+      "displayName": "思瑞浦"
+    },
+    "3peak-updates": {
+      "manufacturerId": "3peak",
+      "domains": [
+        "3peak.com"
+      ],
+      "displayName": "思瑞浦"
+    }
+  }
+}

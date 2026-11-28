@@ -3,7 +3,18 @@
 export type Product = Record<string, string>;
 export type VendorData = { name: string; productCount: number; products: Product[] };
 
+export function productIdentity(vendor: string, partNumber: string): string {
+  return JSON.stringify([vendor, partNumber]);
+}
+
+export function displayConstraintTag(tag: string): string {
+  return tag.replaceAll('车规AEC-Q100', '车规级');
+}
+
 export type SearchResult = {
+  requirementLedger?:import("./api/interpret/requirement-ledger").RequirementLedger;
+  pendingChecks?: import("@/app/api/interpret/pending-evidence").PendingEvidenceCheck[];
+  assessment?: import("@/app/api/interpret/selection-assessment").SelectionAssessment;
   vendor: string;
   vendorName: string;
   product: Product;
@@ -15,6 +26,8 @@ export type SearchResult = {
   matchSummary?: string;
   referenceOnly?: boolean;
   evidence?: { term: string; source: string }[];
+  parameterChecks?: Record<string, import("@/app/api/interpret/selection-spec").RequirementResult>;
+  sourceEvidence?: Record<string, import("@/app/api/interpret/source-facts").VerifiedSource[]>;
   downgradeHits?: Record<string, string>;
 };
 
@@ -25,12 +38,93 @@ export type VendorFilterOption = {
   slugs: string[];
 };
 
+export type ExactSelectionResult = {
+  matchCoverage?: {requiredTotal:number;requiredSupported:number;requiredPending:number;conflicts:number;preferredSupported:number;complete:boolean;possibleMismatch:boolean};
+  requirementLedger?:import("./api/interpret/requirement-ledger").RequirementLedger;
+  pendingChecks?: import("@/app/api/interpret/pending-evidence").PendingEvidenceCheck[];
+  assessment: import("@/app/api/interpret/selection-assessment").SelectionAssessment;
+  pn: string;
+  vendor: string;
+  tier: number;
+  branchMustTags?: string[];
+  rdson?: string;
+  score: number;
+  mustHit: string[];
+  missingTags?: string[];
+  mustUnknown?: string[];
+  niceHit: string[];
+  downgradeHits: Record<string, string>;
+  parameterChecks: Record<string, import("@/app/api/interpret/selection-spec").RequirementResult>;
+  sourceEvidence: Record<string, import("@/app/api/interpret/source-facts").VerifiedSource[]>;
+};
+
+/** Adapt the API's canonical selection assessment for display without re-scoring it in the browser. */
+export function mapApiSelectionResults(
+  apiResults: ExactSelectionResult[],
+  products: { vendor: string; vendorName: string; product: Product }[],
+  mustTags: string[],
+  niceTags: string[],
+): SearchResult[] {
+  return apiResults.flatMap(result => {
+    const product = products.find(item => item.product.part_number === result.pn && item.vendor === result.vendor);
+    if (!product) return [];
+    const missingNice = niceTags.filter(tag => !result.niceHit.includes(tag));
+    const missingTerms = [...(result.missingTags || []).map(tag =>
+      result.mustUnknown?.includes(tag) ? `${tag}（参数待确认）` : tag), ...missingNice];
+    const matchedTerms = [...result.mustHit, ...result.niceHit];
+    const unconfirmed = (result.pendingChecks || []).filter(check => check.blocksMatch && check.status !== 'supported');
+    return [{
+      vendor: product.vendor,
+      vendorName: product.vendorName,
+      product: product.product,
+      score: result.score,
+      matchedTerms,
+      missingTerms,
+      missingNice,
+      ...(result.requirementLedger?{requirementLedger:result.requirementLedger}:{}),
+      matchSummary: result.requirementLedger
+        ? `${result.requirementLedger.entries.filter(e=>e.required&&e.status==='supported').length}/${result.requirementLedger.entries.filter(e=>e.required).length}项必需条件有证据 · ${result.requirementLedger.entries.filter(e=>e.required&&e.status!=='supported').length}项待核`
+        : result.tier === 1
+        ? `${matchedTerms.length}/${(result.branchMustTags || mustTags).length + niceTags.length} 条件`
+        : result.pendingChecks?.length
+          ? `${result.mustHit.length}项已核验 · ${unconfirmed.length}项待核`
+          : `${result.mustHit.length}/${(result.branchMustTags || mustTags).length} 条硬条件`,
+      referenceOnly: result.tier !== 1,
+      nicePartial: result.tier === 1 && missingNice.length > 0,
+      evidence: getEvidenceSources(product.product, matchedTerms).map(item =>
+        result.sourceEvidence?.[item.term]?.length ? { ...item, source: '审阅来源' } : item),
+      parameterChecks: result.parameterChecks,
+      sourceEvidence: result.sourceEvidence,
+      assessment: result.assessment,
+      downgradeHits: result.downgradeHits,
+      pendingChecks: result.pendingChecks,
+    }];
+  });
+}
+
 export type LLMInterpretation = {
+  competitorReplacement?:import('./api/interpret/competitor-replacement').CompetitorResult;
+  replacementPilot?:import('./api/interpret/replacement-pilot').ReplacementPilot;
+  pipelineAudit?:import("./api/interpret/selection-integrity").SelectionIntegrity;
+  modelConsentRequired?: boolean;
+  totalMatches?: number;
   features: string[];
   vendor: string | null;
   category_hint: string | null;
   explanation: string;
   confidence: string;
+  _debug?: { modelUsage?: {requestId?:string}; llmCalled?: boolean; llmSucceeded?: boolean; planStatus?: string; reason?: string };
+  componentSearch?: import('./api/interpret/engineering-modules').ModuleSearchSummary;
+  engineeringUnderstanding?: import('./api/interpret/engineering-understanding').EngineeringUnderstanding | null;
+  executionAudit?: import('./api/interpret/execution-contract').ExecutionAudit;
+  searchMapping?: {status:string;summary:string;issues:string[]};
+  engineeringReview?: import('./api/interpret/engineering-review').EngineeringReview;
+  researchReview?: import('./api/interpret/engineering-review').EngineeringReview;
+  faeResearch?: import('./api/interpret/fae-research').FaeResearch;
+  retrievalCoverage?: {eligible:number;retained:number;limit:number;manufacturerGroups:number;retainedManufacturerGroups:number};
+  sourceAccess?: {catalogProducts:number;categoryProducts:number;coreEvidenceGaps:number;selectedCandidates:number;researchLeads:number;reviewedCandidates:number;reviewFactCount:number};
+  researchLeads?: {pn:string;vendor:string;supportedConditions?:string[];missingConditions:string[];reason:string;pendingChecks?:import('./api/interpret/pending-evidence').PendingEvidenceCheck[];evidence:import('./api/interpret/source-facts').VerifiedSource[]}[];
+  querySpec?: import("@/app/api/interpret/selection-spec").QuerySpec;
   suggestions?: { text: string; query: string; reason: string }[];
   exclude_tags?: string[];
   must?: string[];
@@ -39,27 +133,50 @@ export type LLMInterpretation = {
   sortKey?: import("@/app/api/interpret/constraint-match").SortIntent;
   intent?: 'spec_search' | 'cross_ref';
   crossRefTarget?: string;
+  results?: ExactSelectionResult[];
+  wikiHits?: import("@/lib/wiki-search-types").WikiSearchHit[];
+  modelCheck?: { pn: string; vendor: string; status: 'matched' | 'unmatched' | 'unknown';
+    matched: string[]; unmatched: string[]; unknown: string[] };
+  constraintBanner?: string;
+  modelLimitNotice?: string;
+  solutionDirections?: import('./api/interpret/solution-directions').SolutionDirection[];
+  screeningExcluded?: { pn: string; vendor: string; reasons: string[];
+    evidence: import("@/app/api/interpret/source-facts").VerifiedSource[] }[];
+  excludedByOperating?: { pn: string; vendor: string;
+    assessment: import("@/app/api/interpret/selection-assessment").SelectionAssessment }[];
 } | null;
 
-export const CATEGORY_BADGE_PRIORITY = [
-  "隔离栅极驱动", "非隔离栅极驱动", "栅极驱动", "数字隔离器", "隔离电源", "隔离放大器",
-  "马达驱动", "模拟开关", "电平转换", "IO扩展器", "IO扩展", "交换机", "网卡", "以太网供电",
-  "CAN-FD", "LIN", "RS-485", "RS-232", "MLVDS", "SBC",
-  "DCDC", "降压", "升压", "LDO", "电压基准", "ADC", "DAC",
-  "比较器", "运放", "放大器",
-  "电流传感器", "温度传感器", "压力传感器", "线性位置传感器", "磁阻角度编码器", "霍尔角度编码器",
-  "磁阻开关/锁存器", "霍尔开关/锁存器", "位置传感器", "速度传感器",
-  "负载开关", "高边开关", "高边驱动", "电源时序", "复位芯片", "电子保险丝", "理想二极管",
-  "电池监控", "BMS", "传感器接口", "匹配电阻", "视频滤波", "音频功放", "音频总线", "逻辑门",
-] as const;
-
-export const CATEGORY_BADGE_SET = new Set<string>(CATEGORY_BADGE_PRIORITY);
+/** Preserve risk hints alongside unknown status; never convert a hint into a rejection. */
+export function pendingRequirementReview(result: LLMInterpretation) {
+  if (result?.category_hint !== '完整需求计划') return [];
+  const pending = [...(result.querySpec?.unresolved || [])];
+  for (const candidate of result.results || []) for (const check of candidate.pendingChecks || []) {
+    if (check.status !== 'unknown' || pending.some(item => item.source.text === check.source)) continue;
+    const at = result.querySpec?.text.indexOf(check.source) ?? -1;
+    pending.push({ source: { text: check.source, start: at, end: at + check.source.length, origin: 'model' }, reason: check.reason, kind: 'evidence' });
+  }
+  return pending.map(item => {
+    const checks = (result.results || []).flatMap(candidate => candidate.pendingChecks || [])
+      .filter(check => check.source === item.source.text);
+    const unique = (values: (string | undefined)[]) => [...new Set(values.filter((value): value is string => Boolean(value)))];
+    const customLabels = unique(checks.map(check => check.statusText));
+    const label = checks.some(check => check.status === 'contradicted') ? '已有不满足证据'
+      : checks.length && checks.every(check => check.status === 'supported') ? '有证据支持'
+      : customLabels.length === 1 && checks.every(check => check.statusText === customLabels[0]) ? customLabels[0]
+      : checks.some(check => check.attention === 'possible_mismatch') ? '可能不满足，需补证据'
+      : checks.some(check => check.attention === 'clarification') ? '口径待确认，满足性未证实'
+      : '缺少证据，暂不能判断';
+    return { source: item.source.text, label,
+      observations: unique(checks.map(check => check.observed)),
+      reasons: unique(checks.map(check => check.reason)).length
+        ? unique(checks.map(check => check.reason)) : [item.reason],
+      nextSteps: unique(checks.map(check => check.nextStep)),
+      pages: [...new Set(checks.flatMap(check => check.evidence.map(source => source.page)))],
+    };
+  });
+}
 
 export function getCategoryBadge(product: Product): string {
-  const tokens = (product._features || "").split(/\s+/).filter(Boolean);
-  for (const tag of CATEGORY_BADGE_PRIORITY) {
-    if (tokens.includes(tag)) return tag;
-  }
   return (product._section || "").trim();
 }
 
@@ -71,43 +188,29 @@ export function getEvidenceSources(product: Product, matchedTerms: string[]): { 
   const params = (product._params || "").toLowerCase();
   const section = (product._section || "").toLowerCase();
   const features = (product._features || "").toLowerCase();
+  const detailScope = (product as unknown as { _detail_source?: { scope?: string } })._detail_source?.scope;
+  const searchContext = (product as unknown as {
+    _search_context?: { text?: string; source?: { scope?: string; selectionUse?: string } }
+  })._search_context;
 
   for (const term of matchedTerms) {
     const t = term.toLowerCase();
-    const sources: string[] = [];
-
-    if (detailIntro.length > 10 && (detailIntro.includes(t) || detailFeatures.includes(t))) {
-      const techTerms: Record<string, RegExp> = {
-        '霍尔': /(?:线性)?霍尔|hall\s*effect/i,
-        '磁阻': /tmr|amr|磁阻|magnetoresistive/i,
-        'SIC': /\bsic\b|signal.improvement/i,
-        '特定帧唤醒': /selective\s*wake|partial\s*network|特定帧唤醒/i,
-      };
-      const techRe = techTerms[term];
-      const target = detailIntro + ' ' + detailFeatures;
-      if (techRe && techRe.test(target)) {
-        sources.push('产品介绍');
-      } else {
-        sources.push('产品介绍');
-      }
-    }
-
+    let source = '来源待核';
     if (params.length > 5 && params.includes(t)) {
-      sources.push('参数表');
+      source = '参数表';
+    } else if (section.length > 3 && section.includes(t)) {
+      source = '选型表';
+    } else if (searchContext?.source?.selectionUse === 'context_only'
+        && searchContext.text?.toLowerCase().includes(t)) {
+      source = searchContext.source.scope === 'family' ? '系列原页（仅供参考）'
+        : '型号原页（仅供参考）';
+    } else if (detailIntro.includes(t) || detailFeatures.includes(t)) {
+      source = detailScope === 'family' ? '系列介绍（仅供参考）'
+        : detailScope === 'model' ? '型号介绍（待核）' : '介绍文字（待核）';
+    } else if (features.split(/\s+/).includes(t)) {
+      source = '旧标签（待核）';
     }
-
-    if (section.length > 3 && section.includes(t)) {
-      sources.push('选型表');
-    }
-
-    if (features.includes(t)) {
-      sources.push('产品标签');
-    }
-
-    evidence.push({
-      term,
-      source: sources[0] || '产品标签',
-    });
+    evidence.push({ term, source });
   }
   return evidence;
 }
@@ -144,23 +247,5 @@ export function getDisplayParams(p: Product): [string, string][] {
     }
     if (chosen.length >= 6) break;
   }
-  if (chosen.length > 0) return chosen.slice(0, 6);
-
-  const priority = [
-    "_section", "package", "封装", "status", "状态", "supply_v_min", "supply_v_max",
-    "gbw_mhz", "channels", "rating", "temp_range", "工作温度",
-    "description", "产品描述", "category", "process_node", "ports",
-  ];
-  const params: [string, string][] = [];
-  for (const key of priority) {
-    if (p[key] && p[key].length < 60) {
-      params.push([key.replace(/_/g, " "), p[key]]);
-    }
-  }
-  for (const [k, v] of Object.entries(p)) {
-    if (!priority.includes(k) && v && v.length < 40 && k !== "part_number" && k !== "vendor_section" && !k.startsWith("param_")) {
-      if (params.length < 8) params.push([k.replace(/_/g, " "), v]);
-    }
-  }
-  return params.slice(0, 6);
+  return chosen.slice(0, 6);
 }
