@@ -1,6 +1,21 @@
 /** Encode browser-decoded audio as bounded mono 16-bit PCM, without rewriting speech. */
 export const VOICE_SAMPLE_RATE = 16000;
 export const VOICE_MAX_SECONDS = 60;
+
+export async function prepareVoiceWav(context: AudioContext, recording: ArrayBuffer): Promise<ArrayBuffer> {
+  const decoded = await context.decodeAudioData(recording);
+  if (decoded.duration > VOICE_MAX_SECONDS + 0.5) throw new Error('录音超过60秒，请缩短后重试。');
+  const frames = Math.min(VOICE_MAX_SECONDS * VOICE_SAMPLE_RATE, Math.ceil(decoded.duration * VOICE_SAMPLE_RATE));
+  if (!frames) throw new Error('录音没有采集到声音，请检查此站点使用的麦克风和静音状态。');
+  const offline = new OfflineAudioContext(1, frames, VOICE_SAMPLE_RATE);
+  const source = offline.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offline.destination);
+  source.start();
+  const pcm = await offline.startRendering();
+  return encodeVoiceWav(pcm.getChannelData(0));
+}
+
 export function encodeVoiceWav(samples: Float32Array): ArrayBuffer {
   if (!samples.length || samples.length > VOICE_SAMPLE_RATE * VOICE_MAX_SECONDS) throw new Error('录音须在60秒以内。');
   const buffer = new ArrayBuffer(44 + samples.length * 2), view = new DataView(buffer);
