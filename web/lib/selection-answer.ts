@@ -16,12 +16,13 @@ export function nextAction({entry,status,online}:Condition):Destination {
 export function selectionAnswer(row:{conditions:Condition[];complete:boolean;conflicts:number;result:{product:{part_number?:unknown}}},
   parameters:ParameterMatchRow[]) {
   const required = row.conditions.filter(item=>item.entry.required);
-  if (!required.length) return null;
+  const hasComparablePreference=row.conditions.some(c=>!c.entry.required && c.entry.readings?.length);
+  if (!required.length && !hasComparablePreference) return null;
   const supported = required.filter(item=>item.status==='supported');
   const gap = required.find(item=>item.status==='contradicted'||item.status==='conflict') ??
     required.find(item=>item.status==='clarification') ??
     required.find(item=>item.status!=='supported');
-  const title = row.conflicts ? '存在关键冲突' : row.complete ? '已核条件均满足' :
+  const title = row.conflicts ? '存在关键冲突' : !required.length ? '按偏好规格初选' : row.complete && row.conditions.some(c=>!c.entry.required && c.entry.comparisonMetric) ? '必需条件已核，偏好按规格初选' : row.complete ? '已核条件均满足' :
     supported.length ? '可继续评估' : '待核资料线索';
   const values = parameters.filter(item=>item.unmatched && item.requirementId===gap?.entry.requirementId).slice(0,2);
   const nearLimit = parameters.find(parameter=>!parameter.unmatched && parameter.value!=='规格待核' &&

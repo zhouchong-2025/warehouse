@@ -18,7 +18,8 @@ export function evidenceMatchSummary(item:RankedEvidence){
 export function compareEvidenceCoverage(a:RankedEvidence,b:RankedEvidence){
  const x=evidenceMatchSummary(a),y=evidenceMatchSummary(b);
  return Number(x.conflicts > 0)-Number(y.conflicts > 0)||Number(y.complete)-Number(x.complete)||y.requiredSupported-x.requiredSupported||x.conflicts-y.conflicts
-  ||x.requiredPending-y.requiredPending||Number(x.possibleMismatch)-Number(y.possibleMismatch)||y.preferredSupported-x.preferredSupported;
+  ||x.requiredPending-y.requiredPending||Number(x.possibleMismatch)-Number(y.possibleMismatch)||y.preferredSupported-x.preferredSupported
+  || Number(!!b.requirementLedger?.entries.some(e=>e.readings?.length))-Number(!!a.requirementLedger?.entries.some(e=>e.readings?.length));
 }
 
 /** Reorder within equal-coverage slots only. Sorting within buckets keeps the

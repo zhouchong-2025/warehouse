@@ -1,0 +1,62 @@
+[
+  {
+    "vendor": "novosense",
+    "part": "NST1001",
+    "field": "temperatureAccuracy",
+    "document": "纳芯微产品选型指南_202510.pdf",
+    "documentSha256": "5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c",
+    "header": "最高精度",
+    "page": 93,
+    "package": "",
+    "quote": "25℃~45℃范围内精度：±0.2℃ ( 典型值) @ NST1001",
+    "summary": "25–45℃ 典型 ±0.2℃"
+  },
+  {
+    "vendor": "novosense",
+    "part": "NST1001HA",
+    "field": "temperatureAccuracy",
+    "document": "纳芯微产品选型指南_202510.pdf",
+    "documentSha256": "5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c",
+    "header": "最高精度",
+    "page": 93,
+    "package": "",
+    "quote": "25℃~45℃范围内精度：±0.2℃ ( 最大值) @ NST1001HA",
+    "summary": "25–45℃ 最大 ±0.2℃"
+  },
+  {
+    "vendor": "novosense",
+    "part": "NST118",
+    "field": "temperatureAccuracy",
+    "document": "纳芯微产品选型指南_202510.pdf",
+    "documentSha256": "5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c",
+    "header": "最高精度",
+    "page": 98,
+    "package": "",
+    "quote": "25℃~45℃超高精度：±0.2℃（最大值）",
+    "summary": "25–45℃ 最大 ±0.2℃"
+  },
+  {
+    "vendor": "novosense",
+    "part": "NST112x",
+    "field": "temperatureAccuracy",
+    "document": "纳芯微产品选型指南_202510.pdf",
+    "documentSha256": "5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c",
+    "header": "最高精度",
+    "page": 100,
+    "package": "DSBGA-4",
+    "quote": "25℃~45℃：±0.1℃（典型值）@DSBGA",
+    "summary": "DSBGA，25–45℃ 典型 ±0.1℃"
+  },
+  {
+    "vendor": "novosense",
+    "part": "NST1002",
+    "field": "temperatureAccuracy",
+    "document": "纳芯微产品选型指南_202510.pdf",
+    "documentSha256": "5e1e90e2c8da3439fb2aa2f7bf8c9b763bbe194f7d9bd6f935c3882ea18e4b9c",
+    "header": "最高精度",
+    "page": 94,
+    "package": "",
+    "quote": "DFN-2L\n0℃~85℃范围内精度：±0.1℃ ( 典型值) ±0.25℃ ( 最大值)",
+    "summary": "DFN-2L 版本，0–85℃ 典型 ±0.1℃、最大 ±0.25℃"
+  }
+]

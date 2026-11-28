@@ -14,6 +14,8 @@ import { PARAMETERS, sourceMeasurements } from './selection-spec';
 import type { WholeQueryPlan } from './whole-query-plan';
 
 export type EngineeringRequirement = {
+  comparisonField?:keyof typeof PARAMETERS;
+  comparisonDirection?:'lower'|'higher';
   comparisonMetric?:import('./comparison-goal').ComparisonMetric;
   id: string; source: string; object: string;
   role: 'supply' | 'regulated_output' | 'load' | 'measurement' | 'signal_interface' | 'resource' | 'environment' | 'mechanical' | 'capability';
@@ -129,6 +131,8 @@ export function checkEngineeringUnderstanding(raw: unknown, query: string, catal
       ||!['parameter','application','document','clarification'].includes(r.verification)
       ||!Array.isArray(r.searchFields)||r.searchFields.length>12||!r.searchFields.every(x=>str(x,60))
       ||r.searchFeatures!==undefined&&(!Array.isArray(r.searchFeatures)||r.searchFeatures.length>12||r.verification==='clarification'&&r.searchFeatures.length>0||!r.searchFeatures.every(t=>str(t,100)&&getAllKnownTags().has(t)&&!CATEGORY_TAG_NAMES.has(t))))return null;
+    if(r.comparisonField!==undefined && (!Object.hasOwn(PARAMETERS,r.comparisonField) || r.comparisonMetric!=='other'
+      || !['lower','higher'].includes(r.comparisonDirection||'') || searchFieldRoleIssue(r.role,r.comparisonField)))return null;
     if(r.bindingDeclaration&&(!['parameter','application','document','clarification'].includes(r.bindingDeclaration.verification)||!Array.isArray(r.bindingDeclaration.fields)||!r.bindingDeclaration.fields.every(f=>str(f,60))||!Array.isArray(r.bindingDeclaration.features)||!r.bindingDeclaration.features.every(f=>str(f,100))))return null;
     if(r.bindingFailures&&(!Array.isArray(r.bindingFailures)||r.bindingFailures.length>40||!r.bindingFailures.every(f=>f&&['quantity','field_role','field_schema','proof_query','identity'].includes(f.stage)&&str(f.reason,1400)&&(f.field===undefined||str(f.field,60)))))return null;
     if(r.bindingDeferral&&(!str(r.bindingDeferral.reason,800)||!Array.isArray(r.bindingDeferral.declaredFields)||!r.bindingDeferral.declaredFields.every(f=>str(f,60))))return null;

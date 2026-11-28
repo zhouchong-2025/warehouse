@@ -1,4 +1,4 @@
-import {comparisonReadings,knownComparisonMetric,type ComparisonMetric,type ComparisonReading} from './comparison-goal';
+import {catalogComparisonReadings,comparisonReadings,knownComparisonMetric,type ComparisonMetric,type ComparisonReading} from './comparison-goal';
 import {atomicJointSourceCovered} from './query_parser';
 import {manufacturerGroup,manufacturerIdForName} from './candidate-coverage';
 import {catalogProvesPrimaryClass} from './device-identity';
@@ -42,7 +42,7 @@ export function buildRequirementLedger(input:Input):RequirementLedger{
   if(r.manufacturerConstraint && manufacturerIdForName(r.source.trim().replace(/^(?:只看|只要|仅限|不要|排除)/,'').replace(/的$/,''))===manufacturerIdForName(r.manufacturerConstraint.name)){const wanted=manufacturerIdForName(r.manufacturerConstraint.name);const matches=wanted===manufacturerGroup(product.__vendor);return {...common,status:wanted===null?'unknown' as const:(r.manufacturerConstraint.mode==='include'?matches:!matches)?'supported' as const:'contradicted' as const,reason:wanted===null?'厂商名称尚未绑定已注册身份':`同版目录厂商身份：${manufacturerGroup(product.__vendor)}；原始厂商条件：${r.manufacturerConstraint.mode} ${r.manufacturerConstraint.name}`,evidence:[]};}
   const execution=input.execution?.find(e=>e.requirementId===r.id);
   if(knownComparisonMetric(r.comparisonMetric)&&!r.identityCategory&&!r.searchFields.length&&!r.searchFeatures?.length&&r.verification==='document'&&execution?.status!=='execution_failed'){
-    const readings=comparisonReadings(r.comparisonMetric,facts.filter(f=>f.scope==='self'&&!f.applicability).map(f=>f.source));
+    const readings=r.comparisonMetric==='other' ? catalogComparisonReadings(product,r,facts) : comparisonReadings(r.comparisonMetric,facts.filter(f=>f.scope==='self'&&!f.applicability).map(f=>f.source));
     return {...common,comparisonMetric:r.comparisonMetric,readings,status:'unknown' as const,
       evidence:readings.map(reading=>reading.source),reason:readings.length?'已查到该型号规格，客户尚未指定通过门槛':'待补该型号相应指标及测试工况'};
   }

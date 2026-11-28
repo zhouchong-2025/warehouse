@@ -73,6 +73,8 @@ export function mapApiSelectionResults(
       result.mustUnknown?.includes(tag) ? `${tag}（参数待确认）` : tag), ...missingNice];
     const matchedTerms = [...result.mustHit, ...result.niceHit];
     const unconfirmed = (result.pendingChecks || []).filter(check => check.blocksMatch && check.status !== 'supported');
+    const required=result.requirementLedger?.entries.filter(e=>e.required);
+    const supported=required?.filter(e=>e.status==='supported').length ?? 0;
     return [{
       vendor: product.vendor,
       vendorName: product.vendorName,
@@ -82,8 +84,8 @@ export function mapApiSelectionResults(
       missingTerms,
       missingNice,
       ...(result.requirementLedger?{requirementLedger:result.requirementLedger}:{}),
-      matchSummary: result.requirementLedger
-        ? `${result.requirementLedger.entries.filter(e=>e.required&&e.status==='supported').length}/${result.requirementLedger.entries.filter(e=>e.required).length}项必需条件有证据 · ${result.requirementLedger.entries.filter(e=>e.required&&e.status!=='supported').length}项待核`
+      matchSummary: required
+        ? required.length ? `${supported}/${required.length}项必需条件有证据 · ${required.length-supported}项待核` : '未指定硬性参数'
         : result.tier === 1
         ? `${matchedTerms.length}/${(result.branchMustTags || mustTags).length + niceTags.length} 条件`
         : result.pendingChecks?.length

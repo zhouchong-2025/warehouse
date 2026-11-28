@@ -635,7 +635,8 @@ export async function searchNormalizedWholeQuery(query: string, releaseId: strin
         : '需求已解析，但现有目录尚未找到可核验的候选；资料不足与无匹配需要分别补查，这不是模型发送失败。'
       : unresolved
       ? `以下是目录初筛资料候选，并非完整方案推荐；品类或少量参数命中不能证明适用。按原始必需条件的有证据满足数量从多到少排序，同等覆盖下风险项后置；待核不计为满足。每项缺证和可能不满足的条件见型号卡片。${screeningExcluded.length ? `已按型号证据及约束核验剔除 ${screeningExcluded.length} 款。` : ''}`
-      : selected.length ? `按 ${plan.branches.length} 种需求方案核验，找到 ${ordered.length} 款满足已表达条件的型号。`
+      : selected.some(item=>item.requirementLedger?.entries.some(e=>e.comparisonMetric)) ? `初筛保留 ${selected.length} 款。比较偏好按可用规格作参考，同表同口径内排序；未给出通过门槛。`
+        : selected.length ? `按 ${plan.branches.length} 种需求方案核验，找到 ${ordered.length} 款满足已表达条件的型号。`
         : '目录中未找到逐型号证据满足完整需求的型号；不能据此断定市场上没有对应方案。',
     screeningExcluded,
     sourceAccess,retrievalCoverage,productKnowledge:{version:1,releaseId,indexedProducts:knowledge.packets.size,candidates:selected.flatMap(({score})=>{const p=knowledge.packets.get(`${score.product.__vendor}:${score.product.part_number}`);return p?[packetSummary(p)]:[];})},
