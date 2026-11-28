@@ -31,3 +31,16 @@ export function uncoveredIntent(query: string, sources: string[]): string[] {
   }
   return [...new Set(residuals)];
 }
+
+/** Keep omitted number/unit fragments visible even when the unit is unfamiliar. */
+export function uncoveredQuantityFragments(query: string, sources: string[]): string[] {
+  const residual = uncoveredCharacters(query, sources);
+  const fragments = [...query.matchAll(/(?<![A-Za-z0-9.+-])\d+(?:\.\d+)?\s*\p{Script=Han}(?=的|[，,；;。！？!?]|$)/gu)];
+  return [...new Set(fragments.filter(match => {
+    const start = match.index!;
+    const source = match[0];
+    // Ordinary time references and request scaffolding do not assert a spec.
+    if (/[年月日颗款个]$/u.test(source)) return false;
+    return /[\d\p{Script=Han}]/u.test(residual.slice(start, start + source.length));
+  }).map(match => match[0]))];
+}

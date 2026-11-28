@@ -7,7 +7,7 @@ import { analyzeFaeIntent, compileFaeBindings, frozenIntentIssues, FAE_BINDING_P
 import { PROJECT_QUALIFICATION_POLICY } from './qualification-policy';
 import {deepSeekRequestOptions} from '../../../lib/deepseek-policy';
 /** Model-authored engineering meaning precedes catalog vocabulary and search filters. */
-import { uncoveredIntent, uncoveredCharacters, selectionRequestOnly } from './intent-coverage';
+import { uncoveredIntent, uncoveredCharacters, uncoveredQuantityFragments, selectionRequestOnly } from './intent-coverage';
 import { parsePlanContent } from './plan-content';
 import { CATEGORY_TAG_NAMES, categorySourceMatches, featureSourceMatches, getAllKnownTags } from './query_parser';
 import { PARAMETERS, sourceMeasurements } from './selection-spec';
@@ -285,6 +285,9 @@ function understandingSources(query:string,u:EngineeringUnderstanding):string[]{
 export function missingUnderstandingSources(query:string,u:EngineeringUnderstanding):string[]{
   return uncoveredIntent(query,understandingSources(query,u));
 }
+function uncoveredQuantityRequirements(query:string,u:EngineeringUnderstanding):string[]{
+  return uncoveredQuantityFragments(query,[...u.requirements.map(r=>r.source), ...u.questions.map(q=>q.source)]);
+}
 function hasUncoveredTechnicalValues(query:string,u:EngineeringUnderstanding):boolean{
   const residual=uncoveredCharacters(query,understandingSources(query,u));
   const known=new Set(u.requirements.flatMap(r=>sourceMeasurements(r.source)).map(m=>`${m.value}:${m.unit}`));
@@ -369,11 +372,12 @@ export async function understandEngineering(query:string,key:string,fetcher:type
       checked.requirements=checked.requirements.map(r=>({...r,necessity:faeIntent!.requirements.find(i=>i.id===r.id)!.necessity,
         knowledgeBasis:faeIntent!.requirements.find(i=>i.id===r.id)!.knowledgeBasis}));
     }
+    const quantityGaps=checked?uncoveredQuantityRequirements(query,checked):[];
     const missing=checked?missingUnderstandingSources(query,checked):[];
     // Lexical coverage is a hint, not a second semantic classifier. An
     // independently reviewed task may retain application context in task rather
     // than repeat it as a capability. Quantities/qualification gaps still repair.
-    if(checked&&(!missing.length||auditEnabled&&!hasUncoveredTechnicalValues(query,checked))){
+    if(checked&&!quantityGaps.length&&(!missing.length||auditEnabled&&!hasUncoveredTechnicalValues(query,checked))){
       if(!auditEnabled)return checked;
       // Separate context, no catalog suggestions or earlier reviewer conclusions.
       let audit:MeaningAudit|null=null;
@@ -385,7 +389,13 @@ export async function understandEngineering(query:string,key:string,fetcher:type
       if(semanticRepairs++>=1){const error=new EngineeringStageError('semantic_validation');error.validationIssues=issues;throw error;}
       continue;
     }
-    previous=faeIntent?modelRaw:raw;issues=checked?missing.map(source=>`原始条件未被需求或待澄清问题覆盖：“${source}”。须逐项补充对象、含义与工况；仅在方案说明中引用不算覆盖，不要放宽原条件。`)
+    if(checked && quantityGaps.length && faeIntent){
+      // Binding cannot recover a condition absent from the already-frozen intent.
+      const error=new EngineeringStageError('understanding_validation');
+      error.validationIssues=quantityGaps.map(source=>`原始条件未被需求或待澄清问题覆盖：“${source}”。请核对这项数值和单位后再搜索。`);
+      throw error;
+    }
+    previous=faeIntent?modelRaw:raw;issues=checked?[...new Set([...quantityGaps,...missing])].map(source=>`原始条件未被需求或待澄清问题覆盖：“${source}”。须逐项补充对象、含义与工况；仅在方案说明中引用不算覆盖，不要放宽原条件。`)
       :frozenIssues.length?frozenIssues:engineeringUnderstandingIssues(raw,query,catalogSections);
     // One extra bounded repair only when at least one previously diagnosed
     // structural error was resolved, even if another error was exposed. Identical failures still stop after two.
