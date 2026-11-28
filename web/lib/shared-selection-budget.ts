@@ -1,4 +1,4 @@
-import {acquireRedisSelectionBudget, type BudgetAdmission} from './redis-selection-budget';
+import {acquireRedisSelectionBudget, selectionRedisCredentials, type BudgetAdmission} from './redis-selection-budget';
 
 type WindowUsage = { startedAt: number; calls: number; estimatedCny: number; reservedCny: number; unpriced: boolean };
 type SharedUsage = { inFlight: number; window: WindowUsage };
@@ -19,7 +19,8 @@ export function acquireSharedSelectionBudget(): BudgetAdmission | Promise<Budget
   if (concurrency === undefined && calls === undefined && maxCny === undefined) return { finish: (_cost?: number) => {} };
   const duration = positiveEnv('DEEPSEEK_SELECTION_WINDOW_MS') ?? 60_000;
   const reserve = maxCny === undefined ? 0 : positiveEnv('DEEPSEEK_SELECTION_RESERVE_PEAK_CNY_PER_CALL') ?? maxCny;
-  if (process.env.DEEPSEEK_SELECTION_REDIS_REST_URL || process.env.DEEPSEEK_SELECTION_REDIS_REST_TOKEN || process.env.VERCEL === '1') {
+  const redis = selectionRedisCredentials();
+  if (redis.url || redis.token || process.env.VERCEL === '1') {
     return acquireRedisSelectionBudget({ concurrency, calls, maxCny, duration, reserve });
   }
   const now = Date.now();

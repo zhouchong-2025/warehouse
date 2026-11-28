@@ -6,6 +6,18 @@ type Limits = { concurrency?: number; calls?: number; maxCny?: number; duration:
 const leaseMs = 120_000;
 export const sharedModelTimeoutMs = 90_000;
 
+export function selectionRedisCredentials(env = process.env) {
+  const configured = {
+    url: env.DEEPSEEK_SELECTION_REDIS_REST_URL,
+    token: env.DEEPSEEK_SELECTION_REDIS_REST_TOKEN,
+  };
+  // The explicit pair remains authoritative. Vercel's native integration
+  // supplies its own pair without requiring secrets to be copied by hand.
+  return configured.url || configured.token
+    ? configured
+    : { url: env.KV_REST_API_URL, token: env.KV_REST_API_TOKEN };
+}
+
 // One atomic operation per admission or settlement. Redis time keeps differently
 // clocked application instances on the same window and lease schedule.
 const script = `
@@ -55,8 +67,7 @@ return 'ok'
 `;
 
 export async function acquireRedisSelectionBudget(limits: Limits): Promise<BudgetAdmission> {
-  const url = process.env.DEEPSEEK_SELECTION_REDIS_REST_URL;
-  const token = process.env.DEEPSEEK_SELECTION_REDIS_REST_TOKEN;
+  const {url,token} = selectionRedisCredentials();
   const key = process.env.DEEPSEEK_SELECTION_REDIS_KEY || 'warehouse:selection-budget:v1';
   if (!url || !token) return { denied: 'shared_store_unavailable' };
   const id = randomUUID();
